@@ -1,0 +1,6 @@
+@LocalMartOnline_HostAddress = http://localhost:5183
+
+GET {{LocalMartOnline_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

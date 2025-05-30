@@ -1,0 +1,52 @@
+# .NET
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+
+# Visual Studio
+.vs/
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+
+# NuGet
+*.nupkg
+# The packages folder can be ignored because of Package Restore
+**/packages/*
+!**/packages/build/
+!**/packages/repositories.config
+
+# Others
+*.log
+*.tlog
+*.cache
+*.pdb
+*.mdb
+*.dbmdl
+*.bak
+*.sql
+*.sqlite
+*.sdf
+*.suo
+*.userprefs
+*.user
+*.sln.docstates
+
+# OS generated files
+[Tt]humbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.DS_Store
+
+# Rider
+.idea/
+*.sln.iml 
