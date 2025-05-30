@@ -53,5 +53,47 @@
 ## 7. Service
 - **MongoDBService**: Quản lý kết nối và truy vấn collection MongoDB, giúp controller/repository lấy collection dễ dàng.
 
+## 8. Hướng dẫn quy trình làm việc với Git cho team
+
+### A. Các nhánh chính
+- **main**: Làm xong mới merge vào nên giờ là cứ để đây
+- **develop**: Chứa code mới nhất đã tích hợp từ các nhánh tính năng, là nơi test tổng hợp.
+
+### B. Nhánh cho từng tính năng/bugfix
+Mỗi thành viên khi làm một tính năng/bugfix sẽ tạo nhánh riêng từ develop, ví dụ:
+- `username/ten-tinh-nang`
+- `dat/user-authentication`
+
+### C. Quy trình làm việc chuẩn
+1. Clone repo về máy, checkout nhánh develop:
+```bash
+git clone <repository-url>
+git checkout develop
+```
+
+2. Tạo nhánh mới cho tính năng/bugfix:
+```bash
+git checkout -b username/ten-tinh-nang
+```
+
+3. Làm việc, commit, push lên GitHub:
+```bash
+git add .
+git commit -m "Mô tả rõ ràng về thay đổi"
+git push origin feature/ten-tinh-nang
+```
+
+4. Tạo Pull Request (PR) từ nhánh feature vào develop.
+5. Review code, test, rồi merge vào develop.
+6. Khi chuẩn bị release, leader sẽ merge develop vào main.
+
+### D. Lưu ý khi làm việc nhóm
+- Không commit trực tiếp lên main hoặc develop.
+- Luôn tạo PR để review code.
+- Thường xuyên pull develop về để tránh xung đột.
+- Đặt tên nhánh rõ ràng, có ý nghĩa.
+- Ghi chú rõ ràng trong commit message.
+
 ---
 **Mọi thắc mắc về cấu trúc hoặc cách mở rộng dự án, hãy đọc README này hoặc liên hệ leader dự án!** 
+
