@@ -7,6 +7,7 @@ using LocalMartOnline.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured");
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -22,7 +23,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 });
 
@@ -76,6 +77,8 @@ builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.User>>(sp =
     var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
     return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.User>(mongoService, "Users");
 });
+builder.Services.AddScoped<LocalMartOnline.Services.IAuthService, LocalMartOnline.Services.AuthService>();
+builder.Services.AddScoped<LocalMartOnline.Services.IEmailService, LocalMartOnline.Services.EmailService>();
 
 var app = builder.Build();
 
@@ -98,3 +101,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

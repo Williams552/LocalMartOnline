@@ -7,6 +7,7 @@ using System.Text;
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs;
 using LocalMartOnline.Repositories;
+using LocalMartOnline.Services;
 
 namespace LocalMartOnline.Controllers
 {
@@ -14,79 +15,64 @@ namespace LocalMartOnline.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly IGenericRepository<User> _userRepo;
-        private readonly IConfiguration _configuration;
+        private readonly IAuthService _authService;
 
-        public AuthController(IGenericRepository<User> userRepo, IConfiguration configuration)
+        public AuthController(IAuthService authService)
         {
-            _userRepo = userRepo;
-            _configuration = configuration;
+            _authService = authService;
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequestDTO loginDto)
         {
-            var users = await _userRepo.GetAllAsync();
-            var user = users.FirstOrDefault(u => u.Username == loginDto.Username);
-            if (user == null || !Services.PasswordHashService.VerifyPassword(loginDto.Password, user.PasswordHash))
+            var result = await _authService.LoginAsync(loginDto);
+            if (result == null)
                 return Unauthorized("Invalid credentials");
-
-            var token = GenerateJwtToken(user);
-            return Ok(new AuthResponseDTO
-            {
-                Token = token,
-                Role = user.Role,
-                Username = user.Username
-            });
-        }
-
-        private string GenerateJwtToken(User user)
-        {
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id ?? ""),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Role, user.Role)
-            };
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddHours(12),
-                signingCredentials: creds
-            );
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return Ok(result);
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDTO registerDto)
         {
-            var users = await _userRepo.GetAllAsync();
-            if (users.Any(u => u.Username == registerDto.Username))
-                return BadRequest("Username already exists");
-
-            if (users.Any(u => u.Email == registerDto.Email))
-                return BadRequest("Email already exists");
-
-            var newUser = new User
-            {
-                Username = registerDto.Username,
-                PasswordHash = Services.PasswordHashService.HashPassword(registerDto.Password),
-                Email = registerDto.Email,
-                FullName = registerDto.FullName,
-                PhoneNumber = registerDto.PhoneNumber,
-                Address = registerDto.Address,
-                Role = "Buyer", // Mặc định role là Buyer
-                Status = "Active",
-                IsEmailVerified = false,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            await _userRepo.CreateAsync(newUser);
+            var error = await _authService.RegisterAsync(registerDto);
+            if (error != null)
+                return BadRequest(error);
             return Ok(new { Message = "User registered successfully" });
+        }
+
+        [HttpGet("verify-email")]
+        public async Task<IActionResult> VerifyEmail([FromQuery] string token)
+        {
+            var result = await _authService.VerifyEmailAsync(token);
+            if (!result)
+                return BadRequest("Invalid or expired token");
+            return Ok(new { Message = "Email verified successfully" });
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDTO dto)
+        {
+            await _authService.ForgotPasswordAsync(dto.Email);
+            return Ok(new { Message = "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi." });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDTO dto)
+        {
+            var result = await _authService.ResetPasswordAsync(dto.Token, dto.NewPassword);
+            if (!result) return BadRequest("Token không hợp lệ hoặc đã hết hạn.");
+            return Ok(new { Message = "Đặt lại mật khẩu thành công." });
+        }
+
+        [HttpPost("change-password")]
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDTO dto)
+        {
+            var userId = User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null) return Unauthorized();
+            var result = await _authService.ChangePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
+            if (!result) return BadRequest("Mật khẩu hiện tại không đúng hoặc có lỗi.");
+            return Ok(new { Message = "Đổi mật khẩu thành công." });
         }
     }
 }

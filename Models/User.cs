@@ -9,9 +9,6 @@ namespace LocalMartOnline.Models
         [BsonRepresentation(BsonType.ObjectId)]
         public string? Id { get; set; }
 
-        [BsonElement("user_id")]
-        public int UserId { get; set; }
-
         [BsonElement("username")]
         public string Username { get; set; } = string.Empty;
 
@@ -61,5 +58,12 @@ namespace LocalMartOnline.Models
         [BsonElement("updated_at")]
         [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
         public DateTime? UpdatedAt { get; set; }
+
+        [BsonElement("otp_token")]
+        public string? OTPToken { get; set; }
+
+        [BsonElement("otp_expiry")]
+        [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+        public DateTime? OTPExpiry { get; set; }
     }
-} 
+}
