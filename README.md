@@ -94,6 +94,15 @@ git push origin feature/ten-tinh-nang
 - Đặt tên nhánh rõ ràng, có ý nghĩa.
 - Ghi chú rõ ràng trong commit message.
 
+## 9. Tài khoản test hệ thống
+
+| Username   | Password       | Role   |
+|------------|----------------|--------|
+| buyer01    | 123456         | Buyer  |
+| admin01    | 123456         | Admin  |
+
+> Có thể đăng ký thêm tài khoản test mới qua endpoint `/api/Auth/register` (role mặc định là Buyer).
+
 ---
-**Mọi thắc mắc về cấu trúc hoặc cách mở rộng dự án, hãy đọc README này hoặc liên hệ leader dự án!** 
+**Mọi thắc mắc về cấu trúc hoặc cách mở rộng dự án, hãy đọc README này hoặc liên hệ leader dự án!**
 
