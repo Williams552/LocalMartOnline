@@ -11,11 +11,11 @@ namespace LocalMartOnline.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly IGenericRepository<User> _userRepo;
+        private readonly IRepository<User> _userRepo;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
 
-        public AuthService(IGenericRepository<User> userRepo, IConfiguration configuration, IEmailService emailService)
+        public AuthService(IRepository<User> userRepo, IConfiguration configuration, IEmailService emailService)
         {
             _userRepo = userRepo;
             _configuration = configuration;

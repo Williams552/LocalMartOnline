@@ -10,8 +10,8 @@
   - `User.cs`: Định nghĩa cấu trúc dữ liệu người dùng, ánh xạ với collection `users` trong MongoDB
   - `MongoDBSettings.cs`: Class cấu hình kết nối MongoDB (nếu dùng kiểu binding config)
 - **Repositories/**: Chứa các class thao tác dữ liệu (repository)
-  - `IGenericRepository.cs`: Interface generic cho các thao tác CRUD
-  - `GenericRepository.cs`: Cài đặt repository generic cho MongoDB
+  - `IRepository.cs`: Interface generic cho các thao tác CRUD
+  - `Repository.cs`: Cài đặt repository generic cho MongoDB
 - **Services/**: Chứa các service dùng chung
   - `MongoDBService.cs`: Service quản lý kết nối và truy vấn collection MongoDB
 - **appsettings.json**: File cấu hình ứng dụng (connection string, logging, ...)
@@ -33,7 +33,7 @@
   builder.Services.AddSingleton<IMongoClient>(...);
   builder.Services.AddSingleton<IMongoDatabase>(...);
   builder.Services.AddScoped<MongoDBService>();
-  builder.Services.AddScoped<IGenericRepository<User>>(...);
+  builder.Services.AddScoped<IRepository<User>>(...);
   ```
 - Các service này sẽ được inject vào controller hoặc repository khi cần sử dụng.
 

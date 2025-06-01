@@ -72,13 +72,14 @@ builder.Services.AddSingleton(sp => {
     return client.GetDatabase(dbName);
 });
 builder.Services.AddScoped<LocalMartOnline.Services.MongoDBService>();
-builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.User>>(sp =>
+builder.Services.AddScoped<IRepository<LocalMartOnline.Models.User>>(sp =>
 {
     var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.User>(mongoService, "Users");
+    return new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.User>(mongoService, "Users");
 });
 builder.Services.AddScoped<LocalMartOnline.Services.IAuthService, LocalMartOnline.Services.AuthService>();
 builder.Services.AddScoped<LocalMartOnline.Services.IEmailService, LocalMartOnline.Services.EmailService>();
+builder.Services.AddScoped<LocalMartOnline.Services.IUserService, LocalMartOnline.Services.UserService>();
 
 var app = builder.Build();
 
@@ -103,3 +104,4 @@ app.MapControllers();
 app.Run();
 
 public partial class Program { }
+// Đã loại bỏ UserCrudService và UserCrudController, chỉ sử dụng UserService/IUserService cho CRUD user.

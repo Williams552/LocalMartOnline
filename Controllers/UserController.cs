@@ -8,9 +8,9 @@ namespace LocalMartOnline.Controllers
     [Route("api/[controller]")]
     public class UserController : ControllerBase
     {
-        private readonly IGenericRepository<User> _userRepo;
+        private readonly IRepository<User> _userRepo;
 
-        public UserController(IGenericRepository<User> userRepo)
+        public UserController(IRepository<User> userRepo)
         {
             _userRepo = userRepo;
         }
@@ -30,6 +30,46 @@ namespace LocalMartOnline.Controllers
             var username = User.Identity?.Name;
             var role = User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
             return Ok(new { Message = $"Authenticated as {username}", Role = role });
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
+        {
+            if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
+                return BadRequest("Invalid id format");
+            var user = await _userRepo.GetByIdAsync(id);
+            if (user == null) return NotFound();
+            return Ok(user);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(User user)
+        {
+            await _userRepo.CreateAsync(user);
+            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(string id, User user)
+        {
+            if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
+                return BadRequest("Invalid id format");
+            var existing = await _userRepo.GetByIdAsync(id);
+            if (existing == null) return NotFound();
+            user.Id = id;
+            await _userRepo.UpdateAsync(id, user);
+            return NoContent();
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(string id)
+        {
+            if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
+                return BadRequest("Invalid id format");
+            var existing = await _userRepo.GetByIdAsync(id);
+            if (existing == null) return NotFound();
+            await _userRepo.DeleteAsync(id);
+            return NoContent();
         }
     }
 }

@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace LocalMartOnline.Repositories
 {
-    public class GenericRepository<T> : IGenericRepository<T>
+    public class Repository<T> : IRepository<T>
     {
         private readonly IMongoCollection<T> _collection;
 
-        public GenericRepository(MongoDBService mongoDBService, string collectionName)
+        public Repository(MongoDBService mongoDBService, string collectionName)
         {
             _collection = mongoDBService.GetCollection<T>(collectionName);
         }
@@ -43,4 +43,4 @@ namespace LocalMartOnline.Repositories
             await _collection.DeleteOneAsync(filter);
         }
     }
-} 
+}
