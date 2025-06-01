@@ -24,17 +24,14 @@ namespace LocalMartOnline.Services
 
         public async Task<AuthResponseDTO?> LoginAsync(LoginRequestDTO loginDto)
         {
-            var users = await _userRepo.GetAllAsync();
-            var user = users.FirstOrDefault(u => u.Username == loginDto.Username);
-            if (user == null
-            || !PasswordHashService.VerifyPassword(loginDto.Password, user.PasswordHash)
-            || !user.IsEmailVerified)
+            var user = await _userRepo.FindOneAsync(u => u.Username == loginDto.Username);
+            if (user == null || !PasswordHashService.VerifyPassword(loginDto.Password, user.PasswordHash))
                 return null;
-
-            var token = GenerateJwtToken(user);
+            if (!user.IsEmailVerified)
+                throw new InvalidOperationException("Email chưa xác thực");
             return new AuthResponseDTO
             {
-                Token = token,
+                Token = GenerateJwtToken(user),
                 Role = user.Role,
                 Username = user.Username
             };
@@ -42,14 +39,15 @@ namespace LocalMartOnline.Services
 
         public async Task<string?> RegisterAsync(RegisterDTO registerDto)
         {
-            var users = await _userRepo.GetAllAsync();
-            if (users.Any(u => u.Username == registerDto.Username))
+            var existingByUsername = await _userRepo.FindOneAsync(u => u.Username == registerDto.Username);
+            if (existingByUsername != null)
                 return "Username already exists";
-            if (users.Any(u => u.Email == registerDto.Email))
+            var existingByEmail = await _userRepo.FindOneAsync(u => u.Email == registerDto.Email);
+            if (existingByEmail != null)
                 return "Email already exists";
 
             var otpToken = Guid.NewGuid().ToString();
-            var otpExpiry = DateTime.UtcNow.AddHours(24); // OTP hết hạn sau 24h
+            var otpExpiry = DateTime.UtcNow.AddHours(24);
             var newUser = new User
             {
                 Username = registerDto.Username,
@@ -79,8 +77,7 @@ namespace LocalMartOnline.Services
 
         public async Task<bool> VerifyEmailAsync(string token)
         {
-            var users = await _userRepo.GetAllAsync();
-            var user = users.FirstOrDefault(u => u.OTPToken == token && u.OTPExpiry != null && u.OTPExpiry > DateTime.UtcNow);
+            var user = await _userRepo.FindOneAsync(u => u.OTPToken == token && u.OTPExpiry != null && u.OTPExpiry > DateTime.UtcNow);
             if (user == null) return false;
             user.IsEmailVerified = true;
             user.OTPToken = null;
@@ -92,8 +89,7 @@ namespace LocalMartOnline.Services
 
         public async Task ForgotPasswordAsync(string email)
         {
-            var users = await _userRepo.GetAllAsync();
-            var user = users.FirstOrDefault(u => u.Email == email);
+            var user = await _userRepo.FindOneAsync(u => u.Email == email);
             if (user == null) return;
             var otpToken = Guid.NewGuid().ToString();
             var otpExpiry = DateTime.UtcNow.AddHours(1); // OTP hết hạn sau 1h
@@ -109,8 +105,7 @@ namespace LocalMartOnline.Services
 
         public async Task<bool> ResetPasswordAsync(string token, string newPassword)
         {
-            var users = await _userRepo.GetAllAsync();
-            var user = users.FirstOrDefault(u => u.OTPToken == token && u.OTPExpiry != null && u.OTPExpiry > DateTime.UtcNow);
+            var user = await _userRepo.FindOneAsync(u => u.OTPToken == token && u.OTPExpiry != null && u.OTPExpiry > DateTime.UtcNow);
             if (user == null) return false;
             user.PasswordHash = PasswordHashService.HashPassword(newPassword);
             user.OTPToken = null;
@@ -122,8 +117,7 @@ namespace LocalMartOnline.Services
 
         public async Task<bool> ChangePasswordAsync(string userId, string currentPassword, string newPassword)
         {
-            var users = await _userRepo.GetAllAsync();
-            var user = users.FirstOrDefault(u => u.Id == userId);
+            var user = await _userRepo.FindOneAsync(u => u.Id == userId);
             if (user == null) return false;
             if (!PasswordHashService.VerifyPassword(currentPassword, user.PasswordHash)) return false;
             user.PasswordHash = PasswordHashService.HashPassword(newPassword);

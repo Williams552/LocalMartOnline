@@ -18,15 +18,6 @@ namespace LocalMartOnline.Controllers
             _mongoDBService = mongoDBService;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> Get()
-        {
-            // Ví dụ: Lấy tất cả documents từ collection "your_collection"
-            var collection = _mongoDBService.GetCollection<object>("users");
-            var documents = await collection.Find(_ => true).ToListAsync();
-            return Ok(documents);
-        }
-
         [HttpGet("test-connection")]
         public IActionResult TestConnection()
         {

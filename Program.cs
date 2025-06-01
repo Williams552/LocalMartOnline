@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using MongoDB.Driver;
-using LocalMartOnline.Repositories;
-using LocalMartOnline.Models;
+using LocalMartOnline.Services;
 var builder = WebApplication.CreateBuilder(args);
+
+// Load appsettings.Local.json nếu tồn tại
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured");
@@ -27,11 +28,11 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Add services to the container.
-
+// Add services to the container
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
+
+// Swagger config
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "LocalMartOnline API", Version = "v1" });
@@ -59,27 +60,16 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// MongoDB DI
-builder.Services.AddSingleton(sp => {
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var connectionString = configuration["MongoDB:ConnectionString"];
-    return new MongoDB.Driver.MongoClient(connectionString);
-});
-builder.Services.AddSingleton(sp => {
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var client = sp.GetRequiredService<MongoDB.Driver.MongoClient>();
-    var dbName = configuration["MongoDB:DatabaseName"];
-    return client.GetDatabase(dbName);
-});
-builder.Services.AddScoped<LocalMartOnline.Services.MongoDBService>();
-builder.Services.AddScoped<IRepository<LocalMartOnline.Models.User>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.User>(mongoService, "Users");
-});
-builder.Services.AddScoped<LocalMartOnline.Services.IAuthService, LocalMartOnline.Services.AuthService>();
-builder.Services.AddScoped<LocalMartOnline.Services.IEmailService, LocalMartOnline.Services.EmailService>();
-builder.Services.AddScoped<LocalMartOnline.Services.IUserService, LocalMartOnline.Services.UserService>();
+// MongoDB & Repository DI
+builder.Services.AddMongoDbAndRepositories();
+
+// Application Services
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IUserService, UserService>();
+
+// AutoMapper
+builder.Services.AddAutoMapper(typeof(MappingService).Assembly);
 
 var app = builder.Build();
 
@@ -102,6 +92,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-public partial class Program { }
-// Đã loại bỏ UserCrudService và UserCrudController, chỉ sử dụng UserService/IUserService cho CRUD user.

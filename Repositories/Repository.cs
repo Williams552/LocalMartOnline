@@ -3,6 +3,7 @@ using MongoDB.Bson;
 using LocalMartOnline.Services;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Linq.Expressions;
 
 namespace LocalMartOnline.Repositories
 {
@@ -41,6 +42,16 @@ namespace LocalMartOnline.Repositories
         {
             var filter = Builders<T>.Filter.Eq("_id", ObjectId.Parse(id));
             await _collection.DeleteOneAsync(filter);
+        }
+
+        public async Task<T?> FindOneAsync(Expression<System.Func<T, bool>> filter)
+        {
+            return await _collection.Find(filter).FirstOrDefaultAsync();
+        }
+
+        public async Task<IEnumerable<T>> FindManyAsync(Expression<System.Func<T, bool>> filter)
+        {
+            return await _collection.Find(filter).ToListAsync();
         }
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -23,15 +24,24 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginRequestDTO loginDto)
         {
-            var result = await _authService.LoginAsync(loginDto);
-            if (result == null)
-                return Unauthorized("Invalid credentials");
-            return Ok(result);
+            try
+            {
+                var result = await _authService.LoginAsync(loginDto);
+                if (result == null)
+                    return Unauthorized("Invalid credentials");
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex) when (ex.Message == "Email chưa xác thực")
+            {
+                return BadRequest("Email chưa xác thực. Vui lòng kiểm tra email để xác thực tài khoản.");
+            }
         }
 
         [HttpPost("register")]
+        [AllowAnonymous]
         public async Task<IActionResult> Register([FromBody] RegisterDTO registerDto)
         {
             var error = await _authService.RegisterAsync(registerDto);
@@ -41,6 +51,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet("verify-email")]
+        [AllowAnonymous]
         public async Task<IActionResult> VerifyEmail([FromQuery] string token)
         {
             var result = await _authService.VerifyEmailAsync(token);
@@ -50,6 +61,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("forgot-password")]
+        [AllowAnonymous]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDTO dto)
         {
             await _authService.ForgotPasswordAsync(dto.Email);
@@ -57,6 +69,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("reset-password")]
+        [AllowAnonymous]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDTO dto)
         {
             var result = await _authService.ResetPasswordAsync(dto.Token, dto.NewPassword);
@@ -65,7 +78,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("change-password")]
-        [Microsoft.AspNetCore.Authorization.Authorize]
+        [Authorize]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDTO dto)
         {
             var userId = User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

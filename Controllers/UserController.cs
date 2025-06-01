@@ -1,6 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Models;
+using LocalMartOnline.Services;
+using LocalMartOnline.Models.DTOs;
+using AutoMapper;
 
 namespace LocalMartOnline.Controllers
 {
@@ -9,10 +14,14 @@ namespace LocalMartOnline.Controllers
     public class UserController : ControllerBase
     {
         private readonly IRepository<User> _userRepo;
+        private readonly IUserService _userService;
+        private readonly IMapper _mapper;
 
-        public UserController(IRepository<User> userRepo)
+        public UserController(IRepository<User> userRepo, IUserService userService, IMapper mapper)
         {
             _userRepo = userRepo;
+            _userService = userService;
+            _mapper = mapper;
         }
 
         [HttpGet]
@@ -20,16 +29,8 @@ namespace LocalMartOnline.Controllers
         public async Task<IActionResult> GetAll()
         {
             var users = await _userRepo.GetAllAsync();
-            return Ok(users);
-        }
-
-        [HttpGet("test-auth")]
-        [Microsoft.AspNetCore.Authorization.Authorize]
-        public IActionResult TestAuth()
-        {
-            var username = User.Identity?.Name;
-            var role = User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
-            return Ok(new { Message = $"Authenticated as {username}", Role = role });
+            var userDtos = users.Select(u => _mapper.Map<RegisterDTO>(u));
+            return Ok(userDtos);
         }
 
         [HttpGet("{id}")]
@@ -39,25 +40,38 @@ namespace LocalMartOnline.Controllers
                 return BadRequest("Invalid id format");
             var user = await _userRepo.GetByIdAsync(id);
             if (user == null) return NotFound();
-            return Ok(user);
+            var userDto = _mapper.Map<RegisterDTO>(user);
+            return Ok(userDto);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(User user)
+        public async Task<IActionResult> Create(RegisterDTO userDto)
         {
+            var user = _mapper.Map<User>(userDto);
             await _userRepo.CreateAsync(user);
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
+            return CreatedAtAction(nameof(GetById), new { id = user.Id }, userDto);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(string id, User user)
+        [Authorize]
+        public async Task<IActionResult> Update(string id, [FromBody] RegisterDTO updateUserDto)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
                 return BadRequest("Invalid id format");
+
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var isAdmin = User.IsInRole("Admin");
+            if (currentUserId != id && !isAdmin)
+                return Forbid();
+
             var existing = await _userRepo.GetByIdAsync(id);
             if (existing == null) return NotFound();
-            user.Id = id;
-            await _userRepo.UpdateAsync(id, user);
+
+            // Map các trường cho phép cập nhật
+            _mapper.Map(updateUserDto, existing);
+            existing.UpdatedAt = DateTime.UtcNow;
+
+            await _userRepo.UpdateAsync(id, existing);
             return NoContent();
         }
 
