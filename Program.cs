@@ -1,32 +1,43 @@
-using MongoDB.Driver;
-using LocalMartOnline.Repositories;
-using LocalMartOnline.Models;
+using System.Text;
+using LocalMartOnline.Services;
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Load appsettings.Local.json nếu tồn tại
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
+// Add services to the container
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
-// MongoDB DI
-builder.Services.AddSingleton(sp => {
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var connectionString = configuration["MongoDB:ConnectionString"];
-    return new MongoDB.Driver.MongoClient(connectionString);
-});
-builder.Services.AddSingleton(sp => {
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var client = sp.GetRequiredService<MongoDB.Driver.MongoClient>();
-    var dbName = configuration["MongoDB:DatabaseName"];
-    return client.GetDatabase(dbName);
-});
-builder.Services.AddScoped<LocalMartOnline.Services.MongoDBService>();
-builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.User>>(sp =>
+// Đăng ký NotificationService
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
+// Swagger config
+builder.Services.AddSwaggerGen(c =>
 {
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.User>(mongoService, "Users");
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "LocalMartOnline API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
 });
 
 var app = builder.Build();
@@ -35,11 +46,16 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "LocalMartOnline API V1");
+        c.RoutePrefix = string.Empty; // Đặt swagger làm trang mặc định
+    });
 }
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
