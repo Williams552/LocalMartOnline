@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using LocalMartOnline.Services;
+using LocalMartOnline.Repositories;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Load appsettings.Local.json nếu tồn tại
@@ -32,8 +34,11 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Đăng ký NotificationService
+// Đăng ký NotificationService và IRepository<User> cho DI
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IRepository<LocalMartOnline.Models.User>>(provider =>
+    new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.User>(
+        provider.GetRequiredService<MongoDBService>(), "User"));
 
 // Swagger config
 builder.Services.AddSwaggerGen(c =>

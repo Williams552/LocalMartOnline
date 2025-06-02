@@ -65,5 +65,8 @@ namespace LocalMartOnline.Models
         [BsonElement("otp_expiry")]
         [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
         public DateTime? OTPExpiry { get; set; }
+
+        [BsonElement("user_token")]
+        public string? UserToken { get; set; }
     }
 }

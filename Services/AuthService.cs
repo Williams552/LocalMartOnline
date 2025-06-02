@@ -29,6 +29,13 @@ namespace LocalMartOnline.Services
                 return null;
             if (!user.IsEmailVerified)
                 throw new InvalidOperationException("Email chưa xác thực");
+            // Cập nhật userToken nếu có gửi lên và khác với DB
+            if (!string.IsNullOrEmpty(loginDto.UserToken) && user.UserToken != loginDto.UserToken)
+            {
+                user.UserToken = loginDto.UserToken;
+                user.UpdatedAt = DateTime.UtcNow;
+                await _userRepo.UpdateAsync(user.Id!, user);
+            }
             return new AuthResponseDTO
             {
                 Token = GenerateJwtToken(user),
@@ -62,7 +69,8 @@ namespace LocalMartOnline.Services
                 OTPToken = otpToken,
                 OTPExpiry = otpExpiry,
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = DateTime.UtcNow,
+                UserToken = registerDto.UserToken // Lưu userToken khi đăng ký
             };
             await _userRepo.CreateAsync(newUser);
 
