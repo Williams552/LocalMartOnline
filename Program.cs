@@ -32,6 +32,9 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+// Đăng ký NotificationService
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
 // Swagger config
 builder.Services.AddSwaggerGen(c =>
 {
