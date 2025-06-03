@@ -1,6 +1,7 @@
 using MongoDB.Driver;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Models;
+using LocalMartOnline.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -28,6 +29,7 @@ builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.User>>(sp =
     var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
     return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.User>(mongoService, "Users");
 });
+builder.Services.AddScoped<IVnPayService, VnPayService>();
 
 var app = builder.Build();
 
