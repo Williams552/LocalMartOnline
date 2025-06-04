@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace LocalMartOnline.Repositories
 {
-    public class GenericRepository<T> : IGenericRepository<T>
+    public class GenericRepository<T> : IRepository<T>
     {
         private readonly IMongoCollection<T> _collection;
 

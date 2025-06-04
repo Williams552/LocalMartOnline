@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace LocalMartOnline.Repositories
 {
-    public interface IGenericRepository<T>
+    public interface IRepository<T>
     {
         Task<IEnumerable<T>> GetAllAsync();
         Task<T?> GetByIdAsync(string id);
