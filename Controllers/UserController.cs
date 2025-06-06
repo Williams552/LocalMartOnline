@@ -25,12 +25,24 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet]
-        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetAll()
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null,
+            [FromQuery] string? role = null,
+            [FromQuery] string? sortField = null,
+            [FromQuery] string? sortOrder = "asc")
         {
-            var users = await _userRepo.GetAllAsync();
+            var (users, total) = await _userService.GetUsersPagingAsync(pageNumber, pageSize, search, role, sortField, sortOrder);
             var userDtos = users.Select(u => _mapper.Map<RegisterDTO>(u));
-            return Ok(userDtos);
+            return Ok(new
+            {
+                Total = total,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Data = userDtos
+            });
         }
 
         [HttpGet("{id}")]

@@ -134,6 +134,48 @@ namespace LocalMartOnline.Services
             return true;
         }
 
+        public async Task<bool> Send2FACodeAsync(string email)
+        {
+            var user = await _userRepo.FindOneAsync(u => u.Email == email && u.IsEmailVerified);
+            if (user == null) return false;
+            var otp = new Random().Next(100000, 999999).ToString();
+            user.OTPToken = otp;
+            user.OTPExpiry = DateTime.UtcNow.AddMinutes(5);
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepo.UpdateAsync(user.Id!, user);
+            var subject = "Mã xác thực 2 bước LocalMartOnline";
+            var body = $"<p>Mã xác thực 2 bước của bạn là: <b>{otp}</b>. Mã có hiệu lực trong 5 phút.</p>";
+            await _emailService.SendEmailAsync(user.Email, subject, body);
+            return true;
+        }
+
+        public async Task<bool> Verify2FACodeAsync(string email, string otpCode)
+        {
+            var user = await _userRepo.FindOneAsync(u => u.Email == email && u.IsEmailVerified);
+            if (user == null || user.OTPToken != otpCode || user.OTPExpiry == null || user.OTPExpiry < DateTime.UtcNow)
+                return false;
+            user.OTPToken = null;
+            user.OTPExpiry = null;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepo.UpdateAsync(user.Id!, user);
+            return true;
+        }
+
+        public async Task<User?> GetUserByUsernameAsync(string username)
+        {
+            return await _userRepo.FindOneAsync(u => u.Username == username);
+        }
+
+        public async Task<User?> GetUserByEmailAsync(string email)
+        {
+            return await _userRepo.FindOneAsync(u => u.Email == email);
+        }
+
+        public async Task<User?> GetUserByUsernameOrEmailAsync(string usernameOrEmail)
+        {
+            return await _userRepo.FindOneAsync(u => u.Username == usernameOrEmail || u.Email == usernameOrEmail);
+        }
+
         private string GenerateJwtToken(User user)
         {
             var claims = new[]
@@ -153,6 +195,11 @@ namespace LocalMartOnline.Services
                 signingCredentials: creds
             );
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public string GenerateJwtTokenFor2FA(User user)
+        {
+            return GenerateJwtToken(user);
         }
     }
 }

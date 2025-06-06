@@ -11,5 +11,12 @@ namespace LocalMartOnline.Services
         Task CreateAsync(User user);
         Task UpdateAsync(string id, User user);
         Task DeleteAsync(string id);
+        Task<(IEnumerable<User> Users, int Total)> GetUsersPagingAsync(
+            int pageNumber = 1,
+            int pageSize = 10,
+            string? search = null,
+            string? role = null,
+            string? sortField = null,
+            string? sortOrder = "asc");
     }
 }
