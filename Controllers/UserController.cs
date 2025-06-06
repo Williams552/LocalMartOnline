@@ -8,9 +8,9 @@ namespace LocalMartOnline.Controllers
     [Route("api/[controller]")]
     public class UserController : ControllerBase
     {
-        private readonly IGenericRepository<User> _userRepo;
+        private readonly IRepository<User> _userRepo;
 
-        public UserController(IGenericRepository<User> userRepo)
+        public UserController(IRepository<User> userRepo)
         {
             _userRepo = userRepo;
         }
