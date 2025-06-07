@@ -3,7 +3,6 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using LocalMartOnline.Services;
 using LocalMartOnline.Repositories;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Load appsettings.Local.json nếu tồn tại
@@ -29,6 +28,7 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 });
+builder.Services.AddScoped<IVnPayService, VnPayService>();
 
 // Add services to the container
 builder.Services.AddControllers();
