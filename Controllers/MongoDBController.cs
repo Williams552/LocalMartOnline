@@ -28,7 +28,9 @@ namespace LocalMartOnline.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = ex.Message, data = (object?)null });
+                // Log the exception details for server-side diagnostics
+                Console.Error.WriteLine($"[MongoDBController][TestConnection] Exception: {ex}");
+                return StatusCode(500, new { success = false, message = "An unexpected error occurred.", data = (object?)null });
             }
         }
     }

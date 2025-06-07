@@ -1,4 +1,5 @@
-// Các phương thức mở rộng để đăng ký MongoDB và repository vào DI container
+// Extension methods for registering MongoDB and repositories into the DI container
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Services;
@@ -39,7 +40,8 @@ namespace LocalMartOnline.Services
             });
             services.AddStackExchangeRedisCache(options =>
             {
-                options.Configuration = "localhost:6379"; // Update with your Redis connection string
+                var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
+                options.Configuration = configuration["Redis:ConnectionString"];
             });
             return services;
         }
