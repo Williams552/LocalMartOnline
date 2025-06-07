@@ -13,9 +13,9 @@ namespace LocalMartOnline.Services
         Task<bool> ChangePasswordAsync(string userId, string currentPassword, string newPassword);
         Task<bool> Send2FACodeAsync(string email);
         Task<bool> Verify2FACodeAsync(string email, string otpCode);
-        Task<User?> GetUserByUsernameAsync(string username);
-        Task<User?> GetUserByEmailAsync(string email);
-        Task<User?> GetUserByUsernameOrEmailAsync(string usernameOrEmail);
+        Task<UserDTO?> GetUserByUsernameAsync(string username);
+        Task<UserDTO?> GetUserByEmailAsync(string email);
+        Task<UserDTO?> GetUserByUsernameOrEmailAsync(string usernameOrEmail);
         string GenerateJwtTokenFor2FA(User user);
     }
 }

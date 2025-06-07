@@ -3,6 +3,7 @@ using LocalMartOnline.Repositories;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
+using MongoDB.Driver;
 
 namespace LocalMartOnline.Services
 {
@@ -32,33 +33,45 @@ namespace LocalMartOnline.Services
             string? sortField = null,
             string? sortOrder = "asc")
         {
-            IEnumerable<User> users = await _userRepo.GetAllAsync();
+            // Efficient MongoDB paging, filtering, sorting
+            var filterBuilder = MongoDB.Driver.Builders<User>.Filter;
+            var filter = filterBuilder.Empty;
             if (!string.IsNullOrEmpty(search))
-                users = users.Where(u => (u.Username?.Contains(search, System.StringComparison.OrdinalIgnoreCase) ?? false)
-                                 || (u.Email?.Contains(search, System.StringComparison.OrdinalIgnoreCase) ?? false)
-                                 || (u.FullName?.Contains(search, System.StringComparison.OrdinalIgnoreCase) ?? false));
+            {
+                var searchFilter = filterBuilder.Or(
+                    filterBuilder.Regex(u => u.Username, new MongoDB.Bson.BsonRegularExpression(search, "i")),
+                    filterBuilder.Regex(u => u.Email, new MongoDB.Bson.BsonRegularExpression(search, "i")),
+                    filterBuilder.Regex(u => u.FullName, new MongoDB.Bson.BsonRegularExpression(search, "i"))
+                );
+                filter &= searchFilter;
+            }
             if (!string.IsNullOrEmpty(role))
-                users = users.Where(u => u.Role == role);
+            {
+                filter &= filterBuilder.Eq(u => u.Role, role);
+            }
 
+            var sortBuilder = MongoDB.Driver.Builders<User>.Sort;
+            MongoDB.Driver.SortDefinition<User> sort = sortBuilder.Ascending(u => u.Username);
+            bool desc = sortOrder?.ToLower() == "desc";
             if (!string.IsNullOrEmpty(sortField))
             {
-                bool desc = sortOrder?.ToLower() == "desc";
-                users = sortField.ToLower() switch
+                switch (sortField.ToLower())
                 {
-                    "username" => desc ? users.OrderByDescending(u => u.Username) : users.OrderBy(u => u.Username),
-                    "email" => desc ? users.OrderByDescending(u => u.Email) : users.OrderBy(u => u.Email),
-                    "fullname" => desc ? users.OrderByDescending(u => u.FullName) : users.OrderBy(u => u.FullName),
-                    "createdat" => desc ? users.OrderByDescending(u => u.CreatedAt) : users.OrderBy(u => u.CreatedAt),
-                    _ => users.OrderBy(u => u.Username)
-                };
-            }
-            else
-            {
-                users = users.OrderBy(u => u.Username);
+                    case "username": sort = desc ? sortBuilder.Descending(u => u.Username) : sortBuilder.Ascending(u => u.Username); break;
+                    case "email": sort = desc ? sortBuilder.Descending(u => u.Email) : sortBuilder.Ascending(u => u.Email); break;
+                    case "fullname": sort = desc ? sortBuilder.Descending(u => u.FullName) : sortBuilder.Ascending(u => u.FullName); break;
+                    case "createdat": sort = desc ? sortBuilder.Descending(u => u.CreatedAt) : sortBuilder.Ascending(u => u.CreatedAt); break;
+                }
             }
 
-            var total = users.Count();
-            var pageData = users.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+            // Access the underlying IMongoCollection<User>
+            var collection = ((LocalMartOnline.Repositories.Repository<User>)_userRepo).GetCollection();
+            var total = (int)await collection.CountDocumentsAsync(filter);
+            var pageData = await collection.Find(filter)
+                .Sort(sort)
+                .Skip((pageNumber - 1) * pageSize)
+                .Limit(pageSize)
+                .ToListAsync();
             return (pageData, total);
         }
     }

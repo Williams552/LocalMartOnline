@@ -23,14 +23,13 @@ namespace LocalMartOnline.Controllers
         {
             try
             {
-                // Thử lấy danh sách collection
                 var collections = _database.ListCollectionNames().ToList();
-                return Ok(new { success = true, collections });
+                return Ok(new { success = true, message = "Kết nối MongoDB thành công", data = collections });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = ex.Message, data = (object?)null });
             }
         }
     }
-} 
+}

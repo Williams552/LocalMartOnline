@@ -6,6 +6,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 
 namespace LocalMartOnline.Services
 {
@@ -14,12 +16,16 @@ namespace LocalMartOnline.Services
         private readonly IRepository<User> _userRepo;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
+        private readonly IDistributedCache _cache;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IRepository<User> userRepo, IConfiguration configuration, IEmailService emailService)
+        public AuthService(IRepository<User> userRepo, IConfiguration configuration, IEmailService emailService, IDistributedCache cache, ILogger<AuthService> logger)
         {
             _userRepo = userRepo;
             _configuration = configuration;
             _emailService = emailService;
+            _cache = cache;
+            _logger = logger;
         }
 
         public async Task<AuthResponseDTO?> LoginAsync(LoginRequestDTO loginDto)
@@ -32,9 +38,20 @@ namespace LocalMartOnline.Services
             // Cập nhật userToken nếu có gửi lên và khác với DB
             if (!string.IsNullOrEmpty(loginDto.UserToken) && user.UserToken != loginDto.UserToken)
             {
-                user.UserToken = loginDto.UserToken;
-                user.UpdatedAt = DateTime.UtcNow;
-                await _userRepo.UpdateAsync(user.Id!, user);
+                // Validate UserToken before updating
+                if (!string.IsNullOrEmpty(loginDto.UserToken) && user.UserToken != loginDto.UserToken)
+                {
+                    // Example: UserToken must be 10-200 chars, alphanumeric (customize as needed)
+                    var token = loginDto.UserToken;
+                    bool isValidToken = token.Length >= 10 && token.Length <= 200 && token.All(char.IsLetterOrDigit);
+                    if (isValidToken)
+                    {
+                        user.UserToken = token;
+                        user.UpdatedAt = DateTime.UtcNow;
+                        await _userRepo.UpdateAsync(user.Id!, user);
+                    }
+                    // else: ignore invalid token, do not update
+                }
             }
             return new AuthResponseDTO
             {
@@ -136,9 +153,41 @@ namespace LocalMartOnline.Services
 
         public async Task<bool> Send2FACodeAsync(string email)
         {
+            // Rate limiting: allow max 5 requests per hour per email
+            var cacheKey = $"2fa-req:{email.ToLower()}";
+            var countString = await _cache.GetStringAsync(cacheKey);
+            int count = 0;
+            if (!string.IsNullOrEmpty(countString))
+                int.TryParse(countString, out count);
+
+            int maxRequests = 5;
+            if (count >= maxRequests)
+            {
+                // Optionally, implement exponential backoff by increasing expiry
+                // For now, just return false if limit exceeded
+                return false;
+            }
+
+            // Increment request count and set expiry (1 hour window)
+            count++;
+            var options = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
+            };
+            await _cache.SetStringAsync(cacheKey, count.ToString(), options);
+
             var user = await _userRepo.FindOneAsync(u => u.Email == email && u.IsEmailVerified);
             if (user == null) return false;
-            var otp = new Random().Next(100000, 999999).ToString();
+            // Generate secure 6-digit OTP
+            int otpInt;
+            using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+            {
+                var bytes = new byte[4];
+                rng.GetBytes(bytes);
+                otpInt = BitConverter.ToInt32(bytes, 0) & 0x7FFFFFFF; // ensure positive
+                otpInt = otpInt % 900000 + 100000; // 6 digits
+            }
+            var otp = otpInt.ToString();
             user.OTPToken = otp;
             user.OTPExpiry = DateTime.UtcNow.AddMinutes(5);
             user.UpdatedAt = DateTime.UtcNow;
@@ -152,28 +201,69 @@ namespace LocalMartOnline.Services
         public async Task<bool> Verify2FACodeAsync(string email, string otpCode)
         {
             var user = await _userRepo.FindOneAsync(u => u.Email == email && u.IsEmailVerified);
-            if (user == null || user.OTPToken != otpCode || user.OTPExpiry == null || user.OTPExpiry < DateTime.UtcNow)
+            if (user == null)
+            {
+                _logger.LogWarning("2FA verification failed: user not found or email not verified. Email: {Email}", email);
                 return false;
+            }
+            if (user.OTPToken != otpCode)
+            {
+                _logger.LogWarning("2FA verification failed: invalid OTP for Email: {Email}", email);
+                return false;
+            }
+            if (user.OTPExpiry == null || user.OTPExpiry < DateTime.UtcNow)
+            {
+                _logger.LogWarning("2FA verification failed: OTP expired for Email: {Email}", email);
+                return false;
+            }
             user.OTPToken = null;
             user.OTPExpiry = null;
             user.UpdatedAt = DateTime.UtcNow;
             await _userRepo.UpdateAsync(user.Id!, user);
+            _logger.LogInformation("2FA verification succeeded for UserId: {UserId}", user.Id);
             return true;
         }
 
-        public async Task<User?> GetUserByUsernameAsync(string username)
+        public async Task<UserDTO?> GetUserByUsernameAsync(string username)
         {
-            return await _userRepo.FindOneAsync(u => u.Username == username);
+            var user = await _userRepo.FindOneAsync(u => u.Username == username);
+            if (user == null) return null;
+            return new UserDTO
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email,
+                FullName = user.FullName,
+                Role = user.Role
+            };
         }
 
-        public async Task<User?> GetUserByEmailAsync(string email)
+        public async Task<UserDTO?> GetUserByEmailAsync(string email)
         {
-            return await _userRepo.FindOneAsync(u => u.Email == email);
+            var user = await _userRepo.FindOneAsync(u => u.Email == email);
+            if (user == null) return null;
+            return new UserDTO
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email,
+                FullName = user.FullName,
+                Role = user.Role
+            };
         }
 
-        public async Task<User?> GetUserByUsernameOrEmailAsync(string usernameOrEmail)
+        public async Task<UserDTO?> GetUserByUsernameOrEmailAsync(string usernameOrEmail)
         {
-            return await _userRepo.FindOneAsync(u => u.Username == usernameOrEmail || u.Email == usernameOrEmail);
+            var user = await _userRepo.FindOneAsync(u => u.Username == usernameOrEmail || u.Email == usernameOrEmail);
+            if (user == null) return null;
+            return new UserDTO
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email,
+                FullName = user.FullName,
+                Role = user.Role
+            };
         }
 
         private string GenerateJwtToken(User user)

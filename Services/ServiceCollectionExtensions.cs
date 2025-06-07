@@ -3,6 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Services;
 using LocalMartOnline.Models;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 
 namespace LocalMartOnline.Services
 {
@@ -34,6 +36,10 @@ namespace LocalMartOnline.Services
             services.AddScoped<IRepository<ProxyShopperRegistration>>(sp => {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<ProxyShopperRegistration>(mongoService, "ProxyShopperRegistrations");
+            });
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = "localhost:6379"; // Update with your Redis connection string
             });
             return services;
         }

@@ -33,7 +33,7 @@ namespace LocalMartOnline.Controllers
             registration.CreatedAt = DateTime.UtcNow;
             registration.UpdatedAt = DateTime.UtcNow;
             await _sellerRepo.CreateAsync(registration);
-            return Ok(new { Message = "Đăng ký seller thành công. Vui lòng chờ duyệt." });
+            return Ok(new { success = true, message = "Đăng ký seller thành công. Vui lòng chờ duyệt.", data = (object?)null });
         }
 
         [HttpGet("my")]
@@ -42,9 +42,9 @@ namespace LocalMartOnline.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var myReg = await _sellerRepo.FindOneAsync(r => r.UserId == userId);
-            if (myReg == null) return NotFound();
+            if (myReg == null) return NotFound(new { success = false, message = "Không tìm thấy đăng ký seller của bạn.", data = (object?)null });
             var dto = _mapper.Map<SellerRegistrationRequestDTO>(myReg);
-            return Ok(dto);
+            return Ok(new { success = true, message = "Lấy thông tin đăng ký seller thành công", data = dto });
         }
 
         [HttpGet]
@@ -53,7 +53,7 @@ namespace LocalMartOnline.Controllers
         {
             var regs = await _sellerRepo.GetAllAsync();
             var dtos = regs.Select(r => _mapper.Map<SellerRegistrationRequestDTO>(r));
-            return Ok(dtos);
+            return Ok(new { success = true, message = "Lấy danh sách đăng ký seller thành công", data = dtos });
         }
 
         [HttpPut("approve")]
@@ -61,12 +61,12 @@ namespace LocalMartOnline.Controllers
         public async Task<IActionResult> Approve([FromBody] SellerRegistrationApproveDTO dto)
         {
             var reg = await _sellerRepo.FindOneAsync(r => r.Id == dto.RegistrationId);
-            if (reg == null) return NotFound();
+            if (reg == null) return NotFound(new { success = false, message = "Không tìm thấy đăng ký seller.", data = (object?)null });
             reg.Status = dto.Approve ? "Approved" : "Rejected";
             reg.RejectionReason = dto.Approve ? null : dto.RejectionReason;
             reg.UpdatedAt = DateTime.UtcNow;
             await _sellerRepo.UpdateAsync(reg.Id!, reg);
-            return Ok(new { Message = "Cập nhật trạng thái đăng ký seller thành công." });
+            return Ok(new { success = true, message = "Cập nhật trạng thái đăng ký seller thành công.", data = (object?)null });
         }
 
         [HttpGet("profile/{userId}")]
@@ -74,9 +74,9 @@ namespace LocalMartOnline.Controllers
         public async Task<IActionResult> GetSellerProfile(string userId)
         {
             var reg = await _sellerRepo.FindOneAsync(r => r.UserId == userId && r.Status == "Approved");
-            if (reg == null) return NotFound();
+            if (reg == null) return NotFound(new { success = false, message = "Không tìm thấy seller profile.", data = (object?)null });
             var user = await _userRepo.FindOneAsync(u => u.Id == userId);
-            if (user == null) return NotFound();
+            if (user == null) return NotFound(new { success = false, message = "Không tìm thấy user.", data = (object?)null });
             var sellerProfile = new SellerProfileDTO
             {
                 StoreName = reg.StoreName,
@@ -86,7 +86,7 @@ namespace LocalMartOnline.Controllers
                 Username = user.Username,
                 AvatarUrl = user.AvatarUrl
             };
-            return Ok(sellerProfile);
+            return Ok(new { success = true, message = "Lấy seller profile thành công", data = sellerProfile });
         }
     }
 }

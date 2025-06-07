@@ -33,7 +33,7 @@ namespace LocalMartOnline.Controllers
             registration.CreatedAt = DateTime.UtcNow;
             registration.UpdatedAt = DateTime.UtcNow;
             await _proxyRepo.CreateAsync(registration);
-            return Ok(new { Message = "Đăng ký proxy shopper thành công. Vui lòng chờ duyệt." });
+            return Ok(new { success = true, message = "Đăng ký proxy shopper thành công. Vui lòng chờ duyệt.", data = (object?)null });
         }
 
         [HttpGet("my")]
@@ -42,9 +42,9 @@ namespace LocalMartOnline.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var myReg = await _proxyRepo.FindOneAsync(r => r.UserId == userId);
-            if (myReg == null) return NotFound();
+            if (myReg == null) return NotFound(new { success = false, message = "Không tìm thấy đăng ký proxy shopper của bạn.", data = (object?)null });
             var dto = _mapper.Map<ProxyShopperRegistrationRequestDTO>(myReg);
-            return Ok(dto);
+            return Ok(new { success = true, message = "Lấy thông tin đăng ký proxy shopper thành công", data = dto });
         }
 
         [HttpGet]
@@ -53,7 +53,7 @@ namespace LocalMartOnline.Controllers
         {
             var regs = await _proxyRepo.GetAllAsync();
             var dtos = regs.Select(r => _mapper.Map<ProxyShopperRegistrationRequestDTO>(r));
-            return Ok(dtos);
+            return Ok(new { success = true, message = "Lấy danh sách đăng ký proxy shopper thành công", data = dtos });
         }
 
         [HttpPut("approve")]
@@ -61,12 +61,12 @@ namespace LocalMartOnline.Controllers
         public async Task<IActionResult> Approve([FromBody] ProxyShopperRegistrationApproveDTO dto)
         {
             var reg = await _proxyRepo.FindOneAsync(r => r.Id == dto.RegistrationId);
-            if (reg == null) return NotFound();
+            if (reg == null) return NotFound(new { success = false, message = "Không tìm thấy đăng ký proxy shopper.", data = (object?)null });
             reg.Status = dto.Approve ? "Approved" : "Rejected";
             reg.RejectionReason = dto.Approve ? null : dto.RejectionReason;
             reg.UpdatedAt = DateTime.UtcNow;
             await _proxyRepo.UpdateAsync(reg.Id!, reg);
-            return Ok(new { Message = "Cập nhật trạng thái đăng ký proxy shopper thành công." });
+            return Ok(new { success = true, message = "Cập nhật trạng thái đăng ký proxy shopper thành công.", data = (object?)null });
         }
     }
 }

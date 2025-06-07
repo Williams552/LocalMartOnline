@@ -5,6 +5,7 @@ using System.Linq;
 using LocalMartOnline.Models;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Models.DTOs;
+using Microsoft.AspNetCore.Authorization;
 
 namespace LocalMartOnline.Controllers
 {
@@ -13,45 +14,53 @@ namespace LocalMartOnline.Controllers
     public class NotificationController : ControllerBase
     {
         private readonly INotificationService _notificationService;
-        private readonly IUserService _userService;
-        private readonly IRepository<User> _userRepo;
 
-        public NotificationController(INotificationService notificationService, IUserService userService, IRepository<User> userRepo)
+        public NotificationController(INotificationService notificationService)
         {
             _notificationService = notificationService;
-            _userService = userService;
-            _userRepo = userRepo;
         }
 
         [HttpPost("send")]
-        public async Task<IActionResult> SendNotification([FromBody] NotificationRequest request)
+        [Authorize]
+        public async Task<IActionResult> SendNotification([FromBody] NotificationRequestDTO request)
         {
-            if (string.IsNullOrEmpty(request.UserToken) || string.IsNullOrEmpty(request.Message))
+            if (request == null)
             {
-                return BadRequest("UserToken và Message là bắt buộc.");
+                return BadRequest(new { success = false, message = "Invalid payload.", data = (object?)null });
             }
-            await _notificationService.SendNotificationAsync(request.UserToken, request.Message);
-            return Ok("Notification sent!");
+            if (string.IsNullOrWhiteSpace(request.UserToken))
+            {
+                return BadRequest(new { success = false, message = "UserToken is required.", data = (object?)null });
+            }
+            if (string.IsNullOrWhiteSpace(request.Message))
+            {
+                return BadRequest(new { success = false, message = "Message is required.", data = (object?)null });
+            }
+            try
+            {
+                await _notificationService.SendNotificationAsync(request.UserToken, request.Message);
+                return Ok(new { success = true, message = "Notification sent successfully!", data = (object?)null });
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Failed to send notification: {ex.Message}", data = (object?)null });
+            }
         }
 
         [HttpPost("send-by-condition")]
+        [Authorize]
         public async Task<IActionResult> SendNotificationByCondition([FromBody] NotificationConditionRequestDTO request)
         {
+            if (string.IsNullOrEmpty(request.Message))
+            {
+                return BadRequest(new { success = false, message = "Message is required.", data = (object?)null });
+            }
             var sentCount = await _notificationService.SendNotificationByConditionAsync(request);
-            return Ok($"Đã gửi thông báo cho {sentCount} người dùng phù hợp.");
+            if (sentCount == 0)
+            {
+                return NotFound(new { success = false, message = "No matching users to send notification.", data = 0 });
+            }
+            return Ok(new { success = true, message = $"Notification sent to {sentCount} users.", data = sentCount });
         }
-    }
-
-    public class NotificationRequest
-    {
-        public string? UserToken { get; set; }
-        public string? Message { get; set; }
-    }
-
-    public class NotificationConditionRequest
-    {
-        public string? Role { get; set; }
-        public string? Status { get; set; }
-        public string Message { get; set; } = string.Empty;
     }
 }

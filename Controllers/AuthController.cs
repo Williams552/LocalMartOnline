@@ -27,6 +27,10 @@ namespace LocalMartOnline.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginRequestDTO loginDto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { success = false, message = "Invalid payload", data = (object?)null });
+            }
             try
             {
                 var loginResult = await _authService.LoginAsync(loginDto);
@@ -36,6 +40,10 @@ namespace LocalMartOnline.Controllers
                 var user = await _authService.GetUserByUsernameOrEmailAsync(loginDto.Username);
                 if (user != null && user.TwoFactorEnabled)
                 {
+                    if (string.IsNullOrEmpty(user.Email))
+                    {
+                        return BadRequest(new { success = false, message = "Tài khoản không có email để gửi mã xác thực 2 bước.", data = (object?)null });
+                    }
                     await _authService.Send2FACodeAsync(user.Email);
                     return Ok(new { success = true, message = "Vui lòng kiểm tra email để nhập mã xác thực 2 bước.", requires2FA = true, data = (object?)null });
                 }

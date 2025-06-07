@@ -2,8 +2,8 @@ namespace LocalMartOnline.Models.DTOs
 {
     public class NotificationRequestDTO
     {
-        public string? UserToken { get; set; }
-        public string? Message { get; set; }
+        public required string UserToken { get; set; }
+        public required string Message { get; set; }
     }
 
     public class NotificationConditionRequestDTO

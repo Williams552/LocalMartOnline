@@ -53,5 +53,11 @@ namespace LocalMartOnline.Repositories
         {
             return await _collection.Find(filter).ToListAsync();
         }
+
+        // Expose the underlying IMongoCollection<T> for advanced queries
+        public MongoDB.Driver.IMongoCollection<T> GetCollection()
+        {
+            return _collection;
+        }
     }
 }
