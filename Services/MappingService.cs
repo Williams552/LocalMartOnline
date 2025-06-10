@@ -3,6 +3,7 @@ using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs;
 using LocalMartOnline.Models.DTOs.Category; 
 using LocalMartOnline.Models.DTOs.CategoryRegistration;
+using LocalMartOnline.Models.DTOs.Order;
 using LocalMartOnline.Models.DTOs.Product;
 using LocalMartOnline.Models.DTOs.Store;
 
@@ -31,6 +32,14 @@ namespace LocalMartOnline.Services
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
             CreateMap<ProductCreateDto, Product>();
             CreateMap<ProductUpdateDto, Product>();
+
+            // Order
+            CreateMap<Order, OrderDto>()
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.PaymentStatus, opt => opt.MapFrom(src => src.PaymentStatus.ToString()));
+            CreateMap<OrderCreateDto, Order>();
+            CreateMap<OrderItem, OrderItemDto>();
+            CreateMap<OrderItemDto, OrderItem>();
         }
     }
 }
