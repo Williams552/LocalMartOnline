@@ -15,25 +15,24 @@ public class VnPayLibrary
 
     public PaymentResponseModel GetFullResponseData(IQueryCollection collection, string hashSecret)
     {
-        var vnPay = new VnPayLibrary();
-
+        // Use the current instance instead of creating a new one
         foreach (var (key, value) in collection)
         {
             if (!string.IsNullOrEmpty(key) && key.StartsWith("vnp_"))
             {
-                vnPay.AddResponseData(key, string.IsNullOrEmpty(value) ? string.Empty : value.ToString());
+                AddResponseData(key, string.IsNullOrEmpty(value) ? string.Empty : value.ToString());
             }
         }
 
-        var orderId = Convert.ToInt64(vnPay.GetResponseData("vnp_TxnRef"));
-        var vnPayTranId = Convert.ToInt64(vnPay.GetResponseData("vnp_TransactionNo"));
-        var vnpResponseCode = vnPay.GetResponseData("vnp_ResponseCode");
+        var orderId = Convert.ToInt64(GetResponseData("vnp_TxnRef"));
+        var vnPayTranId = Convert.ToInt64(GetResponseData("vnp_TransactionNo"));
+        var vnpResponseCode = GetResponseData("vnp_ResponseCode");
         var vnpSecureHash =
             collection.FirstOrDefault(k => k.Key == "vnp_SecureHash").Value; //hash của dữ liệu trả về
-        var orderInfo = vnPay.GetResponseData("vnp_OrderInfo");
+        var orderInfo = GetResponseData("vnp_OrderInfo");
 
         var checkSignature =
-            vnPay.ValidateSignature(string.IsNullOrEmpty(vnpSecureHash) ? string.Empty : vnpSecureHash.ToString(), hashSecret); //check Signature
+            ValidateSignature(string.IsNullOrEmpty(vnpSecureHash) ? string.Empty : vnpSecureHash.ToString(), hashSecret); //check Signature
 
         if (!checkSignature)
             return new PaymentResponseModel()
@@ -73,9 +72,10 @@ public class VnPayLibrary
                 return ipAddress;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return ex.Message;
+            // Do not leak exception details; return a safe default
+            return "127.0.0.1";
         }
 
         return "127.0.0.1";
