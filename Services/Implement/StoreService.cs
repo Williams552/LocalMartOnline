@@ -27,7 +27,7 @@ namespace LocalMartOnline.Services.Implement
         }
 
         // UC030: Open Store
-        public async Task<StoreDto> OpenStoreAsync(StoreCreateDto dto)
+        public async Task<StoreDto> CreateStoreAsync(StoreCreateDto dto)
         {
             var store = _mapper.Map<Store>(dto);
             store.Status = "Open";

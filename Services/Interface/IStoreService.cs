@@ -6,7 +6,7 @@ namespace LocalMartOnline.Services.Interface
 {
     public interface IStoreService
     {
-        Task<StoreDto> OpenStoreAsync(StoreCreateDto dto);
+        Task<StoreDto> CreateStoreAsync(StoreCreateDto dto);
         Task<bool> CloseStoreAsync(string id);
         Task<bool> UpdateStoreAsync(string id, StoreUpdateDto dto);
         Task<bool> FollowStoreAsync(long userId, long storeId);

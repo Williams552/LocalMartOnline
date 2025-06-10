@@ -26,7 +26,7 @@ namespace LocalMartOnline.Controllers
         [Authorize(Roles = "Seller")]
         public async Task<ActionResult<StoreDto>> OpenStore([FromBody] StoreCreateDto dto)
         {
-            var result = await _storeService.OpenStoreAsync(dto);
+            var result = await _storeService.CreateStoreAsync(dto);
             return CreatedAtAction(nameof(GetStoreProfile), new { id = result.Id }, result);
         }
 

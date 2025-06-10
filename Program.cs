@@ -68,6 +68,17 @@ builder.Services.AddScoped<IRepository<ProductImage>>(sp =>
     var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
     return new LocalMartOnline.Repositories.Repository<ProductImage>(mongoService, "ProductImages");
 });
+builder.Services.AddScoped<IRepository<Order>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.Repository<Order>(mongoService, "Orders");
+});
+builder.Services.AddScoped<IRepository<OrderItem>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.Repository<OrderItem>(mongoService, "OrderItems");
+});
+builder.Services.AddScoped<LocalMartOnline.Services.Interface.IOrderService, LocalMartOnline.Services.Implement.OrderService>();
 builder.Services.AddScoped<LocalMartOnline.Services.Interface.IProductService, LocalMartOnline.Services.Implement.ProductService>();
 builder.Services.AddScoped<LocalMartOnline.Services.Interface.IStoreService, LocalMartOnline.Services.Implement.StoreService>();
 builder.Services.AddScoped<LocalMartOnline.Services.Interface.ICategoryService, LocalMartOnline.Services.Implement.CategoryService>();
