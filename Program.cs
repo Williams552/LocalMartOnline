@@ -1,6 +1,7 @@
 using MongoDB.Driver;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Models;
+using LocalMartOnline.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -28,6 +29,28 @@ builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.User>>(sp =
     var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
     return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.User>(mongoService, "Users");
 });
+
+// Add Cart repositories
+builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Cart>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Cart>(mongoService, "Carts");
+});
+
+builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.CartItem>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.CartItem>(mongoService, "CartItems");
+});
+
+builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Product>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Product>(mongoService, "Products");
+});
+
+// Add CartService
+builder.Services.AddScoped<ICartService, LocalMartOnline.Services.CartService>();
 
 var app = builder.Build();
 
