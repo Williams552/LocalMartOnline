@@ -136,5 +136,47 @@ namespace LocalMartOnline.Controllers
             if (product == null) return NotFound();
             return Ok(product);
         }
+
+        // UC025: View All Store
+        [HttpGet("all")]
+        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        public async Task<ActionResult<PagedResultDto<StoreDto>>> GetAllStores(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var result = await _storeService.GetAllStoresAsync(page, pageSize);
+            return Ok(result);
+        }
+
+        // UC026: View Suspended Store
+        [HttpGet("suspended-list")]
+        [Authorize(Roles = "Admin,MarketManagementBoardHead,LocalGovernmentRepresentative")]
+        public async Task<ActionResult<PagedResultDto<StoreDto>>> GetSuspendedStores(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var result = await _storeService.GetSuspendedStoresAsync(page, pageSize);
+            return Ok(result);
+        }
+
+        // UC027: Suspend Store
+        [HttpPatch("{id}/suspend")]
+        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        public async Task<IActionResult> SuspendStore(string id, [FromBody] SuspendStoreDto dto)
+        {
+            var result = await _storeService.SuspendStoreAsync(id, dto.Reason);
+            if (!result) return NotFound();
+            return NoContent();
+        }
+
+        // UC028: Reactivate Store
+        [HttpPatch("{id}/reactivate")]
+        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        public async Task<IActionResult> ReactivateStore(string id)
+        {
+            var result = await _storeService.ReactivateStoreAsync(id);
+            if (!result) return NotFound();
+            return NoContent();
+        }
     }
 }

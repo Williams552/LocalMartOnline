@@ -76,6 +76,22 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
+
+// FAQ and PlatformPolicy
+builder.Services.AddScoped<IRepository<LocalMartOnline.Models.Faq>>(provider =>
+    new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.Faq>(
+        provider.GetRequiredService<MongoDBService>(), "Faqs"));
+builder.Services.AddScoped<LocalMartOnline.Services.Interface.IFaqService, LocalMartOnline.Services.Implement.FaqService>();
+
+builder.Services.AddScoped<IRepository<LocalMartOnline.Models.PlatformPolicy>>(provider =>
+    new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.PlatformPolicy>(
+        provider.GetRequiredService<MongoDBService>(), "PlatformPolicies"));
+builder.Services.AddScoped<LocalMartOnline.Services.Interface.IPlatformPolicyService, LocalMartOnline.Services.Implement.PlatformPolicyService>();
+
+// Market 
+builder.Services.AddScoped<IRepository<LocalMartOnline.Models.Market>>(provider =>
+    new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.Market>(
+        provider.GetRequiredService<MongoDBService>(), "Markets"));
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingService).Assembly);
 

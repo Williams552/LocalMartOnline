@@ -97,7 +97,13 @@ namespace LocalMartOnline.Services.Implement
         public async Task<PagedResultDto<ProductDto>> GetAllProductsAsync(int page, int pageSize)
         {
             var products = await _productRepo.GetAllAsync();
-            var productList = products.Where(p => p.Status == ProductStatus.Active).ToList();
+            var stores = await _storeRepo.GetAllAsync();
+            var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id));
+
+            var productList = products
+                .Where(p => p.Status == ProductStatus.Active && activeStoreIds.Contains(p.StoreId))
+                .ToList();
+
             var total = productList.Count();
             var paged = productList.Skip((page - 1) * pageSize).Take(pageSize);
             var items = await MapProductDtosWithImages(paged);
@@ -142,8 +148,12 @@ namespace LocalMartOnline.Services.Implement
         public async Task<PagedResultDto<ProductDto>> SearchProductsAsync(string keyword, string? categoryId, decimal? latitude, decimal? longitude, int page, int pageSize)
         {
             var products = await _productRepo.GetAllAsync();
+            var stores = await _storeRepo.GetAllAsync();
+            var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id));
+
             var filtered = products.Where(p =>
                 p.Status == ProductStatus.Active &&
+                activeStoreIds.Contains(p.StoreId) &&
                 (string.IsNullOrEmpty(keyword) || p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) || p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)) &&
                 (string.IsNullOrEmpty(categoryId) || p.CategoryId == categoryId)
             ).ToList();
@@ -151,7 +161,6 @@ namespace LocalMartOnline.Services.Implement
             // Nếu có location, lọc theo khoảng cách (giả sử Store có lat/lng)
             if (latitude.HasValue && longitude.HasValue)
             {
-                var stores = await _storeRepo.GetAllAsync();
                 filtered = filtered.Where(p =>
                 {
                     var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
@@ -173,12 +182,17 @@ namespace LocalMartOnline.Services.Implement
             };
         }
 
+
         // UC055: Filter Products
         public async Task<PagedResultDto<ProductDto>> FilterProductsAsync(ProductFilterDto filter)
         {
             var products = await _productRepo.GetAllAsync();
+            var stores = await _storeRepo.GetAllAsync();
+            var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id));
+
             var filtered = products.Where(p =>
                 p.Status == ProductStatus.Active &&
+                activeStoreIds.Contains(p.StoreId) &&
                 (string.IsNullOrEmpty(filter.CategoryId) || p.CategoryId == filter.CategoryId) &&
                 (!filter.MinPrice.HasValue || p.Price >= filter.MinPrice.Value) &&
                 (!filter.MaxPrice.HasValue || p.Price <= filter.MaxPrice.Value) &&
@@ -188,7 +202,6 @@ namespace LocalMartOnline.Services.Implement
             // Lọc theo vị trí nếu có
             if (filter.Latitude.HasValue && filter.Longitude.HasValue && filter.MaxDistanceKm.HasValue)
             {
-                var stores = await _storeRepo.GetAllAsync();
                 filtered = filtered.Where(p =>
                 {
                     var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
@@ -235,6 +248,7 @@ namespace LocalMartOnline.Services.Implement
             double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
             return R * c;
         }
+
         public async Task<PagedResultDto<ProductDto>> GetProductsByStoreAsync(string storeId, int page, int pageSize)
         {
             var products = await _productRepo.FindManyAsync(p => p.StoreId == storeId);

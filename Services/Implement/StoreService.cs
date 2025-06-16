@@ -1,12 +1,13 @@
-﻿using LocalMartOnline.Models;
+﻿using AutoMapper;
+using LocalMartOnline.Models;
+using LocalMartOnline.Models.DTOs.Common;
 using LocalMartOnline.Models.DTOs.Store;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Services.Interface;
-using AutoMapper;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Linq;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace LocalMartOnline.Services.Implement
 {
@@ -107,6 +108,65 @@ namespace LocalMartOnline.Services.Implement
         {
             var store = await _storeRepo.GetByIdAsync(id);
             return store == null ? null : _mapper.Map<StoreDto>(store);
+        }
+
+        public async Task<PagedResultDto<StoreDto>> GetAllStoresAsync(int page, int pageSize)
+        {
+            var stores = await _storeRepo.GetAllAsync();
+            var total = stores.Count();
+            var paged = stores
+                .OrderByDescending(s => s.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
+            var items = _mapper.Map<IEnumerable<StoreDto>>(paged);
+            return new PagedResultDto<StoreDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<PagedResultDto<StoreDto>> GetSuspendedStoresAsync(int page, int pageSize)
+        {
+            var stores = await _storeRepo.FindManyAsync(s => s.Status == "Suspended");
+            var total = stores.Count();
+            var paged = stores
+                .OrderByDescending(s => s.UpdatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
+            var items = _mapper.Map<IEnumerable<StoreDto>>(paged);
+            return new PagedResultDto<StoreDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<bool> SuspendStoreAsync(string id, string reason)
+        {
+            var store = await _storeRepo.GetByIdAsync(id);
+            if (store == null) return false;
+            if (store.Status == "Suspended") return true;
+            store.Status = "Suspended";
+            store.UpdatedAt = DateTime.UtcNow;
+            // Optionally, you can add a property to store the reason if your model supports it
+            await _storeRepo.UpdateAsync(id, store);
+            return true;
+        }
+
+        public async Task<bool> ReactivateStoreAsync(string id)
+        {
+            var store = await _storeRepo.GetByIdAsync(id);
+            if (store == null) return false;
+            if (store.Status != "Suspended") return true;
+            store.Status = "Open";
+            store.UpdatedAt = DateTime.UtcNow;
+            await _storeRepo.UpdateAsync(id, store);
+            return true;
         }
     }
 }
