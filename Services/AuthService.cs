@@ -266,6 +266,11 @@ namespace LocalMartOnline.Services
             };
         }
 
+        public async Task<User?> GetUserEntityByEmailAsync(string email)
+        {
+            return await _userRepo.FindOneAsync(u => u.Email == email);
+        }
+
         private string GenerateJwtToken(User user)
         {
             var claims = new[]

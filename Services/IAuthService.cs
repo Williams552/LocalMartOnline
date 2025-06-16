@@ -16,6 +16,7 @@ namespace LocalMartOnline.Services
         Task<UserDTO?> GetUserByUsernameAsync(string username);
         Task<UserDTO?> GetUserByEmailAsync(string email);
         Task<UserDTO?> GetUserByUsernameOrEmailAsync(string usernameOrEmail);
+        Task<User?> GetUserEntityByEmailAsync(string email);
         string GenerateJwtTokenFor2FA(User user);
     }
 }

@@ -107,11 +107,12 @@ namespace LocalMartOnline.Controllers
             if (!isValid)
                 return BadRequest(new { success = false, message = "Mã xác thực không đúng hoặc đã hết hạn.", data = (object?)null });
 
-            var user = await _authService.GetUserByEmailAsync(dto.Email);
-            if (user == null)
+            // Lấy lại entity User để sinh JWT
+            var userEntity = await _authService.GetUserEntityByEmailAsync(dto.Email);
+            if (userEntity == null)
                 return BadRequest(new { success = false, message = "Tài khoản không tồn tại.", data = (object?)null });
-            var token = _authService.GenerateJwtTokenFor2FA(user);
-            return Ok(new { success = true, message = "Xác thực 2 bước thành công.", data = new AuthResponseDTO { Token = token, Role = user.Role, Username = user.Username } });
+            var token = _authService.GenerateJwtTokenFor2FA(userEntity);
+            return Ok(new { success = true, message = "Xác thực 2 bước thành công.", data = new AuthResponseDTO { Token = token, Role = userEntity.Role, Username = userEntity.Username } });
         }
     }
 }

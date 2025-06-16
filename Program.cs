@@ -31,7 +31,9 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddScoped<IVnPayService, VnPayService>();
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddNewtonsoftJson(options =>
+        options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
 builder.Services.AddEndpointsApiExplorer();
 
 // Đăng ký NotificationService và IRepository<User> cho DI
