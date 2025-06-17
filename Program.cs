@@ -3,6 +3,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using LocalMartOnline.Services;
 using LocalMartOnline.Repositories;
+using LocalMartOnline.Services.Interface;
+using LocalMartOnline.Services.Implement;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Load appsettings.Local.json nếu tồn tại
@@ -77,6 +80,13 @@ builder.Services.AddMongoDbAndRepositories();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IUserService, UserService>();
+
+// Dependency Injection for services
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ICategoryRegistrationService, CategoryRegistrationService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IStoreService, StoreService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingService).Assembly);
