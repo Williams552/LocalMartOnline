@@ -15,7 +15,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet("{userId}")]
-        public async Task<IActionResult> GetCartItems(long userId)
+        public async Task<IActionResult> GetCartItems(string userId)
         {
             try
             {
@@ -29,7 +29,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("{userId}/items")]
-        public async Task<IActionResult> AddToCart(long userId, [FromBody] AddToCartRequest request)
+        public async Task<IActionResult> AddToCart(string userId, [FromBody] AddToCartRequest request)
         {
             try
             {
@@ -47,7 +47,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPut("{userId}/items/{productId}")]
-        public async Task<IActionResult> UpdateCartItem(long userId, long productId, [FromBody] UpdateCartItemRequest request)
+        public async Task<IActionResult> UpdateCartItem(string userId, string productId, [FromBody] UpdateCartItemRequest request)
         {
             try
             {
@@ -65,7 +65,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpDelete("{userId}/items/{productId}")]
-        public async Task<IActionResult> RemoveFromCart(long userId, long productId)
+        public async Task<IActionResult> RemoveFromCart(string userId, string productId)
         {
             try
             {
@@ -85,7 +85,7 @@ namespace LocalMartOnline.Controllers
 
     public class AddToCartRequest
     {
-        public long ProductId { get; set; }
+        public string ProductId { get; set; } = string.Empty;
         public int Quantity { get; set; }
     }
 

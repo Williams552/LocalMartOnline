@@ -1,122 +1,141 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using MongoDB.Driver;
 using LocalMartOnline.Models;
-using LocalMartOnline.Repositories;
 
 namespace LocalMartOnline.Services
 {
     public class CartService : ICartService
     {
-        private readonly IGenericRepository<Cart> _cartRepository;
-        private readonly IGenericRepository<CartItem> _cartItemRepository;
-        private readonly IGenericRepository<Product> _productRepository;
+        private readonly IMongoCollection<Cart> _cartCollection;
+        private readonly IMongoCollection<CartItem> _cartItemCollection;
+        private readonly IMongoCollection<Product> _productCollection;
 
-        public CartService(
-            IGenericRepository<Cart> cartRepository,
-            IGenericRepository<CartItem> cartItemRepository,
-            IGenericRepository<Product> productRepository)
+        public CartService(IMongoDatabase database)
         {
-            _cartRepository = cartRepository;
-            _cartItemRepository = cartItemRepository;
-            _productRepository = productRepository;
+            _cartCollection = database.GetCollection<Cart>("Carts");
+            _cartItemCollection = database.GetCollection<CartItem>("CartItems");
+            _productCollection = database.GetCollection<Product>("Products");
         }
 
-        public async Task<Cart> GetOrCreateCartAsync(long userId)
+        public async Task<Cart> GetOrCreateCartAsync(string userId)
         {
-            var carts = await _cartRepository.GetAllAsync();
-            var cart = carts.FirstOrDefault(c => c.UserId == userId);
-            
+            var filter = Builders<Cart>.Filter.Eq(c => c.UserId, userId);
+            var cart = await _cartCollection.Find(filter).FirstOrDefaultAsync();
+
             if (cart == null)
             {
                 cart = new Cart { UserId = userId };
-                await _cartRepository.CreateAsync(cart);
+                await _cartCollection.InsertOneAsync(cart);
             }
-            
+
             return cart;
         }
 
-        public async Task<IEnumerable<CartItem>> GetCartItemsAsync(long userId)
+        public async Task<IEnumerable<CartItem>> GetCartItemsAsync(string userId)
         {
             var cart = await GetOrCreateCartAsync(userId);
-            var cartItems = await _cartItemRepository.GetAllAsync();
-            return cartItems.Where(ci => ci.CartId == cart.CartId);
+            var filter = Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id);
+            var cartItems = await _cartItemCollection.Find(filter).ToListAsync();
+            return cartItems;
         }
 
-        public async Task<bool> AddToCartAsync(long userId, long productId, int quantity)
+        public async Task<bool> AddToCartAsync(string userId, string productId, int quantity)
         {
-            var product = (await _productRepository.GetAllAsync())
-                .FirstOrDefault(p => p.ProductId == productId);
-            
+            // Check if product exists and has enough stock
+            var productFilter = Builders<Product>.Filter.Eq(p => p.Id, productId);
+            var product = await _productCollection.Find(productFilter).FirstOrDefaultAsync();
+
             if (product == null || product.StockQuantity < quantity)
                 return false;
 
             var cart = await GetOrCreateCartAsync(userId);
-            var cartItems = await _cartItemRepository.GetAllAsync();
-            var existingItem = cartItems.FirstOrDefault(ci => ci.CartId == cart.CartId && ci.ProductId == productId);
+
+            // Check if item already exists in cart
+            var cartItemFilter = Builders<CartItem>.Filter.And(
+                Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
+                Builders<CartItem>.Filter.Eq(ci => ci.ProductId, productId)
+            );
+            var existingItem = await _cartItemCollection.Find(cartItemFilter).FirstOrDefaultAsync();
 
             if (existingItem != null)
             {
+                // Update existing item quantity
                 if (product.StockQuantity < existingItem.Quantity + quantity)
                     return false;
-                
-                existingItem.Quantity += quantity;
-                existingItem.UpdatedAt = DateTime.UtcNow;
-                await _cartItemRepository.UpdateAsync(existingItem.Id!, existingItem);
+
+                var update = Builders<CartItem>.Update
+                    .Set(ci => ci.Quantity, existingItem.Quantity + quantity)
+                    .Set(ci => ci.UpdatedAt, DateTime.UtcNow);
+
+                await _cartItemCollection.UpdateOneAsync(cartItemFilter, update);
             }
             else
             {
+                // Create new cart item
                 var cartItem = new CartItem
                 {
-                    CartId = cart.CartId,
+                    CartId = cart.Id!,
                     ProductId = productId,
                     Quantity = quantity
                 };
-                await _cartItemRepository.CreateAsync(cartItem);
+                await _cartItemCollection.InsertOneAsync(cartItem);
             }
 
             return true;
         }
 
-        public async Task<bool> UpdateCartItemAsync(long userId, long productId, int newQuantity)
+        public async Task<bool> UpdateCartItemAsync(string userId, string productId, int newQuantity)
         {
             if (newQuantity < 0)
                 return false;
 
             var cart = await GetOrCreateCartAsync(userId);
-            var cartItems = await _cartItemRepository.GetAllAsync();
-            var cartItem = cartItems.FirstOrDefault(ci => ci.CartId == cart.CartId && ci.ProductId == productId);
-            
+            var cartItemFilter = Builders<CartItem>.Filter.And(
+                Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
+                Builders<CartItem>.Filter.Eq(ci => ci.ProductId, productId)
+            );
+            var cartItem = await _cartItemCollection.Find(cartItemFilter).FirstOrDefaultAsync();
+
             if (cartItem == null)
                 return false;
 
             if (newQuantity == 0)
             {
-                await _cartItemRepository.DeleteAsync(cartItem.Id!);
+                // Remove item from cart
+                await _cartItemCollection.DeleteOneAsync(cartItemFilter);
                 return true;
             }
 
-            var product = (await _productRepository.GetAllAsync())
-                .FirstOrDefault(p => p.ProductId == productId);
-            
+            // Check if product has enough stock
+            var productFilter = Builders<Product>.Filter.Eq(p => p.Id, productId);
+            var product = await _productCollection.Find(productFilter).FirstOrDefaultAsync();
+
             if (product == null || product.StockQuantity < newQuantity)
                 return false;
 
-            cartItem.Quantity = newQuantity;
-            cartItem.UpdatedAt = DateTime.UtcNow;
-            await _cartItemRepository.UpdateAsync(cartItem.Id!, cartItem);
-            
+            // Update cart item quantity
+            var update = Builders<CartItem>.Update
+                .Set(ci => ci.Quantity, newQuantity)
+                .Set(ci => ci.UpdatedAt, DateTime.UtcNow);
+
+            await _cartItemCollection.UpdateOneAsync(cartItemFilter, update);
+
             return true;
         }
 
-        public async Task<bool> RemoveFromCartAsync(long userId, long productId)
+        public async Task<bool> RemoveFromCartAsync(string userId, string productId)
         {
             var cart = await GetOrCreateCartAsync(userId);
-            var cartItems = await _cartItemRepository.GetAllAsync();
-            var cartItem = cartItems.FirstOrDefault(ci => ci.CartId == cart.CartId && ci.ProductId == productId);
-            
-            if (cartItem == null)
-                return false;
+            var cartItemFilter = Builders<CartItem>.Filter.And(
+                Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
+                Builders<CartItem>.Filter.Eq(ci => ci.ProductId, productId)
+            );
 
-            await _cartItemRepository.DeleteAsync(cartItem.Id!);
-            return true;
+            var result = await _cartItemCollection.DeleteOneAsync(cartItemFilter);
+            return result.DeletedCount > 0;
         }
     }
 }

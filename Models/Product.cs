@@ -13,14 +13,13 @@ namespace LocalMartOnline.Models
         [BsonRepresentation(BsonType.ObjectId)]
         public string? Id { get; set; }
 
-        [BsonElement("product_id")]
-        public long ProductId { get; set; }
-
         [BsonElement("store_id")]
-        public long StoreId { get; set; }
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string? StoreId { get; set; }
 
         [BsonElement("category_id")]
-        public long CategoryId { get; set; }
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string? CategoryId { get; set; }
 
         [BsonElement("name")]
         public string Name { get; set; } = string.Empty;

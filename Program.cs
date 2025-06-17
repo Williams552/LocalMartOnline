@@ -49,10 +49,17 @@ builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Product>>(s
     return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Product>(mongoService, "Products");
 });
 
+builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Category>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Category>(mongoService, "Categories");
+});
+
 // Add Service
-builder.Services.AddScoped<ICartService, LocalMartOnline.Services.CartService>();
-builder.Services.AddScoped<IProductService, LocalMartOnline.Services.ProductService>();
-builder.Services.AddScoped<ICategoryService, LocalMartOnline.Services.CategoryService>();
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IFavoriteService, FavoriteService>();
 
 var app = builder.Build();
 

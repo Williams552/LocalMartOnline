@@ -12,12 +12,12 @@ namespace LocalMartOnline.Services
     public class CategoryService : ICategoryService
     {
         private readonly IMongoCollection<Category> _categoryCollection;
-        private readonly IProductService _productService; // Add this line
+        private readonly IProductService _productService;
 
-        public CategoryService(IMongoDatabase database, IProductService productService) // Modify the constructor
+        public CategoryService(IMongoDatabase database, IProductService productService)
         {
             _categoryCollection = database.GetCollection<Category>("Categories");
-            _productService = productService; // Initialize the product service
+            _productService = productService; 
         }
 
         public async Task<GetCategoriesResponseDto> GetActiveCategoriesAsync()
@@ -32,7 +32,7 @@ namespace LocalMartOnline.Services
 
             var categoryDtos = categories.Select(c => new CategoryDto
             {
-                CategoryId = c.Id.ToString(),
+                CategoryId = c.Id,
                 Name = c.Name,
                 Description = c.Description,
                 IsActive = c.IsActive
