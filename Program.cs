@@ -64,6 +64,7 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IMarketRuleService, MarketRuleService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ISellerLicenseService, SellerLicenseService>();
+builder.Services.AddScoped<ILoyalCustomerService, LoyalCustomerService>();
 
 var app = builder.Build();
 
