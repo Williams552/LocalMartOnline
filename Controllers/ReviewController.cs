@@ -144,25 +144,5 @@ namespace LocalMartOnline.Controllers
                 return StatusCode(500, new { message = "Error retrieving review", error = ex.Message });
             }
         }
-
-        /// <summary>
-        /// Kiểm tra xem user có thể đánh giá target không
-        /// </summary>
-        [HttpGet("can-review")]
-        public async Task<IActionResult> CanUserReview([FromQuery] string userId, [FromQuery] string targetType, [FromQuery] string targetId)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(targetType) || string.IsNullOrEmpty(targetId))
-                    return BadRequest(new { message = "User ID, target type and target ID are required" });
-
-                var canReview = await _reviewService.CanUserReviewAsync(userId, targetType, targetId);
-                return Ok(new { canReview });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "Error checking review permission", error = ex.Message });
-            }
-        }
     }
 }
