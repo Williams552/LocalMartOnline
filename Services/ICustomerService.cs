@@ -2,7 +2,7 @@ using LocalMartOnline.Models.DTOs.LoyalCustomer;
 
 namespace LocalMartOnline.Services
 {
-    public interface ILoyalCustomerService
+    public interface ICustomerService
     {
         Task<GetLoyalCustomersResponseDto> GetLoyalCustomersAsync(string sellerId, GetLoyalCustomersRequestDto request);
         Task<CustomerOrderSummaryDto?> GetCustomerOrderSummaryAsync(string sellerId, string customerId);

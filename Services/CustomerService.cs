@@ -4,7 +4,7 @@ using LocalMartOnline.Models.DTOs.LoyalCustomer;
 
 namespace LocalMartOnline.Services
 {
-    public class LoyalCustomerService : ILoyalCustomerService
+    public class CustomerService : ICustomerService
     {
         private readonly IMongoCollection<Order> _orderCollection;
         private readonly IMongoCollection<OrderItem> _orderItemCollection;
@@ -12,7 +12,7 @@ namespace LocalMartOnline.Services
         private readonly IMongoCollection<Store> _storeCollection;
         private readonly IMongoCollection<User> _userCollection;
 
-        public LoyalCustomerService(IMongoDatabase database)
+        public CustomerService(IMongoDatabase database)
         {
             _orderCollection = database.GetCollection<Order>("orders");
             _orderItemCollection = database.GetCollection<OrderItem>("order_items");

@@ -6,11 +6,11 @@ namespace LocalMartOnline.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class LoyalCustomerController : ControllerBase
+    public class CustomerController : ControllerBase
     {
-        private readonly ILoyalCustomerService _loyalCustomerService;
+        private readonly ICustomerService _loyalCustomerService;
 
-        public LoyalCustomerController(ILoyalCustomerService loyalCustomerService)
+        public CustomerController(ICustomerService loyalCustomerService)
         {
             _loyalCustomerService = loyalCustomerService;
         }
