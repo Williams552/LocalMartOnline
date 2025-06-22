@@ -55,6 +55,9 @@ builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Category>>(
     return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Category>(mongoService, "Categories");
 });
 
+// Add SignalR
+builder.Services.AddSignalR();
+
 // Add Service
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -66,6 +69,7 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<ISellerLicenseService, SellerLicenseService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ISupportRequestService, SupportRequestService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 
 var app = builder.Build();
 
@@ -81,5 +85,8 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Map SignalR Hub
+app.MapHub<LocalMartOnline.Hubs.ChatHub>("/chatHub");
 
 app.Run();
