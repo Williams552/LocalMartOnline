@@ -1,8 +1,11 @@
+using LocalMartOnline.Models;
+using LocalMartOnline.Repositories;
+using LocalMartOnline.Services;
+using LocalMartOnline.Services.Implement;
+using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using LocalMartOnline.Services;
-using LocalMartOnline.Repositories;
 var builder = WebApplication.CreateBuilder(args);
 
 // Load appsettings.Local.json nếu tồn tại
@@ -76,6 +79,54 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
+// Đăng ký Repository cho Category
+builder.Services.AddScoped<IRepository<Category>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.Repository<Category>(mongoService, "Categories");
+});
+
+builder.Services.AddScoped<IRepository<CategoryRegistration>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.Repository<CategoryRegistration>(mongoService, "CategoryRegistrations");
+});
+// Đăng ký Repository cho Store
+builder.Services.AddScoped<IRepository<Store>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.Repository<Store>(mongoService, "Stores");
+});
+
+// Đăng ký Repository cho StoreFollow
+builder.Services.AddScoped<IRepository<StoreFollow>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.Repository<StoreFollow>(mongoService, "StoreFollows");
+});
+// Đăng ký Repository cho Product
+builder.Services.AddScoped<IRepository<Product>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.Repository<Product>(mongoService, "Products");
+});
+
+// Đăng ký Repository cho ProductImage
+builder.Services.AddScoped<IRepository<ProductImage>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.Repository<ProductImage>(mongoService, "ProductImages");
+});
+builder.Services.AddScoped<IRepository<Order>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.Repository<Order>(mongoService, "Orders");
+});
+builder.Services.AddScoped<IRepository<OrderItem>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.Repository<OrderItem>(mongoService, "OrderItems");
+});
 
 // FAQ and PlatformPolicy
 builder.Services.AddScoped<IRepository<LocalMartOnline.Models.Faq>>(provider =>
@@ -95,6 +146,16 @@ builder.Services.AddScoped<IRepository<LocalMartOnline.Models.Market>>(provider 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingService).Assembly);
 
+
+builder.Services.AddScoped<IMarketService, MarketService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IStoreService, StoreService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ICategoryRegistrationService, CategoryRegistrationService>();
+builder.Services.AddScoped<IFaqService, FaqService>();
+builder.Services.AddScoped<IPlatformPolicyService, PlatformPolicyService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -104,7 +165,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "LocalMartOnline API V1");
-        c.RoutePrefix = string.Empty; // Đặt swagger làm trang mặc định
+        c.RoutePrefix = "Swagger"; // Đặt swagger làm trang mặc định
     });
 }
 

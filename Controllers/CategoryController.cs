@@ -1,4 +1,4 @@
-using LocalMartOnline.Models.DTOs.Category;
+﻿using LocalMartOnline.Models.DTOs.Category;
 using LocalMartOnline.Models.DTOs.Common;
 using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
@@ -78,11 +78,19 @@ namespace LocalMartOnline.Controllers
         // Get category by id (for detail or CreatedAtAction)
         [HttpGet("{id}")]
         [AllowAnonymous]
-        public async Task<ActionResult<CategoryDto>> GetById(string id)
+        public async Task<IActionResult> GetById(string id)
         {
+            // Kiểm tra định dạng ID trước khi gọi service
+            if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
+            {
+                return BadRequest(new { success = false, message = "ID không hợp lệ, phải là chuỗi hex 24 ký tự", data = (object?)null });
+            }
+
             var category = await _categoryService.GetByIdAsync(id);
-            if (category == null) return NotFound();
-            return Ok(category);
+            if (category == null)
+                return NotFound(new { success = false, message = "Category not found", data = (object?)null });
+
+            return Ok(new { success = true, message = "Lấy danh mục thành công", data = category });
         }
 
         // Optional: Delete category

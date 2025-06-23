@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.Category;
 using LocalMartOnline.Models.DTOs.Common;
@@ -85,7 +85,13 @@ namespace LocalMartOnline.Services.Implement
 
         public async Task<IEnumerable<CategoryDto>> FilterByAlphabetAsync(char alphabet)
         {
-            var categories = await _categoryRepository.FindManyAsync(c => c.Name.StartsWith(alphabet.ToString(), StringComparison.OrdinalIgnoreCase));
+            var upperChar = char.ToUpper(alphabet);
+            var lowerChar = char.ToLower(alphabet);
+
+            // Tạo filter cho cả uppercase và lowercase
+            var categories = await _categoryRepository.FindManyAsync(c =>
+                c.Name.StartsWith(upperChar.ToString()) ||
+                c.Name.StartsWith(lowerChar.ToString()));
             return _mapper.Map<IEnumerable<CategoryDto>>(categories);
         }
     }

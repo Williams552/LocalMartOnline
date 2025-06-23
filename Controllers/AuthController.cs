@@ -99,6 +99,12 @@ namespace LocalMartOnline.Controllers
             return Ok(new { success = true, message = "Đổi mật khẩu thành công.", data = (object?)null });
         }
 
+        // Fix for CS1503: Argument 1: cannot convert from 'LocalMartOnline.Models.DTOs.UserDTO' to 'LocalMartOnline.Models.User'
+
+        // The issue arises because the method `GenerateJwtTokenFor2FA` expects a `LocalMartOnline.Models.User` object,
+        // but the code is passing a `LocalMartOnline.Models.DTOs.UserDTO` object.
+        // To fix this, we need to ensure that the correct type (`User`) is passed to the method.
+
         [HttpPost("2fa/verify")]
         [AllowAnonymous]
         public async Task<IActionResult> Verify2FA([FromBody] TwoFactorVerifyDTO dto)
@@ -107,9 +113,20 @@ namespace LocalMartOnline.Controllers
             if (!isValid)
                 return BadRequest(new { success = false, message = "Mã xác thực không đúng hoặc đã hết hạn.", data = (object?)null });
 
-            var user = await _authService.GetUserByEmailAsync(dto.Email);
-            if (user == null)
+            var userDto = await _authService.GetUserByEmailAsync(dto.Email);
+            if (userDto == null)
                 return BadRequest(new { success = false, message = "Tài khoản không tồn tại.", data = (object?)null });
+
+            // Map UserDTO to User (assuming a mapping function exists or needs to be implemented)
+            var user = new User
+            {
+                Id = userDto.Id,
+                Username = userDto.Username,
+                Email = userDto.Email,
+                FullName = userDto.FullName,
+                Role = userDto.Role
+            };
+
             var token = _authService.GenerateJwtTokenFor2FA(user);
             return Ok(new { success = true, message = "Xác thực 2 bước thành công.", data = new AuthResponseDTO { Token = token, Role = user.Role, Username = user.Username } });
         }
