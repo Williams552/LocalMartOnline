@@ -58,6 +58,18 @@ namespace LocalMartOnline.Services
                 var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
                 options.Configuration = configuration["Redis:ConnectionString"];
             });
+            services.AddScoped<IRepository<Product>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<Product>(mongoService, "Products");
+            });
+            services.AddScoped<IRepository<Order>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<Order>(mongoService, "Orders");
+            });
+            services.AddScoped<IRepository<Store>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<Store>(mongoService, "Stores");
+            });
             return services;
         }
     }
