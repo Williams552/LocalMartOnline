@@ -7,7 +7,11 @@ using System.Linq.Expressions;
 
 namespace LocalMartOnline.Repositories
 {
+<<<<<<< HEAD
     public class Repository<T> : IRepository<T>
+=======
+    public class GenericRepository<T> : IRepository<T>
+>>>>>>> origin/develop
     {
         private readonly IMongoCollection<T> _collection;
 
