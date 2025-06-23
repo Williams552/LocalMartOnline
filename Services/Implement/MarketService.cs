@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.Market;
 using LocalMartOnline.Repositories;
@@ -110,6 +110,73 @@ public class MarketService : IMarketService
                 result.Add(dto);
             }
         }
+        return result;
+    }
+
+    public async Task<bool> ToggleStatusAsync(string id)
+    {
+        var market = await _marketRepo.GetByIdAsync(id);
+        if (market == null) return false;
+        
+        // Toggle trạng thái từ Active <-> Suspended
+        market.Status = market.Status == "Active" ? "Suspended" : "Active";
+        market.UpdatedAt = DateTime.UtcNow;
+        await _marketRepo.UpdateAsync(id, market);
+        return true;
+    }
+
+    public async Task<IEnumerable<MarketDto>> GetActiveMarketsAsync()
+    {
+        var markets = await _marketRepo.FindManyAsync(m => m.Status == "Active");
+        var stores = await _storeRepo.GetAllAsync();
+        return markets.Select(m =>
+        {
+            var dto = _mapper.Map<MarketDto>(m);
+            dto.StallCount = stores.Count(s => s.MarketId.ToString() == m.Id && s.Status == "Open");
+            return dto;
+        });
+    }
+
+    public async Task<IEnumerable<MarketDto>> SearchActiveMarketsAsync(string keyword)
+    {
+        var markets = await _marketRepo.FindManyAsync(m => 
+            m.Status == "Active" && 
+            (m.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+            m.Address.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+            (m.Description != null && m.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+        );
+        
+        var stores = await _storeRepo.GetAllAsync();
+        return markets.Select(m =>
+        {
+            var dto = _mapper.Map<MarketDto>(m);
+            dto.StallCount = stores.Count(s => s.MarketId.ToString() == m.Id && s.Status == "Open");
+            return dto;
+        });
+    }
+
+    public async Task<IEnumerable<MarketDto>> FilterActiveMarketsAsync(string? area, int? minStalls, int? maxStalls)
+    {
+        var markets = await _marketRepo.GetAllAsync();
+        var martketfiltered = markets.Where( m =>
+            m.Status == "Active" &&
+            (string.IsNullOrEmpty(area) || (m.Address != null && m.Address.Contains(area, StringComparison.OrdinalIgnoreCase)))
+            );
+        
+        var stores = await _storeRepo.GetAllAsync();
+        var result = new List<MarketDto>();
+        
+        foreach (var m in martketfiltered)
+        {
+            var stallCount = stores.Count(s => s.MarketId.ToString() == m.Id && s.Status == "Open");
+            if ((minStalls == null || stallCount >= minStalls) && (maxStalls == null || stallCount <= maxStalls))
+            {
+                var dto = _mapper.Map<MarketDto>(m);
+                dto.StallCount = stallCount;
+                result.Add(dto);
+            }
+        }
+        
         return result;
     }
 }
