@@ -6,5 +6,6 @@ namespace LocalMartOnline.Services
     {
         Task SendNotificationAsync(string userId, string message);
         Task<int> SendNotificationByConditionAsync(NotificationConditionRequestDTO request);
+        Task<IEnumerable<NotificationDto>> GetNotificationsAsync(string userId);
     }
 }

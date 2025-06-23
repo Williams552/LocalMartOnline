@@ -95,5 +95,11 @@ namespace LocalMartOnline.Services
             }
         }
 
+        public Task<IEnumerable<NotificationDto>> GetNotificationsAsync(string userId)
+        {
+            // Giả lập lấy danh sách notification từ DB, cần thay bằng truy vấn thực tế
+            return Task.FromResult<IEnumerable<NotificationDto>>(new List<NotificationDto>());
+        }
+
     }
 }

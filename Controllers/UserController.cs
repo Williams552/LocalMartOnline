@@ -106,5 +106,28 @@ namespace LocalMartOnline.Controllers
             await _userRepo.DeleteAsync(id);
             return Ok(new { success = true, message = "Xóa người dùng thành công", data = (object?)null });
         }
+
+        [HttpPatch("{id}/toggle")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ToggleUserAccount(string id)
+        {
+            var result = await _userService.ToggleUserAccountAsync(id);
+            if (!result)
+                return NotFound(new { success = false, message = "User not found", data = (object?)null });
+            return Ok(new { success = true, message = "User status toggled", data = (object?)null });
+        }
+
+        [HttpPatch("disable-own")]
+        [Authorize]
+        public async Task<IActionResult> DisableOwnAccount()
+        {
+            var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userId == null)
+                return Unauthorized(new { success = false, message = "Unauthorized", data = (object?)null });
+            var result = await _userService.DisableOwnAccountAsync(userId);
+            if (!result)
+                return NotFound(new { success = false, message = "User not found", data = (object?)null });
+            return Ok(new { success = true, message = "Your account has been disabled", data = (object?)null });
+        }
     }
 }

@@ -6,6 +6,8 @@ using LocalMartOnline.Services;
 using LocalMartOnline.Models;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
+using LocalMartOnline.Services.Interface;
+using LocalMartOnline.Services.Implement;
 
 namespace LocalMartOnline.Services
 {
@@ -38,6 +40,19 @@ namespace LocalMartOnline.Services
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<ProxyShopperRegistration>(mongoService, "ProxyShopperRegistrations");
             });
+            services.AddScoped<IRepository<MarketFee>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<MarketFee>(mongoService, "MarketFees");
+            });
+            services.AddScoped<IRepository<MarketFeePayment>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<MarketFeePayment>(mongoService, "MarketFeePayments");
+            });
+            services.AddScoped<IFastBargainRepository>(sp => {
+                var db = sp.GetRequiredService<MongoDB.Driver.IMongoDatabase>();
+                return new FastBargainRepository(db);
+            });
+            services.AddScoped<IFastBargainService, Implement.FastBargainService>();
             services.AddStackExchangeRedisCache(options =>
             {
                 var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();

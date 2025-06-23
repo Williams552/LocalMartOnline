@@ -18,5 +18,7 @@ namespace LocalMartOnline.Services
             string? role = null,
             string? sortField = null,
             string? sortOrder = "asc");
+        Task<bool> ToggleUserAccountAsync(string id);
+        Task<bool> DisableOwnAccountAsync(string userId);
     }
 }

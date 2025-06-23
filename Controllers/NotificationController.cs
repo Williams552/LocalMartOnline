@@ -62,5 +62,37 @@ namespace LocalMartOnline.Controllers
             }
             return Ok(new { success = true, message = $"Notification sent to {sentCount} users.", data = sentCount });
         }
+
+        [HttpPost("store-suspension")]
+        [Authorize(Roles = "Admin,MarketStaff")]
+        public async Task<IActionResult> NotifyStoreSuspension([FromBody] StoreSuspensionNotificationDto dto)
+        {
+            await _notificationService.SendNotificationAsync(dto.UserToken, dto.Message);
+            return Ok(new { success = true, message = "Đã gửi thông báo đình chỉ cửa hàng." });
+        }
+
+        [HttpPost("admin-notice")]
+        [Authorize(Roles = "Admin,MarketStaff")]
+        public async Task<IActionResult> SendAdminNotice([FromBody] NotificationRequestDTO dto)
+        {
+            await _notificationService.SendNotificationAsync(dto.UserToken, dto.Message);
+            return Ok(new { success = true, message = "Đã gửi thông báo hành chính." });
+        }
+
+        [HttpPost("security-alert")]
+        [Authorize]
+        public async Task<IActionResult> SendSecurityAlert([FromBody] NotificationRequestDTO dto)
+        {
+            await _notificationService.SendNotificationAsync(dto.UserToken, dto.Message);
+            return Ok(new { success = true, message = "Đã gửi cảnh báo bảo mật." });
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetNotifications([FromQuery] string userId)
+        {
+            var notifications = await _notificationService.GetNotificationsAsync(userId);
+            return Ok(new { success = true, data = notifications });
+        }
     }
 }

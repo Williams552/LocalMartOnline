@@ -87,6 +87,9 @@ builder.Services.AddScoped<ICategoryRegistrationService, CategoryRegistrationSer
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IStoreService, StoreService>();
+builder.Services.AddScoped<IMarketFeeService, MarketFeeService>();
+builder.Services.AddScoped<IMarketFeePaymentService, MarketFeePaymentService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingService).Assembly);

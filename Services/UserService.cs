@@ -74,5 +74,25 @@ namespace LocalMartOnline.Services
                 .ToListAsync();
             return (pageData, total);
         }
+
+        public async Task<bool> ToggleUserAccountAsync(string id)
+        {
+            var user = await _userRepo.GetByIdAsync(id);
+            if (user == null) return false;
+            user.Status = user.Status == "Active" ? "Disabled" : "Active";
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepo.UpdateAsync(id, user);
+            return true;
+        }
+
+        public async Task<bool> DisableOwnAccountAsync(string userId)
+        {
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return false;
+            user.Status = "Disabled";
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepo.UpdateAsync(userId, user);
+            return true;
+        }
     }
 }
