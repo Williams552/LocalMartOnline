@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace LocalMartOnline.Repositories
@@ -10,5 +12,7 @@ namespace LocalMartOnline.Repositories
         Task CreateAsync(T entity);
         Task UpdateAsync(string id, T entity);
         Task DeleteAsync(string id);
+        Task<T?> FindOneAsync(Expression<Func<T, bool>> filter);
+        Task<IEnumerable<T>> FindManyAsync(Expression<Func<T, bool>> filter);
     }
-} 
+}
