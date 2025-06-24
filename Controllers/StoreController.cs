@@ -409,7 +409,7 @@ namespace LocalMartOnline.Controllers
         public async Task<IActionResult> FindNearbyStores(
             [FromQuery] decimal latitude,
             [FromQuery] decimal longitude,
-            [FromQuery] decimal maxDistance = 5, // Mặc định 5km
+            [FromQuery] decimal maxDistance = 5, 
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
