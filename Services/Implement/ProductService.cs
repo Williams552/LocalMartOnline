@@ -251,7 +251,7 @@ namespace LocalMartOnline.Services.Implement
 
         public async Task<PagedResultDto<ProductDto>> GetProductsByStoreAsync(string storeId, int page, int pageSize)
         {
-            var products = await _productRepo.FindManyAsync(p => p.StoreId == storeId);
+            var products = await _productRepo.FindManyAsync(p => p.StoreId == storeId && p.Status == ProductStatus.Active);
             var total = products.Count();
             var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
             var items = await MapProductDtosWithImages(paged);
@@ -318,14 +318,136 @@ namespace LocalMartOnline.Services.Implement
             };
         }
 
-        public async Task<ProductDto?> GetProductDetailsInStoreAsync(string storeId, string productId)
+        //public async Task<ProductDto?> GetProductDetailsInStoreAsync(string storeId, string productId)
+        //{
+        //    var product = await _productRepo.GetByIdAsync(productId);
+        //    if (product == null || product.StoreId != storeId) return null;
+        //    var dto = _mapper.Map<ProductDto>(product);
+        //    var images = await _imageRepo.FindManyAsync(i => i.ProductId == product.Id);
+        //    dto.ImageUrls = images.Select(i => i.ImageUrl).ToList();
+        //    return dto;
+        //}
+
+        // In ProductService.cs
+        public async Task<PagedResultDto<ProductDto>> GetProductsByMarketAsync(string marketId, int page, int pageSize)
         {
-            var product = await _productRepo.GetByIdAsync(productId);
-            if (product == null || product.StoreId != storeId) return null;
-            var dto = _mapper.Map<ProductDto>(product);
-            var images = await _imageRepo.FindManyAsync(i => i.ProductId == product.Id);
-            dto.ImageUrls = images.Select(i => i.ImageUrl).ToList();
-            return dto;
+            // Get all stores in the market
+            var stores = await _storeRepo.FindManyAsync(s => s.MarketId == marketId && s.Status == "Open");
+            if (!stores.Any())
+                return new PagedResultDto<ProductDto>
+                {
+                    Items = new List<ProductDto>(),
+                    TotalCount = 0,
+                    Page = page,
+                    PageSize = pageSize
+                };
+
+            // Get store IDs in this market
+            var storeIds = stores.Select(s => s.Id).ToList();
+
+            // Get all active products from these stores
+            var products = await _productRepo.FindManyAsync(p =>
+                storeIds.Contains(p.StoreId) &&
+                p.Status == ProductStatus.Active
+            );
+
+            var total = products.Count();
+            var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
+            var items = await MapProductDtosWithImages(paged);
+
+            return new PagedResultDto<ProductDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<PagedResultDto<ProductDto>> FilterProductsInMarketAsync(string marketId, ProductFilterDto filter)
+        {
+            // Get all stores in the market
+            var stores = await _storeRepo.FindManyAsync(s => s.MarketId == marketId && s.Status == "Open");
+            if (!stores.Any())
+                return new PagedResultDto<ProductDto>
+                {
+                    Items = new List<ProductDto>(),
+                    TotalCount = 0,
+                    Page = filter.Page,
+                    PageSize = filter.PageSize
+                };
+
+            // Get store IDs in this market
+            var storeIds = stores.Select(s => s.Id).ToList();
+
+            // Get all products from these stores
+            var products = await _productRepo.GetAllAsync();
+            var filtered = products.Where(p =>
+                storeIds.Contains(p.StoreId) &&
+                p.Status == ProductStatus.Active &&
+                (string.IsNullOrEmpty(filter.CategoryId) || p.CategoryId == filter.CategoryId) &&
+                (!filter.MinPrice.HasValue || p.Price >= filter.MinPrice.Value) &&
+                (!filter.MaxPrice.HasValue || p.Price <= filter.MaxPrice.Value) &&
+                (string.IsNullOrEmpty(filter.Name) || p.Name.Contains(filter.Name, StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrEmpty(filter.Keyword) || p.Name.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase) ||
+                 p.Description.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+
+            // Apply sorting if specified
+            if (!string.IsNullOrEmpty(filter.SortBy))
+            {
+                if (filter.SortBy == "price")
+                    filtered = filter.Ascending == false ? filtered.OrderByDescending(p => p.Price).ToList() : filtered.OrderBy(p => p.Price).ToList();
+            }
+
+            var total = filtered.Count();
+            var paged = filtered.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize);
+            var items = await MapProductDtosWithImages(paged);
+
+            return new PagedResultDto<ProductDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = filter.Page,
+                PageSize = filter.PageSize
+            };
+        }
+
+        public async Task<PagedResultDto<ProductDto>> SearchProductsInMarketAsync(string marketId, string keyword, int page, int pageSize)
+        {
+            // Get all stores in the market
+            var stores = await _storeRepo.FindManyAsync(s => s.MarketId == marketId && s.Status == "Open");
+            if (!stores.Any())
+                return new PagedResultDto<ProductDto>
+                {
+                    Items = new List<ProductDto>(),
+                    TotalCount = 0,
+                    Page = page,
+                    PageSize = pageSize
+                };
+
+            // Get store IDs in this market
+            var storeIds = stores.Select(s => s.Id).ToList();
+
+            // Search products across all stores in the market
+            var products = await _productRepo.FindManyAsync(p =>
+                storeIds.Contains(p.StoreId) &&
+                p.Status == ProductStatus.Active &&
+                (p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                 p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            );
+
+            var total = products.Count();
+            var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
+            var items = await MapProductDtosWithImages(paged);
+
+            return new PagedResultDto<ProductDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
         }
 
         // Helper method

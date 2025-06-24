@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Services.Interface;
 using LocalMartOnline.Models.DTOs.Product;
 using System.Collections.Generic;
@@ -22,10 +22,15 @@ namespace LocalMartOnline.Controllers
         // UC041: Add Product
         [HttpPost]
         [Authorize(Roles = "Seller")]
-        public async Task<ActionResult<ProductDto>> AddProduct([FromBody] ProductCreateDto dto)
+        public async Task<IActionResult> AddProduct([FromBody] ProductCreateDto dto)
         {
             var result = await _service.AddProductAsync(dto);
-            return CreatedAtAction(nameof(GetProductDetails), new { id = result.Id }, result);
+            return CreatedAtAction(nameof(GetProductDetails), new { id = result.Id }, new
+            {
+                success = true,
+                message = "Thêm sản phẩm thành công",
+                data = result
+            });
         }
 
         // UC042: Edit Product
@@ -34,8 +39,19 @@ namespace LocalMartOnline.Controllers
         public async Task<IActionResult> EditProduct(string id, [FromBody] ProductUpdateDto dto)
         {
             var result = await _service.EditProductAsync(id, dto);
-            if (!result) return NotFound();
-            return NoContent();
+            if (!result) return NotFound(new
+            {
+                success = false,
+                message = "Không tìm thấy sản phẩm để cập nhật",
+                data = (object?)null
+            });
+            
+            return Ok(new
+            {
+                success = true,
+                message = "Cập nhật sản phẩm thành công",
+                data = (object?)null
+            });
         }
 
         // UC043: Toggle Product
@@ -44,29 +60,57 @@ namespace LocalMartOnline.Controllers
         public async Task<IActionResult> ToggleProduct(string id, [FromQuery] bool enable)
         {
             var result = await _service.ToggleProductAsync(id, enable);
-            if (!result) return NotFound();
-            return NoContent();
+            if (!result) return NotFound(new
+            {
+                success = false,
+                message = "Không tìm thấy sản phẩm để thay đổi trạng thái",
+                data = (object?)null
+            });
+            
+            var status = enable ? "kích hoạt" : "vô hiệu hóa";
+            return Ok(new
+            {
+                success = true,
+                message = $"Đã {status} sản phẩm thành công",
+                data = (object?)null
+            });
         }
 
-        // UC049: View All Product List (ph�n trang)
+        // UC049: View All Product List (phân trang)
         [HttpGet]
         [AllowAnonymous]
-        public async Task<ActionResult<PagedResultDto<ProductDto>>> GetAllProducts(
+        public async Task<IActionResult> GetAllProducts(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
             var products = await _service.GetAllProductsAsync(page, pageSize);
-            return Ok(products);
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách sản phẩm thành công",
+                data = products
+            });
         }
 
         // UC050: View Product Details
         [HttpGet("{id}")]
         [AllowAnonymous]
-        public async Task<ActionResult<ProductDto>> GetProductDetails(string id)
+        public async Task<IActionResult> GetProductDetails(string id)
         {
             var product = await _service.GetProductDetailsAsync(id);
-            if (product == null) return NotFound();
-            return Ok(product);
+            if (product == null) return NotFound(new
+            {
+                success = false,
+                message = "Không tìm thấy thông tin sản phẩm",
+                data = (object?)null
+            });
+            
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy thông tin sản phẩm thành công",
+                data = product
+            });
         }
 
         // UC053: Upload Actual Product Photo
@@ -76,14 +120,25 @@ namespace LocalMartOnline.Controllers
         {
             dto.ProductId = productId;
             var result = await _service.UploadActualProductPhotoAsync(dto);
-            if (!result) return NotFound();
-            return Ok();
+            if (!result) return NotFound(new
+            {
+                success = false,
+                message = "Không tìm thấy sản phẩm để tải ảnh lên",
+                data = (object?)null
+            });
+            
+            return Ok(new
+            {
+                success = true,
+                message = "Tải lên ảnh thực tế của sản phẩm thành công",
+                data = (object?)null
+            });
         }
 
-        // UC054: Search Products (ph�n trang)
+        // UC054: Search Products (phân trang)
         [HttpGet("search")]
         [AllowAnonymous]
-        public async Task<ActionResult<PagedResultDto<ProductDto>>> Search(
+        public async Task<IActionResult> Search(
             [FromQuery] string keyword,
             [FromQuery] string? categoryId,
             [FromQuery] decimal? latitude,
@@ -92,16 +147,141 @@ namespace LocalMartOnline.Controllers
             [FromQuery] int pageSize = 20)
         {
             var products = await _service.SearchProductsAsync(keyword, categoryId, latitude, longitude, page, pageSize);
-            return Ok(products);
+            return Ok(new
+            {
+                success = true,
+                message = "Tìm kiếm sản phẩm thành công",
+                data = products
+            });
         }
 
-        // UC055: Filter Products (ph�n trang)
+        // UC055: Filter Products (phân trang)
         [HttpPost("filter")]
         [AllowAnonymous]
-        public async Task<ActionResult<PagedResultDto<ProductDto>>> Filter([FromBody] ProductFilterDto filter)
+        public async Task<IActionResult> Filter([FromBody] ProductFilterDto filter)
         {
             var products = await _service.FilterProductsAsync(filter);
-            return Ok(products);
+            return Ok(new
+            {
+                success = true,
+                message = "Lọc sản phẩm thành công",
+                data = products
+            });
+        }
+        
+        // Get products by store
+        [HttpGet("store/{storeId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetProductsByStore(
+            string storeId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var products = await _service.GetProductsByStoreAsync(storeId, page, pageSize);
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách sản phẩm của gian hàng thành công",
+                data = products
+            });
+        }
+        
+        // Search products in store
+        [HttpGet("store/{storeId}/search")]
+        [AllowAnonymous]
+        public async Task<IActionResult> SearchProductsInStore(
+            string storeId,
+            [FromQuery] string keyword,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var products = await _service.SearchProductsInStoreAsync(storeId, keyword, page, pageSize);
+            return Ok(new
+            {
+                success = true,
+                message = "Tìm kiếm sản phẩm trong gian hàng thành công",
+                data = products
+            });
+        }
+        
+        // Filter products in store
+        [HttpPost("store/{storeId}/filter")]
+        [AllowAnonymous]
+        public async Task<IActionResult> FilterProductsInStore(
+            string storeId,
+            [FromBody] ProductFilterDto filter)
+        {
+            filter.StoreId = storeId;
+            var products = await _service.FilterProductsInStoreAsync(filter);
+            return Ok(new
+            {
+                success = true,
+                message = "Lọc sản phẩm trong gian hàng thành công",
+                data = products
+            });
+        }
+        
+        //// Get product details in store
+        //[HttpGet("store/{storeId}/product/{productId}")]
+        //[AllowAnonymous]
+        //public async Task<ActionResult<ProductDto>> GetProductDetailsInStore(
+        //    string storeId,
+        //    string productId)
+        //{
+        //    var product = await _service.GetProductDetailsInStoreAsync(storeId, productId);
+        //    if (product == null) return NotFound();
+        //    return Ok(product);
+        //}
+
+        // Get all products in a market
+        [HttpGet("market/{marketId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetProductsByMarket(
+            string marketId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var products = await _service.GetProductsByMarketAsync(marketId, page, pageSize);
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách sản phẩm trong chợ thành công",
+                data = products
+            });
+        }
+
+        // Filter products in a market
+        [HttpPost("market/{marketId}/filter")]
+        [AllowAnonymous]
+        public async Task<IActionResult> FilterProductsInMarket(
+            string marketId,
+            [FromBody] ProductFilterDto filter)
+        {
+            var products = await _service.FilterProductsInMarketAsync(marketId, filter);
+            return Ok(new
+            {
+                success = true,
+                message = "Lọc sản phẩm trong chợ thành công",
+                data = products
+            });
+        }
+
+        // Search products in a market
+        [HttpGet("market/{marketId}/search")]
+        [AllowAnonymous]
+        public async Task<IActionResult> SearchProductsInMarket(
+            string marketId,
+            [FromQuery] string keyword,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var products = await _service.SearchProductsInMarketAsync(marketId, keyword, page, pageSize);
+            return Ok(new
+            {
+                success = true,
+                message = "Tìm kiếm sản phẩm trong chợ thành công",
+                data = products
+            });
         }
     }
 }
