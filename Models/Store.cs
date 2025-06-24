@@ -12,10 +12,10 @@ namespace LocalMartOnline.Models
         public string? Id { get; set; }
 
         [BsonElement("seller_id")]
-        public long SellerId { get; set; }
+        public string SellerId { get; set; }
 
         [BsonElement("market_id")]
-        public long MarketId { get; set; }
+        public string MarketId { get; set; }
 
         [BsonElement("name")]
         public string Name { get; set; } = string.Empty;

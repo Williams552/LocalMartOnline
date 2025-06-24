@@ -4,9 +4,11 @@ using LocalMartOnline.Models.DTOs.Common;
 using LocalMartOnline.Models.DTOs.Store;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Services.Interface;
+using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace LocalMartOnline.Services.Implement
@@ -27,9 +29,15 @@ namespace LocalMartOnline.Services.Implement
             _mapper = mapper;
         }
 
-        // UC030: Open Store
+        // UC030: Create Store
         public async Task<StoreDto> CreateStoreAsync(StoreCreateDto dto)
         {
+            // Kiểm tra xem seller đã có store chưa
+            if (await HasExistingStoreAsync(dto.SellerId))
+            {
+                throw new InvalidOperationException("Mỗi người bán chỉ được mở một cửa hàng");
+            }
+
             var store = _mapper.Map<Store>(dto);
             store.Status = "Open";
             store.CreatedAt = DateTime.UtcNow;
@@ -167,6 +175,234 @@ namespace LocalMartOnline.Services.Implement
             store.UpdatedAt = DateTime.UtcNow;
             await _storeRepo.UpdateAsync(id, store);
             return true;
+        }
+
+        public async Task<PagedResultDto<StoreDto>> GetActiveStoresByMarketIdAsync(string marketId, int page, int pageSize)
+        {
+            // Tìm các store đang active (trạng thái "Open") thuộc market này
+            var stores = await _storeRepo.FindManyAsync(s => 
+                s.MarketId.ToString() == marketId && 
+                s.Status == "Open" );
+            
+            var total = stores.Count();
+            var paged = stores
+                .OrderByDescending(s => s.Rating) // Sắp xếp theo rating cao nhất
+                .ThenByDescending(s => s.CreatedAt) // Sau đó theo thời gian tạo mới nhất
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
+                
+            var items = _mapper.Map<IEnumerable<StoreDto>>(paged);
+            
+            return new PagedResultDto<StoreDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<bool> ToggleStoreStatusAsync(string id)
+        {
+            var store = await _storeRepo.GetByIdAsync(id);
+            if (store == null) return false;
+            
+            // Chuyển đổi giữa Open và Closed (không liên quan đến Suspended)
+            if (store.Status == "Open")
+                store.Status = "Closed";
+            else if (store.Status == "Closed")
+                store.Status = "Open";
+            else
+                return false; // Nếu store đang Suspended, không toggle trạng thái
+                
+            store.UpdatedAt = DateTime.UtcNow;
+            await _storeRepo.UpdateAsync(id, store);
+            return true;
+        }
+
+        public async Task<PagedResultDto<StoreDto>> SearchStoresAsync(StoreSearchFilterDto filter, bool isAdmin = false)
+        {
+            
+            Expression<Func<Store, bool>> searchExpression = s => true;
+
+            // Nếu không phải admin, chỉ tìm kiếm store đang mở cửa
+            if (!isAdmin)
+            {
+                searchExpression = s => s.Status == "Open";
+            }
+            else if (!string.IsNullOrEmpty(filter.Status))
+            {
+                // Admin có thể lọc theo trạng thái
+                searchExpression = s => s.Status == filter.Status;
+            }
+
+            // Thực hiện truy vấn cơ bản
+            var stores = await _storeRepo.FindManyAsync(searchExpression);
+
+            // Lọc bằng LINQ trong memory
+            if (!string.IsNullOrEmpty(filter.Keyword))
+            {
+                stores = stores.Where(s => s.Name.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+
+            if (!string.IsNullOrEmpty(filter.MarketId))
+            {
+                stores = stores.Where(s => s.MarketId.ToString() == filter.MarketId).ToList();
+            }
+
+            if (filter.MinRating.HasValue)
+            {
+                stores = stores.Where(s => s.Rating >= filter.MinRating.Value).ToList();
+            }
+
+            if (filter.MaxRating.HasValue)
+            {
+                stores = stores.Where(s => s.Rating <= filter.MaxRating.Value).ToList();
+            }
+
+            // Lọc theo khoảng cách nếu có tọa độ
+            if (filter.Latitude.HasValue && filter.Longitude.HasValue && filter.MaxDistance.HasValue)
+            {
+                stores = stores.Where(s =>
+                    CalculateDistance(filter.Latitude.Value, filter.Longitude.Value, s.Latitude, s.Longitude)
+                    <= (double)filter.MaxDistance.Value)  // Cast to double to fix error 2
+                    .ToList();
+            }
+
+            // Sắp xếp kết quả
+            if (!string.IsNullOrEmpty(filter.SortBy))
+            {
+                switch (filter.SortBy.ToLower())
+                {
+                    case "rating":
+                        stores = filter.Ascending
+                            ? stores.OrderBy(s => s.Rating).ToList()
+                            : stores.OrderByDescending(s => s.Rating).ToList();
+                        break;
+                    case "distance":
+                        if (filter.Latitude.HasValue && filter.Longitude.HasValue)
+                        {
+                            stores = stores
+                                .OrderBy(s => CalculateDistance(
+                                    filter.Latitude.Value, filter.Longitude.Value,
+                                    s.Latitude, s.Longitude))
+                                .ToList();
+                        }
+                        break;
+                    case "created":
+                    default:
+                        stores = filter.Ascending
+                            ? stores.OrderBy(s => s.CreatedAt).ToList()
+                            : stores.OrderByDescending(s => s.CreatedAt).ToList();
+                        break;
+                }
+            }
+            else
+            {
+                // Mặc định sắp xếp theo rating
+                stores = stores.OrderByDescending(s => s.Rating).ToList();
+            }
+
+            // Phân trang
+            int totalCount = stores.Count();
+            var pagedStores = stores
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToList();
+
+            // Chuyển đổi sang DTO
+            var storeDtos = _mapper.Map<IEnumerable<StoreDto>>(pagedStores);
+
+            return new PagedResultDto<StoreDto>
+            {
+                Items = storeDtos,
+                TotalCount = totalCount,
+                Page = filter.Page,
+                PageSize = filter.PageSize
+            };
+        }
+
+        public async Task<PagedResultDto<StoreDto>> FindStoresNearbyAsync(decimal latitude, decimal longitude,
+      decimal maxDistanceKm, int page = 1, int pageSize = 20)
+        {
+            // Lấy tất cả cửa hàng đang mở
+            var stores = await _storeRepo.FindManyAsync(s => s.Status == "Open");
+
+            // Tính khoảng cách và lọc theo khoảng cách
+            var storesWithDistance = stores
+                .Select(s => new
+                {
+                    Store = s,
+                    Distance = CalculateDistance(latitude, longitude, s.Latitude, s.Longitude)
+                })
+                .Where(x => x.Distance <= (double)maxDistanceKm)  // Cast to double to fix error
+                .OrderBy(x => x.Distance)
+                .ToList();
+
+            // Phân trang
+            int totalCount = storesWithDistance.Count;
+            var pagedStores = storesWithDistance
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(x => x.Store)
+                .ToList();
+
+            // Chuyển đổi sang DTO
+            var storeDtos = _mapper.Map<IEnumerable<StoreDto>>(pagedStores);
+
+            return new PagedResultDto<StoreDto>
+            {
+                Items = storeDtos,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        // Phương thức tính khoảng cách giữa hai điểm (sử dụng công thức Haversine)
+        private double CalculateDistance(decimal lat1, decimal lon1, decimal lat2, decimal lon2)
+        {
+            const double R = 6371; // Bán kính trái đất tính bằng km
+            var dLat = ToRadians((double)(lat2 - lat1));
+            var dLon = ToRadians((double)(lon2 - lon1));
+            
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(ToRadians((double)lat1)) * Math.Cos(ToRadians((double)lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return R * c;
+        }
+
+        private double ToRadians(double degrees)
+        {
+            return degrees * Math.PI / 180;
+        }
+
+        public async Task<PagedResultDto<StoreDto>> GetActiveStoresAsync(int page, int pageSize)
+        {
+            // Chỉ lấy các store có trạng thái "Open"
+            var stores = await _storeRepo.FindManyAsync(s => s.Status == "Open");
+            var total = stores.Count();
+            var paged = stores
+                .OrderByDescending(s => s.Rating) // Sắp xếp theo rating cao nhất trước
+                .ThenByDescending(s => s.CreatedAt) // Sau đó theo thời gian tạo mới nhất
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
+            var items = _mapper.Map<IEnumerable<StoreDto>>(paged);
+            return new PagedResultDto<StoreDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<bool> HasExistingStoreAsync(string sellerId)
+        {
+            var stores = await _storeRepo.FindManyAsync(s => s.SellerId == sellerId);
+            return stores.Any(); // Trả về true nếu seller đã có ít nhất một store
         }
     }
 }

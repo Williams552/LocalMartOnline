@@ -5,8 +5,8 @@ namespace LocalMartOnline.Models.DTOs.Store
     public class StoreDto
     {
         public string? Id { get; set; }
-        public long SellerId { get; set; }
-        public long MarketId { get; set; }
+        public string SellerId { get; set; }
+        public string MarketId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
         public decimal Latitude { get; set; }
