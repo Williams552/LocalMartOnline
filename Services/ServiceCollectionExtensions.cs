@@ -70,6 +70,26 @@ namespace LocalMartOnline.Services
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<Store>(mongoService, "Stores");
             });
+            services.AddScoped<IRepository<Category>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<Category>(mongoService, "Categories");
+            });
+            services.AddScoped<IRepository<CategoryRegistration>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<CategoryRegistration>(mongoService, "CategoryRegistrations");
+            });
+            services.AddScoped<IRepository<ProductImage>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<ProductImage>(mongoService, "ProductImages");
+            });
+            services.AddScoped<IRepository<OrderItem>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<OrderItem>(mongoService, "OrderItems");
+            });
+            services.AddScoped<IRepository<StoreFollow>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<StoreFollow>(mongoService, "StoreFollows");
+            });
             return services;
         }
     }
