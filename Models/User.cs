@@ -68,5 +68,16 @@ namespace LocalMartOnline.Models
 
         [BsonElement("user_token")]
         public string? UserToken { get; set; }
+
+        [BsonElement("otp_token")]
+        public string? OTPToken { get; set; }
+
+        [BsonElement("otp_expiry")]
+        [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+        public DateTime? OTPExpiry { get; set; }
+
+        [BsonElement("user_token")]
+        public string? UserToken { get; set; }
     }
+}
 }

@@ -3,14 +3,15 @@ using MongoDB.Bson;
 using LocalMartOnline.Services;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Linq.Expressions;
 
 namespace LocalMartOnline.Repositories
 {
-    public class GenericRepository<T> : IGenericRepository<T>
+    public class Repository<T> : IRepository<T>
     {
         private readonly IMongoCollection<T> _collection;
 
-        public GenericRepository(MongoDBService mongoDBService, string collectionName)
+        public Repository(MongoDBService mongoDBService, string collectionName)
         {
             _collection = mongoDBService.GetCollection<T>(collectionName);
         }
@@ -42,5 +43,21 @@ namespace LocalMartOnline.Repositories
             var filter = Builders<T>.Filter.Eq("_id", ObjectId.Parse(id));
             await _collection.DeleteOneAsync(filter);
         }
+
+        public async Task<T?> FindOneAsync(Expression<System.Func<T, bool>> filter)
+        {
+            return await _collection.Find(filter).FirstOrDefaultAsync();
+        }
+
+        public async Task<IEnumerable<T>> FindManyAsync(Expression<System.Func<T, bool>> filter)
+        {
+            return await _collection.Find(filter).ToListAsync();
+        }
+
+        // Expose the underlying IMongoCollection<T> for advanced queries
+        public MongoDB.Driver.IMongoCollection<T> GetCollection()
+        {
+            return _collection;
+        }
     }
-} 
+}

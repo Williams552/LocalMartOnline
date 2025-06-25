@@ -1,75 +1,98 @@
-using MongoDB.Driver;
-using LocalMartOnline.Repositories;
-using LocalMartOnline.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using LocalMartOnline.Services;
+using LocalMartOnline.Repositories;
+using LocalMartOnline.Services.Interface;
+using LocalMartOnline.Services.Implement;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Load appsettings.Local.json nếu tồn tại
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured");
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+    };
+});
+builder.Services.AddScoped<IVnPayService, VnPayService>();
+
+// Add services to the container
+builder.Services.AddControllers()
+    .AddNewtonsoftJson(options =>
+        options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
-// MongoDB DI
-builder.Services.AddSingleton(sp => {
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var connectionString = configuration["MongoDB:ConnectionString"];
-    return new MongoDB.Driver.MongoClient(connectionString);
-});
-builder.Services.AddSingleton(sp => {
-    var configuration = sp.GetRequiredService<IConfiguration>();
-    var client = sp.GetRequiredService<MongoDB.Driver.MongoClient>();
-    var dbName = configuration["MongoDB:DatabaseName"];
-    return client.GetDatabase(dbName);
-});
-builder.Services.AddScoped<LocalMartOnline.Services.MongoDBService>();
-builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.User>>(sp =>
+// Đăng ký NotificationService và IRepository<User> cho DI
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IRepository<LocalMartOnline.Models.User>>(provider =>
+    new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.User>(
+        provider.GetRequiredService<MongoDBService>(), "User"));
+
+// Swagger config
+builder.Services.AddSwaggerGen(c =>
 {
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.User>(mongoService, "Users");
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "LocalMartOnline API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
 });
 
-// Add Cart repositories
-builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Cart>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Cart>(mongoService, "Carts");
-});
+// MongoDB & Repository DI
+builder.Services.AddMongoDbAndRepositories();
 
-builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.CartItem>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.CartItem>(mongoService, "CartItems");
-});
+// Application Services
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
-builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Product>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Product>(mongoService, "Products");
-});
-
-builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Category>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Category>(mongoService, "Categories");
-});
-
-// Add SignalR
-builder.Services.AddSignalR();
-
-// Add Service
-builder.Services.AddScoped<ICartService, CartService>();
-builder.Services.AddScoped<IProductService, ProductService>();
+// Dependency Injection for services
 builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<IFavoriteService, FavoriteService>();
-builder.Services.AddScoped<IReviewService, ReviewService>();
-builder.Services.AddScoped<IMarketRuleService, MarketRuleService>();
+builder.Services.AddScoped<ICategoryRegistrationService, CategoryRegistrationService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IStoreService, StoreService>();
+builder.Services.AddScoped<IMarketFeeService, MarketFeeService>();
+builder.Services.AddScoped<IMarketFeePaymentService, MarketFeePaymentService>();
 builder.Services.AddScoped<IReportService, ReportService>();
-builder.Services.AddScoped<ISellerLicenseService, SellerLicenseService>();
-builder.Services.AddScoped<ICustomerService, CustomerService>();
-builder.Services.AddScoped<ISupportRequestService, SupportRequestService>();
-builder.Services.AddScoped<IChatService, ChatService>();
+
+// AutoMapper
+builder.Services.AddAutoMapper(typeof(MappingService).Assembly);
 
 var app = builder.Build();
 
@@ -77,11 +100,16 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "LocalMartOnline API V1");
+        c.RoutePrefix = string.Empty; // Đặt swagger làm trang mặc định
+    });
 }
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

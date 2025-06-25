@@ -18,28 +18,20 @@ namespace LocalMartOnline.Controllers
             _mongoDBService = mongoDBService;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> Get()
-        {
-            // Ví dụ: Lấy tất cả documents từ collection "your_collection"
-            var collection = _mongoDBService.GetCollection<object>("users");
-            var documents = await collection.Find(_ => true).ToListAsync();
-            return Ok(documents);
-        }
-
         [HttpGet("test-connection")]
         public IActionResult TestConnection()
         {
             try
             {
-                // Thử lấy danh sách collection
                 var collections = _database.ListCollectionNames().ToList();
-                return Ok(new { success = true, collections });
+                return Ok(new { success = true, message = "Kết nối MongoDB thành công", data = collections });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                // Log the exception details for server-side diagnostics
+                Console.Error.WriteLine($"[MongoDBController][TestConnection] Exception: {ex}");
+                return StatusCode(500, new { success = false, message = "An unexpected error occurred.", data = (object?)null });
             }
         }
     }
-} 
+}

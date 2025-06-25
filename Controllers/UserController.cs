@@ -1,6 +1,11 @@
- using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Models;
+using LocalMartOnline.Services;
+using LocalMartOnline.Models.DTOs;
+using AutoMapper;
 
 namespace LocalMartOnline.Controllers
 {
@@ -8,18 +13,121 @@ namespace LocalMartOnline.Controllers
     [Route("api/[controller]")]
     public class UserController : ControllerBase
     {
-        private readonly IGenericRepository<User> _userRepo;
+        private readonly IRepository<User> _userRepo;
+        private readonly IUserService _userService;
+        private readonly IMapper _mapper;
 
-        public UserController(IGenericRepository<User> userRepo)
+        public UserController(IRepository<User> userRepo, IUserService userService, IMapper mapper)
         {
             _userRepo = userRepo;
+            _userService = userService;
+            _mapper = mapper;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAll(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null,
+            [FromQuery] string? role = null,
+            [FromQuery] string? sortField = null,
+            [FromQuery] string? sortOrder = "asc")
         {
-            var users = await _userRepo.GetAllAsync();
-            return Ok(users);
+            if (pageNumber <= 0 || pageSize <= 0)
+            {
+                return BadRequest(new { success = false, message = "pageNumber and pageSize must be positive integers greater than zero.", data = (object?)null });
+            }
+            var (users, total) = await _userService.GetUsersPagingAsync(pageNumber, pageSize, search, role, sortField, sortOrder);
+            var userDtos = users.Select(u => _mapper.Map<RegisterDTO>(u));
+            return Ok(new {
+                success = true,
+                message = "Lấy danh sách người dùng thành công",
+                data = new {
+                    Total = total,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    Data = userDtos
+                }
+            });
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
+        {
+            if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
+                return BadRequest(new { success = false, message = "Invalid id format", data = (object?)null });
+            var user = await _userRepo.GetByIdAsync(id);
+            if (user == null)
+                return NotFound(new { success = false, message = "User not found", data = (object?)null });
+            var userDto = _mapper.Map<RegisterDTO>(user);
+            return Ok(new { success = true, message = "Lấy thông tin người dùng thành công", data = userDto });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create(RegisterDTO userDto)
+        {
+            var user = _mapper.Map<User>(userDto);
+            await _userRepo.CreateAsync(user);
+            return CreatedAtAction(nameof(GetById), new { id = user.Id }, new { success = true, message = "Tạo người dùng thành công", data = userDto });
+        }
+
+        [HttpPut("{id}")]
+        [Authorize]
+        public async Task<IActionResult> Update(string id, [FromBody] RegisterDTO updateUserDto)
+        {
+            if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
+                return BadRequest(new { success = false, message = "Invalid id format", data = (object?)null });
+
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var isAdmin = User.IsInRole("Admin");
+            if (currentUserId != id && !isAdmin)
+                return StatusCode(403, new { success = false, message = "Bạn không có quyền cập nhật user này", data = (object?)null });
+
+            var existing = await _userRepo.GetByIdAsync(id);
+            if (existing == null)
+                return NotFound(new { success = false, message = "User not found", data = (object?)null });
+
+            _mapper.Map(updateUserDto, existing);
+            existing.UpdatedAt = DateTime.UtcNow;
+
+            await _userRepo.UpdateAsync(id, existing);
+            return Ok(new { success = true, message = "Cập nhật người dùng thành công", data = (object?)null });
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(string id)
+        {
+            if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
+                return BadRequest(new { success = false, message = "Invalid id format", data = (object?)null });
+            var existing = await _userRepo.GetByIdAsync(id);
+            if (existing == null)
+                return NotFound(new { success = false, message = "User not found", data = (object?)null });
+            await _userRepo.DeleteAsync(id);
+            return Ok(new { success = true, message = "Xóa người dùng thành công", data = (object?)null });
+        }
+
+        [HttpPatch("{id}/toggle")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ToggleUserAccount(string id)
+        {
+            var result = await _userService.ToggleUserAccountAsync(id);
+            if (!result)
+                return NotFound(new { success = false, message = "User not found", data = (object?)null });
+            return Ok(new { success = true, message = "User status toggled", data = (object?)null });
+        }
+
+        [HttpPatch("disable-own")]
+        [Authorize]
+        public async Task<IActionResult> DisableOwnAccount()
+        {
+            var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userId == null)
+                return Unauthorized(new { success = false, message = "Unauthorized", data = (object?)null });
+            var result = await _userService.DisableOwnAccountAsync(userId);
+            if (!result)
+                return NotFound(new { success = false, message = "User not found", data = (object?)null });
+            return Ok(new { success = true, message = "Your account has been disabled", data = (object?)null });
         }
     }
 }
