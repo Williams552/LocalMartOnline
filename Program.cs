@@ -80,6 +80,19 @@ builder.Services.AddAutoMapper(typeof(MappingService).Assembly);
 // SignalR
 builder.Services.AddSignalR();
 
+// CORS policy
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:3000") // Thay bằng địa chỉ frontend của bạn
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials(); // nếu dùng cookie / auth
+        });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -93,6 +106,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
