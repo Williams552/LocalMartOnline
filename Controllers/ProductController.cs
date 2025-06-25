@@ -283,5 +283,56 @@ namespace LocalMartOnline.Controllers
                 data = products
             });
         }
+
+        // ============ SELLER ENDPOINTS - INCLUDE ALL PRODUCTS (ACTIVE & INACTIVE) ============
+        
+        // Get all products for seller (including inactive)
+        [HttpGet("seller/store/{storeId}")]
+        [Authorize(Roles = "Seller")]
+        public async Task<IActionResult> GetAllProductsForSeller(
+            string storeId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var products = await _service.GetAllProductsForSellerAsync(storeId, page, pageSize);
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách sản phẩm của seller thành công",
+                data = products
+            });
+        }
+
+        // Search products for seller (including inactive)
+        [HttpGet("seller/store/{storeId}/search")]
+        [Authorize(Roles = "Seller")]
+        public async Task<IActionResult> SearchProductsForSeller(
+            string storeId,
+            [FromQuery] string keyword,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var products = await _service.SearchProductsForSellerAsync(storeId, keyword, page, pageSize);
+            return Ok(new
+            {
+                success = true,
+                message = "Tìm kiếm sản phẩm của seller thành công",
+                data = products
+            });
+        }
+
+        // Filter products for seller (including inactive)
+        [HttpPost("seller/filter")]
+        [Authorize(Roles = "Seller")]
+        public async Task<IActionResult> FilterProductsForSeller([FromBody] ProductFilterDto filter)
+        {
+            var products = await _service.FilterProductsForSellerAsync(filter);
+            return Ok(new
+            {
+                success = true,
+                message = "Lọc sản phẩm của seller thành công",
+                data = products
+            });
+        }
     }
 }
