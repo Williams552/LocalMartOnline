@@ -1,38 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-<<<<<<< HEAD
-using System;
-using System.Threading.Tasks;
-using LocalMartOnline.Services;
-using LocalMartOnline.Models.DTOs.Product;
-
-namespace LocalMartOnline.Controllers
-{
-    [Route("api/[controller]")]
-    [ApiController]
-    public class ProductController : ControllerBase
-    {
-        private readonly IProductService _productService;
-
-        public ProductController(IProductService productService)
-        {
-            _productService = productService;
-        }
-
-        // ...existing code...
-
-        [HttpGet("search")]
-        public async Task<ActionResult<SearchProductResultDto>> SearchProducts([FromQuery] SearchProductRequestDto request)
-        {
-            try
-            {
-                var result = await _productService.SearchProductsAsync(request);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred while searching products", error = ex.Message });
-            }
-=======
 using LocalMartOnline.Services.Interface;
 using LocalMartOnline.Models.DTOs.Product;
 using System.Collections.Generic;
@@ -82,7 +48,7 @@ namespace LocalMartOnline.Controllers
             return NoContent();
         }
 
-        // UC049: View All Product List (phân trang)
+        // UC049: View All Product List (phï¿½n trang)
         [HttpGet]
         [AllowAnonymous]
         public async Task<ActionResult<PagedResultDto<ProductDto>>> GetAllProducts(
@@ -114,7 +80,7 @@ namespace LocalMartOnline.Controllers
             return Ok();
         }
 
-        // UC054: Search Products (phân trang)
+        // UC054: Search Products (phï¿½n trang)
         [HttpGet("search")]
         [AllowAnonymous]
         public async Task<ActionResult<PagedResultDto<ProductDto>>> Search(
@@ -129,14 +95,13 @@ namespace LocalMartOnline.Controllers
             return Ok(products);
         }
 
-        // UC055: Filter Products (phân trang)
+        // UC055: Filter Products (phï¿½n trang)
         [HttpPost("filter")]
         [AllowAnonymous]
         public async Task<ActionResult<PagedResultDto<ProductDto>>> Filter([FromBody] ProductFilterDto filter)
         {
             var products = await _service.FilterProductsAsync(filter);
             return Ok(products);
->>>>>>> origin/develop
         }
     }
 }

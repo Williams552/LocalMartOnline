@@ -28,6 +28,7 @@ namespace LocalMartOnline.Models.DTOs.Product
         public string? ImageUrl { get; set; }
     }
 
+    // Sử dụng SearchProductResultDto duy nhất ở đây, các nơi khác dùng lại class này
     public class SearchProductResultDto
     {
         public List<SearchProductResponseDto> Products { get; set; } = new();

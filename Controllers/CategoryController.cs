@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,16 +5,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Models.DTOs.Category;
 using LocalMartOnline.Models.DTOs.Product;
-using LocalMartOnline.Services;
-=======
-using LocalMartOnline.Models.DTOs.Category;
-using LocalMartOnline.Models.DTOs.Common;
 using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
-using System.Threading.Tasks;
->>>>>>> origin/develop
+using LocalMartOnline.Models.DTOs.Common;
 
 namespace LocalMartOnline.Controllers
 {
@@ -30,34 +22,6 @@ namespace LocalMartOnline.Controllers
             _categoryService = categoryService;
         }
 
-<<<<<<< HEAD
-        [HttpGet]
-        public async Task<ActionResult<GetCategoriesResponseDto>> GetCategories()
-        {
-            try
-            {
-                var result = await _categoryService.GetActiveCategoriesAsync();
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred while retrieving categories", error = ex.Message });
-            }
-        }
-
-        [HttpGet("{categoryId}/products")]
-        public async Task<ActionResult<SearchProductResultDto>> GetProductsByCategory(string categoryId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string sortPrice = "")
-        {
-            try
-            {
-                var result = await _categoryService.GetProductsByCategoryAsync(categoryId, page, pageSize, sortPrice);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = "An error occurred while retrieving products by category", error = ex.Message });
-            }
-=======
         // UC056: View Category List
         [HttpGet]
         [AllowAnonymous]
@@ -132,7 +96,6 @@ namespace LocalMartOnline.Controllers
             var result = await _categoryService.DeleteAsync(id);
             if (!result) return NotFound();
             return NoContent();
->>>>>>> origin/develop
         }
     }
 }

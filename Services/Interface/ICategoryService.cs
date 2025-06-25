@@ -1,5 +1,6 @@
 using LocalMartOnline.Models.DTOs.Category;
 using LocalMartOnline.Models.DTOs.Common;
+using LocalMartOnline.Models.DTOs.Product;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -15,6 +16,7 @@ namespace LocalMartOnline.Services.Interface
         Task<bool> ToggleAsync(string id);
         Task<IEnumerable<CategoryDto>> SearchByNameAsync(string name);
         Task<IEnumerable<CategoryDto>> FilterByAlphabetAsync(char alphabet);
-
+        Task<GetCategoriesResponseDto> GetActiveCategoriesAsync();
+        Task<SearchProductResultDto> GetProductsByCategoryAsync(string categoryId, int page = 1, int pageSize = 20, string sortPrice = "");
     }
 }

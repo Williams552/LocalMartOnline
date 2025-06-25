@@ -52,7 +52,7 @@ namespace LocalMartOnline.Services
             var orders = await _orderCollection
                 .Find(Builders<Order>.Filter.And(
                     Builders<Order>.Filter.In(o => o.Id, orderIds),
-                    Builders<Order>.Filter.Eq(o => o.Status, "Completed"),
+                    Builders<Order>.Filter.Eq(o => o.Status, OrderStatus.Completed),
                     Builders<Order>.Filter.Gte(o => o.CreatedAt, fromDate)
                 ))
                 .ToListAsync();
@@ -217,7 +217,7 @@ namespace LocalMartOnline.Services
                 {
                     OrderId = order.Id!,
                     TotalAmount = orderAmount,
-                    Status = order.Status,
+                    Status = order.Status.ToString(),
                     CreatedAt = order.CreatedAt,
                     ItemCount = sellerOrderItems.Sum(oi => oi.Quantity)
                 });

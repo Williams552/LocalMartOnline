@@ -93,6 +93,7 @@ builder.Services.AddScoped<IReportService, ReportService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingService).Assembly);
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 

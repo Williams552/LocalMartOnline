@@ -4,6 +4,8 @@ using LocalMartOnline.Models.DTOs.Common;
 using LocalMartOnline.Models.DTOs.Product;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Services.Interface;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,17 +19,20 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<ProductImage> _imageRepo;
         private readonly IRepository<Store> _storeRepo;
         private readonly IMapper _mapper;
+        private readonly IMongoCollection<BsonDocument> _productCollection;
 
         public ProductService(
             IRepository<Product> productRepo,
             IRepository<ProductImage> imageRepo,
             IRepository<Store> storeRepo,
-            IMapper mapper)
+            IMapper mapper,
+            IMongoDatabase database)
         {
             _productRepo = productRepo;
             _imageRepo = imageRepo;
             _storeRepo = storeRepo;
             _mapper = mapper;
+            _productCollection = database.GetCollection<BsonDocument>("products");
         }
 
         // UC041: Add Product
@@ -156,7 +161,7 @@ namespace LocalMartOnline.Services.Implement
                 {
                     var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
                     if (store == null) return false;
-                    var dist = GetDistanceKm(latitude.Value, longitude.Value, store.Latitude, store.Longitude);
+                    var dist = GetDistanceKm(latitude.Value, longitude.Value, store.Latitude ?? 0, store.Longitude ?? 0);
                     return dist <= 50; // ví dụ: chỉ lấy trong bán kính 50km
                 }).ToList();
             }
@@ -193,7 +198,7 @@ namespace LocalMartOnline.Services.Implement
                 {
                     var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
                     if (store == null) return false;
-                    var dist = GetDistanceKm(filter.Latitude.Value, filter.Longitude.Value, store.Latitude, store.Longitude);
+                    var dist = GetDistanceKm(filter.Latitude.Value, filter.Longitude.Value, store.Latitude ?? 0, store.Longitude ?? 0);
                     return dist <= filter.MaxDistanceKm.Value;
                 }).ToList();
             }
@@ -326,6 +331,54 @@ namespace LocalMartOnline.Services.Implement
                 result.Add(dto);
             }
             return result;
+        }
+
+        public async Task<SearchProductResultDto> SearchProductsAsync(SearchProductRequestDto request)
+        {
+            // Lấy tất cả sản phẩm
+            var products = await _productRepo.GetAllAsync();
+            // Lọc theo category nếu có
+            if (!string.IsNullOrEmpty(request.CategoryId))
+                products = products.Where(p => p.CategoryId == request.CategoryId).ToList();
+            // Lọc theo từ khóa nếu có
+            if (!string.IsNullOrEmpty(request.Search))
+                products = products.Where(p => p.Name.Contains(request.Search, StringComparison.OrdinalIgnoreCase) || (p.Description != null && p.Description.Contains(request.Search, StringComparison.OrdinalIgnoreCase))).ToList();
+            // Sắp xếp theo giá nếu có
+            if (!string.IsNullOrEmpty(request.SortPrice))
+            {
+                if (request.SortPrice.ToLower() == "asc")
+                    products = products.OrderBy(p => p.Price).ToList();
+                else if (request.SortPrice.ToLower() == "desc")
+                    products = products.OrderByDescending(p => p.Price).ToList();
+            }
+            // Phân trang
+            int total = products.Count();
+            int page = request.Page > 0 ? request.Page : 1;
+            int pageSize = request.PageSize > 0 ? request.PageSize : 20;
+            var paged = products.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            // Map sang SearchProductResponseDto
+            var productDtos = paged.Select(p => new SearchProductResponseDto
+            {
+                ProductId = p.Id ?? string.Empty,
+                Name = p.Name,
+                Description = p.Description,
+                Price = p.Price,
+                StockQuantity = p.StockQuantity,
+                Status = p.Status.ToString(),
+                CategoryName = string.Empty, // Có thể map thêm nếu cần
+                StoreName = string.Empty,    // Có thể map thêm nếu cần
+                StoreId = p.StoreId ?? string.Empty,
+                ImageUrl = null // Có thể lấy ảnh đầu tiên nếu cần
+            }).ToList();
+            // Kết quả
+            return new SearchProductResultDto
+            {
+                Products = productDtos,
+                TotalCount = total,
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling((double)total / pageSize)
+            };
         }
     }
 }

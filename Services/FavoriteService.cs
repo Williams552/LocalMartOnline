@@ -36,7 +36,7 @@ namespace LocalMartOnline.Services
 
                 // Check if product exists and is active
                 var product = await _productCollection
-                    .Find(p => p.Id == productId && p.Status == "Active")
+                    .Find(p => p.Id == productId && p.Status == ProductStatus.Active)
                     .FirstOrDefaultAsync();
 
                 if (product == null)

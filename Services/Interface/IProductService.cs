@@ -19,5 +19,6 @@ namespace LocalMartOnline.Services.Interface
         Task<PagedResultDto<ProductDto>> FilterProductsInStoreAsync(ProductFilterDto filter);
         Task<PagedResultDto<ProductDto>> SearchProductsInStoreAsync(string storeId, string keyword, int page, int pageSize);
         Task<ProductDto?> GetProductDetailsInStoreAsync(string storeId, string productId);
+        Task<SearchProductResultDto> SearchProductsAsync(SearchProductRequestDto request);
     }
 }
