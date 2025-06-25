@@ -92,5 +92,55 @@ namespace LocalMartOnline.Services
             });
             return services;
         }
+
+        public static IServiceCollection AddLocalMartServices(this IServiceCollection services)
+        {
+            // Application Services
+            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IVnPayService, VnPayService>();
+
+            // Business Services
+            services.AddScoped<ICategoryService, CategoryService>();
+            services.AddScoped<ICategoryRegistrationService, CategoryRegistrationService>();
+            services.AddScoped<IProductService, ProductService>();
+            services.AddScoped<IOrderService, OrderService>();
+            services.AddScoped<IStoreService, StoreService>();
+            services.AddScoped<IMarketFeeService, MarketFeeService>();
+            services.AddScoped<IMarketFeePaymentService, MarketFeePaymentService>();
+            services.AddScoped<IReportService, ReportService>();
+            services.AddScoped<IMarketService, MarketService>();
+            services.AddScoped<IFaqService, FaqService>();
+            services.AddScoped<IPlatformPolicyService, PlatformPolicyService>();
+            return services;
+        }
+
+        public static IServiceCollection AddLocalMartRepositories(this IServiceCollection services)
+        {
+            // Helper method to register repository for entity
+            void AddRepository<TEntity>(string collectionName) where TEntity : class
+            {
+                services.AddScoped<IRepository<TEntity>>(sp =>
+                {
+                    var mongoService = sp.GetRequiredService<MongoDBService>();
+                    return new Repository<TEntity>(mongoService, collectionName);
+                });
+            }
+            AddRepository<User>("User");
+            AddRepository<Category>("Categories");
+            AddRepository<CategoryRegistration>("CategoryRegistrations");
+            AddRepository<Store>("Stores");
+            AddRepository<StoreFollow>("StoreFollows");
+            AddRepository<Product>("Products");
+            AddRepository<ProductImage>("ProductImages");
+            AddRepository<Order>("Orders");
+            AddRepository<OrderItem>("OrderItems");
+            AddRepository<Faq>("Faqs");
+            AddRepository<PlatformPolicy>("PlatformPolicies");
+            AddRepository<Market>("Markets");
+            return services;
+        }
     }
 }

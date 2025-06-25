@@ -1,3 +1,4 @@
+using System.Text;
 using LocalMartOnline.Models;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Services;
@@ -5,9 +6,6 @@ using LocalMartOnline.Services.Implement;
 using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using LocalMartOnline.Services.Interface;
-using LocalMartOnline.Services.Implement;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,19 +32,12 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 });
-builder.Services.AddScoped<IVnPayService, VnPayService>();
 
-// Add services to the container
+// Add controllers & Newtonsoft
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
         options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
 builder.Services.AddEndpointsApiExplorer();
-
-// Đăng ký NotificationService và IRepository<User> cho DI
-builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddScoped<IRepository<LocalMartOnline.Models.User>>(provider =>
-    new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.User>(
-        provider.GetRequiredService<MongoDBService>(), "User"));
 
 // Swagger config
 builder.Services.AddSwaggerGen(c =>
@@ -79,97 +70,14 @@ builder.Services.AddSwaggerGen(c =>
 // MongoDB & Repository DI
 builder.Services.AddMongoDbAndRepositories();
 
-// Application Services
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IUserService, UserService>();
+// Đăng ký các DI cho service và repository
+builder.Services.AddLocalMartServices();
+builder.Services.AddLocalMartRepositories();
 
-// Dependency Injection for services
-builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<ICategoryRegistrationService, CategoryRegistrationService>();
-builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<IStoreService, StoreService>();
-builder.Services.AddScoped<IMarketFeeService, MarketFeeService>();
-builder.Services.AddScoped<IMarketFeePaymentService, MarketFeePaymentService>();
-builder.Services.AddScoped<IReportService, ReportService>();
-
-// Đăng ký Repository cho Category
-builder.Services.AddScoped<IRepository<Category>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.Repository<Category>(mongoService, "Categories");
-});
-
-builder.Services.AddScoped<IRepository<CategoryRegistration>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.Repository<CategoryRegistration>(mongoService, "CategoryRegistrations");
-});
-// Đăng ký Repository cho Store
-builder.Services.AddScoped<IRepository<Store>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.Repository<Store>(mongoService, "Stores");
-});
-
-// Đăng ký Repository cho StoreFollow
-builder.Services.AddScoped<IRepository<StoreFollow>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.Repository<StoreFollow>(mongoService, "StoreFollows");
-});
-// Đăng ký Repository cho Product
-builder.Services.AddScoped<IRepository<Product>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.Repository<Product>(mongoService, "Products");
-});
-
-// Đăng ký Repository cho ProductImage
-builder.Services.AddScoped<IRepository<ProductImage>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.Repository<ProductImage>(mongoService, "ProductImages");
-});
-builder.Services.AddScoped<IRepository<Order>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.Repository<Order>(mongoService, "Orders");
-});
-builder.Services.AddScoped<IRepository<OrderItem>>(sp =>
-{
-    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
-    return new LocalMartOnline.Repositories.Repository<OrderItem>(mongoService, "OrderItems");
-});
-
-// FAQ and PlatformPolicy
-builder.Services.AddScoped<IRepository<LocalMartOnline.Models.Faq>>(provider =>
-    new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.Faq>(
-        provider.GetRequiredService<MongoDBService>(), "Faqs"));
-builder.Services.AddScoped<LocalMartOnline.Services.Interface.IFaqService, LocalMartOnline.Services.Implement.FaqService>();
-
-builder.Services.AddScoped<IRepository<LocalMartOnline.Models.PlatformPolicy>>(provider =>
-    new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.PlatformPolicy>(
-        provider.GetRequiredService<MongoDBService>(), "PlatformPolicies"));
-builder.Services.AddScoped<LocalMartOnline.Services.Interface.IPlatformPolicyService, LocalMartOnline.Services.Implement.PlatformPolicyService>();
-
-// Market 
-builder.Services.AddScoped<IRepository<LocalMartOnline.Models.Market>>(provider =>
-    new LocalMartOnline.Repositories.Repository<LocalMartOnline.Models.Market>(
-        provider.GetRequiredService<MongoDBService>(), "Markets"));
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingService).Assembly);
 
-
-builder.Services.AddScoped<IMarketService, MarketService>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<IStoreService, StoreService>();
-builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<ICategoryRegistrationService, CategoryRegistrationService>();
-builder.Services.AddScoped<IFaqService, FaqService>();
-builder.Services.AddScoped<IPlatformPolicyService, PlatformPolicyService>();
+// SignalR
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -181,18 +89,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "LocalMartOnline API V1");
-        c.RoutePrefix = "Swagger"; // Đặt swagger làm trang mặc định
+        c.RoutePrefix = "Swagger";
     });
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-
-// Map SignalR Hub
 app.MapHub<LocalMartOnline.Hubs.ChatHub>("/chatHub");
-
 app.Run();
