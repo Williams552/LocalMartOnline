@@ -1,5 +1,5 @@
 using LocalMartOnline.Models.DTOs.Favorite;
-using LocalMartOnline.Services;
+using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;

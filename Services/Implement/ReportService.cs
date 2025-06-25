@@ -1,8 +1,9 @@
 using MongoDB.Driver;
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.Report;
+using LocalMartOnline.Services.Interface;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Implement
 {
     public class ReportService : IReportService
     {

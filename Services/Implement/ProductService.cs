@@ -5,8 +5,9 @@ using System.Threading.Tasks;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using LocalMartOnline.Models.DTOs.Product;
+using LocalMartOnline.Services.Interface;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Implement
 {
     public class ProductService : IProductService
     {

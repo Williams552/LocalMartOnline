@@ -1,6 +1,6 @@
 using LocalMartOnline.Models;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Interface
 {
     public interface ICartService
     {

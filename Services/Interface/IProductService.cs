@@ -1,6 +1,6 @@
 using LocalMartOnline.Models.DTOs.Product;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Interface
 {
     public interface IProductService
     {

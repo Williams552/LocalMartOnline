@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using LocalMartOnline.Models.DTOs.Category;
 using LocalMartOnline.Models.DTOs.Product;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Interface
 {
     public interface ICategoryService
     {

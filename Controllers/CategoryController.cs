@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Models.DTOs.Category;
 using LocalMartOnline.Models.DTOs.Product;
-using LocalMartOnline.Services;
+using LocalMartOnline.Services.Interface;
 
 namespace LocalMartOnline.Controllers
 {

@@ -1,7 +1,7 @@
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.SupportRequest;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Interface
 {
     public interface ISupportRequestService
     {

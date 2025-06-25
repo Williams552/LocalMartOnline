@@ -1,9 +1,10 @@
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.Review;
+using LocalMartOnline.Services.Interface;
 using MongoDB.Driver;
 using MongoDB.Bson;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Implement
 {
     public class ReviewService : IReviewService
     {

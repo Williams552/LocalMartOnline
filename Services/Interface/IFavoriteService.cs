@@ -1,6 +1,6 @@
 using LocalMartOnline.Models.DTOs.Favorite;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Interface
 {
     public interface IFavoriteService
     {

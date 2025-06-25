@@ -1,7 +1,8 @@
 using MongoDB.Driver;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Models;
-using LocalMartOnline.Services;
+using LocalMartOnline.Services.Implement;
+using LocalMartOnline.Services.Interface;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.

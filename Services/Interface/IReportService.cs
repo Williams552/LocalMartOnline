@@ -1,6 +1,6 @@
 using LocalMartOnline.Models.DTOs.Report;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Interface
 {
     public interface IReportService
     {

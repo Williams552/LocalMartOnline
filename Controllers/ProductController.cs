@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
-using LocalMartOnline.Services;
+using LocalMartOnline.Services.Interface;
 using LocalMartOnline.Models.DTOs.Product;
 
 namespace LocalMartOnline.Controllers

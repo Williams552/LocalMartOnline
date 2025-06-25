@@ -4,8 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using MongoDB.Driver;
 using LocalMartOnline.Models;
+using LocalMartOnline.Services.Interface;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Implement
 {
     public class CartService : ICartService
     {

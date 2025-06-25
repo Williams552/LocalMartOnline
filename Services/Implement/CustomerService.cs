@@ -1,8 +1,9 @@
 using MongoDB.Driver;
 using LocalMartOnline.Models;
+using LocalMartOnline.Services.Interface;
 using LocalMartOnline.Models.DTOs.LoyalCustomer;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Implement
 {
     public class CustomerService : ICustomerService
     {

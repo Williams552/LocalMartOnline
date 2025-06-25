@@ -1,6 +1,6 @@
 using LocalMartOnline.Models.DTOs.Review;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Interface
 {
     public interface IReviewService
     {

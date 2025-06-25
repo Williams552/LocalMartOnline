@@ -1,9 +1,10 @@
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.SupportRequest;
+using LocalMartOnline.Services.Interface;
 using LocalMartOnline.Services;
 using MongoDB.Driver;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Implement
 {
     public class SupportRequestService : ISupportRequestService
     {

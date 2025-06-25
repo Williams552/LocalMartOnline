@@ -4,10 +4,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using MongoDB.Driver;
 using LocalMartOnline.Models;
+using LocalMartOnline.Services.Interface;
 using LocalMartOnline.Models.DTOs.Category;
 using LocalMartOnline.Models.DTOs.Product;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Implement
 {
     public class CategoryService : ICategoryService
     {

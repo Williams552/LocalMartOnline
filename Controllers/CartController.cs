@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using LocalMartOnline.Services;
+using LocalMartOnline.Services.Interface;
 
 namespace LocalMartOnline.Controllers
 {

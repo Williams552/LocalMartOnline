@@ -1,6 +1,6 @@
 using LocalMartOnline.Models.DTOs.License;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Interface
 {
     public interface ISellerLicenseService
     {
