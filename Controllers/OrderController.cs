@@ -3,6 +3,7 @@ using LocalMartOnline.Services.Interface;
 using LocalMartOnline.Models.DTOs.Order;
 using LocalMartOnline.Models.DTOs.Common;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace LocalMartOnline.Controllers
 {
@@ -19,6 +20,7 @@ namespace LocalMartOnline.Controllers
 
         // UC070: Place Order
         [HttpPost]
+        [Authorize(Roles = "Buyer, ProxyShopper")]
         public async Task<ActionResult<OrderDto>> PlaceOrder([FromBody] OrderCreateDto dto)
         {
             var result = await _service.PlaceOrderAsync(dto);
@@ -27,6 +29,7 @@ namespace LocalMartOnline.Controllers
 
         // UC071: View Order List
         [HttpGet("buyer/{buyerId}")]
+        [Authorize(Roles = "Buyer, ProxyShopper, Seller")]
         public async Task<ActionResult<PagedResultDto<OrderDto>>> GetOrderList(
             string buyerId,
             [FromQuery] int page = 1,
@@ -38,6 +41,7 @@ namespace LocalMartOnline.Controllers
 
         // UC072: Filter Order List
         [HttpPost("filter")]
+        [Authorize(Roles = "Buyer, ProxyShopper, Seller")]
         public async Task<ActionResult<PagedResultDto<OrderDto>>> FilterOrderList([FromBody] OrderFilterDto filter)
         {
             var result = await _service.FilterOrderListAsync(filter);

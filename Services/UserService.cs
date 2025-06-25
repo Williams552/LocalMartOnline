@@ -75,6 +75,38 @@ namespace LocalMartOnline.Services
             return (pageData, total);
         }
 
+        public async Task<bool> UpdateLanguageAsync(string userId, string language)
+        {
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return false;
+            user.PreferredLanguage = language;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepo.UpdateAsync(userId, user);
+            return true;
+        }
+
+        public async Task<bool> UpdateThemeAsync(string userId, string theme)
+        {
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return false;
+            user.PreferredTheme = theme;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepo.UpdateAsync(userId, user);
+            return true;
+        }
+
+        public async Task<string?> GetLanguageAsync(string userId)
+        {
+            var user = await _userRepo.GetByIdAsync(userId);
+            return user?.PreferredLanguage;
+        }
+
+        public async Task<string?> GetThemeAsync(string userId)
+        {
+            var user = await _userRepo.GetByIdAsync(userId);
+            return user?.PreferredTheme;
+        }
+
         public async Task<bool> ToggleUserAccountAsync(string id)
         {
             var user = await _userRepo.GetByIdAsync(id);

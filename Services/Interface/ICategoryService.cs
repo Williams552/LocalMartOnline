@@ -9,14 +9,16 @@ namespace LocalMartOnline.Services.Interface
     public interface ICategoryService
     {
         Task<PagedResultDto<CategoryDto>> GetAllPagedAsync(int page, int pageSize);
+        Task<PagedResultDto<CategoryDto>> GetAllPagedAdminAsync(int page, int pageSize);
         Task<CategoryDto?> GetByIdAsync(string id);
         Task<CategoryDto> CreateAsync(CategoryCreateDto dto);
         Task<bool> UpdateAsync(string id, CategoryUpdateDto dto);
         Task<bool> DeleteAsync(string id);
         Task<bool> ToggleAsync(string id);
         Task<IEnumerable<CategoryDto>> SearchByNameAsync(string name);
+        Task<IEnumerable<CategoryDto>> SearchByNameAdmin(string name);
         Task<IEnumerable<CategoryDto>> FilterByAlphabetAsync(char alphabet);
         Task<GetCategoriesResponseDto> GetActiveCategoriesAsync();
-        Task<SearchProductResultDto> GetProductsByCategoryAsync(string categoryId, int page = 1, int pageSize = 20, string sortPrice = "");
+        Task<SearchProductResultDto> GetProductsByCategoryAsync(string categoryId, int page = 1, int pageSize = 20, string sortPrice = "");        Task<IEnumerable<CategoryDto>> FilterByAlphabetAdminAsync(char alphabet);
     }
 }

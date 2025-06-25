@@ -11,12 +11,10 @@ namespace LocalMartOnline.Models
         public string? Id { get; set; }
 
         [BsonElement("seller_id")]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string SellerId { get; set; } = string.Empty;
+        public string SellerId { get; set; }
 
         [BsonElement("market_id")]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string MarketId { get; set; } = string.Empty;
+        public string MarketId { get; set; }
 
         [BsonElement("name")]
         public string Name { get; set; } = string.Empty;

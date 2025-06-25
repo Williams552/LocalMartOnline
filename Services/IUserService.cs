@@ -20,5 +20,10 @@ namespace LocalMartOnline.Services
             string? sortOrder = "asc");
         Task<bool> ToggleUserAccountAsync(string id);
         Task<bool> DisableOwnAccountAsync(string userId);
+
+        Task<bool> UpdateLanguageAsync(string userId, string language);
+        Task<bool> UpdateThemeAsync(string userId, string theme);
+        Task<string?> GetLanguageAsync(string userId);
+        Task<string?> GetThemeAsync(string userId);
     }
 }

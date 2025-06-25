@@ -99,6 +99,12 @@ namespace LocalMartOnline.Controllers
             return Ok(new { success = true, message = "Đổi mật khẩu thành công.", data = (object?)null });
         }
 
+        // Fix for CS1503: Argument 1: cannot convert from 'LocalMartOnline.Models.DTOs.UserDTO' to 'LocalMartOnline.Models.User'
+
+        // The issue arises because the method `GenerateJwtTokenFor2FA` expects a `LocalMartOnline.Models.User` object,
+        // but the code is passing a `LocalMartOnline.Models.DTOs.UserDTO` object.
+        // To fix this, we need to ensure that the correct type (`User`) is passed to the method.
+
         [HttpPost("2fa/verify")]
         [AllowAnonymous]
         public async Task<IActionResult> Verify2FA([FromBody] TwoFactorVerifyDTO dto)

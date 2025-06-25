@@ -23,6 +23,7 @@ namespace LocalMartOnline.Repositories
 
         public async Task<T?> GetByIdAsync(string id)
         {
+
             var filter = Builders<T>.Filter.Eq("_id", ObjectId.Parse(id));
             return await _collection.Find(filter).FirstOrDefaultAsync();
         }

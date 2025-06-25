@@ -102,7 +102,13 @@ namespace LocalMartOnline.Services.Implement
         public async Task<PagedResultDto<ProductDto>> GetAllProductsAsync(int page, int pageSize)
         {
             var products = await _productRepo.GetAllAsync();
-            var productList = products.Where(p => p.Status == ProductStatus.Active).ToList();
+            var stores = await _storeRepo.GetAllAsync();
+            var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id!).Where(id => id != null));
+
+            var productList = products
+                .Where(p => p.Status == ProductStatus.Active && activeStoreIds.Contains(p.StoreId))
+                .ToList();
+
             var total = productList.Count();
             var paged = productList.Skip((page - 1) * pageSize).Take(pageSize);
             var items = await MapProductDtosWithImages(paged);
@@ -147,8 +153,12 @@ namespace LocalMartOnline.Services.Implement
         public async Task<PagedResultDto<ProductDto>> SearchProductsAsync(string keyword, string? categoryId, decimal? latitude, decimal? longitude, int page, int pageSize)
         {
             var products = await _productRepo.GetAllAsync();
+            var stores = await _storeRepo.GetAllAsync();
+            var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id!).Where(id => id != null));
+
             var filtered = products.Where(p =>
                 p.Status == ProductStatus.Active &&
+                activeStoreIds.Contains(p.StoreId) &&
                 (string.IsNullOrEmpty(keyword) || p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) || p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)) &&
                 (string.IsNullOrEmpty(categoryId) || p.CategoryId == categoryId)
             ).ToList();
@@ -156,7 +166,6 @@ namespace LocalMartOnline.Services.Implement
             // Nếu có location, lọc theo khoảng cách (giả sử Store có lat/lng)
             if (latitude.HasValue && longitude.HasValue)
             {
-                var stores = await _storeRepo.GetAllAsync();
                 filtered = filtered.Where(p =>
                 {
                     var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
@@ -178,12 +187,17 @@ namespace LocalMartOnline.Services.Implement
             };
         }
 
+
         // UC055: Filter Products
         public async Task<PagedResultDto<ProductDto>> FilterProductsAsync(ProductFilterDto filter)
         {
             var products = await _productRepo.GetAllAsync();
+            var stores = await _storeRepo.GetAllAsync();
+            var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id!).Where(id => id != null));
+
             var filtered = products.Where(p =>
                 p.Status == ProductStatus.Active &&
+                activeStoreIds.Contains(p.StoreId) &&
                 (string.IsNullOrEmpty(filter.CategoryId) || p.CategoryId == filter.CategoryId) &&
                 (!filter.MinPrice.HasValue || p.Price >= filter.MinPrice.Value) &&
                 (!filter.MaxPrice.HasValue || p.Price <= filter.MaxPrice.Value) &&
@@ -193,7 +207,6 @@ namespace LocalMartOnline.Services.Implement
             // Lọc theo vị trí nếu có
             if (filter.Latitude.HasValue && filter.Longitude.HasValue && filter.MaxDistanceKm.HasValue)
             {
-                var stores = await _storeRepo.GetAllAsync();
                 filtered = filtered.Where(p =>
                 {
                     var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
@@ -240,9 +253,10 @@ namespace LocalMartOnline.Services.Implement
             double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
             return R * c;
         }
+
         public async Task<PagedResultDto<ProductDto>> GetProductsByStoreAsync(string storeId, int page, int pageSize)
         {
-            var products = await _productRepo.FindManyAsync(p => p.StoreId == storeId);
+            var products = await _productRepo.FindManyAsync(p => p.StoreId == storeId && p.Status == ProductStatus.Active);
             var total = products.Count();
             var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
             var items = await MapProductDtosWithImages(paged);
@@ -309,14 +323,136 @@ namespace LocalMartOnline.Services.Implement
             };
         }
 
-        public async Task<ProductDto?> GetProductDetailsInStoreAsync(string storeId, string productId)
+        //public async Task<ProductDto?> GetProductDetailsInStoreAsync(string storeId, string productId)
+        //{
+        //    var product = await _productRepo.GetByIdAsync(productId);
+        //    if (product == null || product.StoreId != storeId) return null;
+        //    var dto = _mapper.Map<ProductDto>(product);
+        //    var images = await _imageRepo.FindManyAsync(i => i.ProductId == product.Id);
+        //    dto.ImageUrls = images.Select(i => i.ImageUrl).ToList();
+        //    return dto;
+        //}
+
+        // In ProductService.cs
+        public async Task<PagedResultDto<ProductDto>> GetProductsByMarketAsync(string marketId, int page, int pageSize)
         {
-            var product = await _productRepo.GetByIdAsync(productId);
-            if (product == null || product.StoreId != storeId) return null;
-            var dto = _mapper.Map<ProductDto>(product);
-            var images = await _imageRepo.FindManyAsync(i => i.ProductId == product.Id);
-            dto.ImageUrls = images.Select(i => i.ImageUrl).ToList();
-            return dto;
+            // Get all stores in the market
+            var stores = await _storeRepo.FindManyAsync(s => s.MarketId == marketId && s.Status == "Open");
+            if (!stores.Any())
+                return new PagedResultDto<ProductDto>
+                {
+                    Items = new List<ProductDto>(),
+                    TotalCount = 0,
+                    Page = page,
+                    PageSize = pageSize
+                };
+
+            // Get store IDs in this market
+            var storeIds = stores.Select(s => s.Id).ToList();
+
+            // Get all active products from these stores
+            var products = await _productRepo.FindManyAsync(p =>
+                storeIds.Contains(p.StoreId) &&
+                p.Status == ProductStatus.Active
+            );
+
+            var total = products.Count();
+            var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
+            var items = await MapProductDtosWithImages(paged);
+
+            return new PagedResultDto<ProductDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<PagedResultDto<ProductDto>> FilterProductsInMarketAsync(string marketId, ProductFilterDto filter)
+        {
+            // Get all stores in the market
+            var stores = await _storeRepo.FindManyAsync(s => s.MarketId == marketId && s.Status == "Open");
+            if (!stores.Any())
+                return new PagedResultDto<ProductDto>
+                {
+                    Items = new List<ProductDto>(),
+                    TotalCount = 0,
+                    Page = filter.Page,
+                    PageSize = filter.PageSize
+                };
+
+            // Get store IDs in this market
+            var storeIds = stores.Select(s => s.Id).ToList();
+
+            // Get all products from these stores
+            var products = await _productRepo.GetAllAsync();
+            var filtered = products.Where(p =>
+                storeIds.Contains(p.StoreId) &&
+                p.Status == ProductStatus.Active &&
+                (string.IsNullOrEmpty(filter.CategoryId) || p.CategoryId == filter.CategoryId) &&
+                (!filter.MinPrice.HasValue || p.Price >= filter.MinPrice.Value) &&
+                (!filter.MaxPrice.HasValue || p.Price <= filter.MaxPrice.Value) &&
+                (string.IsNullOrEmpty(filter.Name) || p.Name.Contains(filter.Name, StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrEmpty(filter.Keyword) || p.Name.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase) ||
+                 p.Description.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+
+            // Apply sorting if specified
+            if (!string.IsNullOrEmpty(filter.SortBy))
+            {
+                if (filter.SortBy == "price")
+                    filtered = filter.Ascending == false ? filtered.OrderByDescending(p => p.Price).ToList() : filtered.OrderBy(p => p.Price).ToList();
+            }
+
+            var total = filtered.Count();
+            var paged = filtered.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize);
+            var items = await MapProductDtosWithImages(paged);
+
+            return new PagedResultDto<ProductDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = filter.Page,
+                PageSize = filter.PageSize
+            };
+        }
+
+        public async Task<PagedResultDto<ProductDto>> SearchProductsInMarketAsync(string marketId, string keyword, int page, int pageSize)
+        {
+            // Get all stores in the market
+            var stores = await _storeRepo.FindManyAsync(s => s.MarketId == marketId && s.Status == "Open");
+            if (!stores.Any())
+                return new PagedResultDto<ProductDto>
+                {
+                    Items = new List<ProductDto>(),
+                    TotalCount = 0,
+                    Page = page,
+                    PageSize = pageSize
+                };
+
+            // Get store IDs in this market
+            var storeIds = stores.Select(s => s.Id).ToList();
+
+            // Search products across all stores in the market
+            var products = await _productRepo.FindManyAsync(p =>
+                storeIds.Contains(p.StoreId) &&
+                p.Status == ProductStatus.Active &&
+                (p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                 p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            );
+
+            var total = products.Count();
+            var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
+            var items = await MapProductDtosWithImages(paged);
+
+            return new PagedResultDto<ProductDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
         }
 
         // Helper method
@@ -331,6 +467,121 @@ namespace LocalMartOnline.Services.Implement
                 result.Add(dto);
             }
             return result;
+        }
+
+        // ============ SELLER METHODS - INCLUDE ALL PRODUCTS (ACTIVE & INACTIVE) ============
+        
+        // Get all products for seller (including inactive products)
+        public async Task<PagedResultDto<ProductDto>> GetAllProductsForSellerAsync(string storeId, int page, int pageSize)
+        {
+            // Get ALL products from the store (both active and inactive)
+            var products = await _productRepo.FindManyAsync(p => p.StoreId == storeId);
+            
+            var total = products.Count();
+            var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
+            var items = await MapProductDtosWithImages(paged);
+            
+            return new PagedResultDto<ProductDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        // Search products for seller (including inactive products)
+        public async Task<PagedResultDto<ProductDto>> SearchProductsForSellerAsync(string storeId, string keyword, int page, int pageSize)
+        {
+            // Search in ALL products of the store (both active and inactive)
+            var products = await _productRepo.FindManyAsync(p =>
+                p.StoreId == storeId &&
+                (p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) || 
+                 p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            );
+            
+            var total = products.Count();
+            var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
+            var items = await MapProductDtosWithImages(paged);
+            
+            return new PagedResultDto<ProductDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        // Filter products for seller (including inactive products)
+        public async Task<PagedResultDto<ProductDto>> FilterProductsForSellerAsync(ProductFilterDto filter)
+        {
+            var products = await _productRepo.GetAllAsync();
+            
+            // Filter ALL products in the store (both active and inactive)
+            var filtered = products.Where(p =>
+                p.StoreId == filter.StoreId &&
+                (string.IsNullOrEmpty(filter.CategoryId) || p.CategoryId == filter.CategoryId) &&
+                (!filter.MinPrice.HasValue || p.Price >= filter.MinPrice.Value) &&
+                (!filter.MaxPrice.HasValue || p.Price <= filter.MaxPrice.Value) &&
+                (string.IsNullOrEmpty(filter.Name) || p.Name.Contains(filter.Name, StringComparison.OrdinalIgnoreCase)) &&
+                (!filter.MinStock.HasValue || p.StockQuantity >= filter.MinStock.Value) &&
+                (!filter.MaxStock.HasValue || p.StockQuantity <= filter.MaxStock.Value) &&
+                (string.IsNullOrEmpty(filter.Status) || p.Status.ToString() == filter.Status) &&
+                (string.IsNullOrEmpty(filter.Keyword) || 
+                 p.Name.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase) || 
+                 p.Description.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+
+            // Apply sorting
+            if (!string.IsNullOrEmpty(filter.SortBy))
+            {
+                switch (filter.SortBy.ToLower())
+                {
+                    case "price":
+                        filtered = filter.Ascending == false 
+                            ? filtered.OrderByDescending(p => p.Price).ToList() 
+                            : filtered.OrderBy(p => p.Price).ToList();
+                        break;
+                    case "stock":
+                        filtered = filter.Ascending == false 
+                            ? filtered.OrderByDescending(p => p.StockQuantity).ToList() 
+                            : filtered.OrderBy(p => p.StockQuantity).ToList();
+                        break;
+                    case "name":
+                        filtered = filter.Ascending == false 
+                            ? filtered.OrderByDescending(p => p.Name).ToList() 
+                            : filtered.OrderBy(p => p.Name).ToList();
+                        break;
+                    case "status":
+                        filtered = filter.Ascending == false 
+                            ? filtered.OrderByDescending(p => p.Status).ToList() 
+                            : filtered.OrderBy(p => p.Status).ToList();
+                        break;
+                    case "created":
+                        filtered = filter.Ascending == false 
+                            ? filtered.OrderByDescending(p => p.CreatedAt).ToList() 
+                            : filtered.OrderBy(p => p.CreatedAt).ToList();
+                        break;
+                    case "updated":
+                        filtered = filter.Ascending == false 
+                            ? filtered.OrderByDescending(p => p.UpdatedAt).ToList() 
+                            : filtered.OrderBy(p => p.UpdatedAt).ToList();
+                        break;
+                }
+            }
+
+            var total = filtered.Count();
+            var paged = filtered.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize);
+            var items = await MapProductDtosWithImages(paged);
+            
+            return new PagedResultDto<ProductDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = filter.Page,
+                PageSize = filter.PageSize
+            };
         }
 
         public async Task<SearchProductResultDto> SearchProductsAsync(SearchProductRequestDto request)

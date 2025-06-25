@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.Category;
 using LocalMartOnline.Models.DTOs.Common;
@@ -57,6 +57,22 @@ namespace LocalMartOnline.Services.Implement
         public async Task<PagedResultDto<CategoryDto>> GetAllPagedAsync(int page, int pageSize)
         {
             var categories = await _categoryRepository.GetAllAsync();
+            var activeCategories = categories.Where(c => c.IsActive == true);
+            var total = activeCategories.Count();
+            var paged = activeCategories.Skip((page - 1) * pageSize).Take(pageSize);
+            var items = _mapper.Map<IEnumerable<CategoryDto>>(paged);
+            return new PagedResultDto<CategoryDto>
+            {
+                Items = items,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<PagedResultDto<CategoryDto>> GetAllPagedAdminAsync(int page, int pageSize)
+        {
+            var categories = await _categoryRepository.GetAllAsync();
             var total = categories.Count();
             var paged = categories.Skip((page - 1) * pageSize).Take(pageSize);
             var items = _mapper.Map<IEnumerable<CategoryDto>>(paged);
@@ -113,13 +129,39 @@ namespace LocalMartOnline.Services.Implement
 
         public async Task<IEnumerable<CategoryDto>> SearchByNameAsync(string name)
         {
+            var categories = await _categoryRepository.FindManyAsync(c => c.Name.ToLower().Contains(name.ToLower()) && c.IsActive == true);
+            return _mapper.Map<IEnumerable<CategoryDto>>(categories);
+        }
+
+        public async Task<IEnumerable<CategoryDto>> SearchByNameAdmin(string name)
+        {
             var categories = await _categoryRepository.FindManyAsync(c => c.Name.ToLower().Contains(name.ToLower()));
             return _mapper.Map<IEnumerable<CategoryDto>>(categories);
         }
 
         public async Task<IEnumerable<CategoryDto>> FilterByAlphabetAsync(char alphabet)
         {
-            var categories = await _categoryRepository.FindManyAsync(c => c.Name.StartsWith(alphabet.ToString(), StringComparison.OrdinalIgnoreCase));
+            var upperChar = char.ToUpper(alphabet);
+            var lowerChar = char.ToLower(alphabet);
+
+            // Tạo filter cho cả uppercase và lowercase
+            var categories = await _categoryRepository.FindManyAsync(c =>
+                c.Name.StartsWith(upperChar.ToString()) && 
+                c.IsActive == true ||
+                c.Name.StartsWith(lowerChar.ToString()) &&
+                c.IsActive == true);
+            return _mapper.Map<IEnumerable<CategoryDto>>(categories);
+        }
+
+        public async Task<IEnumerable<CategoryDto>> FilterByAlphabetAdminAsync(char alphabet)
+        {
+            var upperChar = char.ToUpper(alphabet);
+            var lowerChar = char.ToLower(alphabet);
+
+            // Tạo filter cho cả uppercase và lowercase
+            var categories = await _categoryRepository.FindManyAsync(c =>
+                c.Name.StartsWith(upperChar.ToString()) ||
+                c.Name.StartsWith(lowerChar.ToString()));
             return _mapper.Map<IEnumerable<CategoryDto>>(categories);
         }
     }

@@ -1,11 +1,12 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
-using LocalMartOnline.Repositories;
-using LocalMartOnline.Models;
-using LocalMartOnline.Services;
-using LocalMartOnline.Models.DTOs;
 using AutoMapper;
+using LocalMartOnline.Models;
+using LocalMartOnline.Models.DTOs;
+using LocalMartOnline.Models.DTOs.User;
+using LocalMartOnline.Repositories;
+using LocalMartOnline.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace LocalMartOnline.Controllers
 {
@@ -105,6 +106,44 @@ namespace LocalMartOnline.Controllers
                 return NotFound(new { success = false, message = "User not found", data = (object?)null });
             await _userRepo.DeleteAsync(id);
             return Ok(new { success = true, message = "Xóa người dùng thành công", data = (object?)null });
+        }
+
+        // UC107: Update language
+        [HttpPut("{id}/language")]
+        [Authorize(Roles = "Admin,Buyer,Seller,ProxyShopper")]
+        public async Task<IActionResult> UpdateLanguage(string id, [FromBody] UserLanguageUpdateDto dto)
+        {
+            var result = await _userService.UpdateLanguageAsync(id, dto.PreferredLanguage);
+            if (!result) return NotFound();
+            return NoContent();
+        }
+
+        [HttpGet("{id}/language")]
+        [Authorize(Roles = "Admin,Buyer,Seller,ProxyShopper")]
+        public async Task<ActionResult<string>> GetLanguage(string id)
+        {
+            var lang = await _userService.GetLanguageAsync(id);
+            if (lang == null) return NotFound();
+            return Ok(lang);
+        }
+
+        // UC108: Update theme
+        [HttpPut("{id}/theme")]
+        [Authorize(Roles = "Admin,Buyer,Seller,ProxyShopper")]
+        public async Task<IActionResult> UpdateTheme(string id, [FromBody] UserThemeUpdateDto dto)
+        {
+            var result = await _userService.UpdateThemeAsync(id, dto.PreferredTheme);
+            if (!result) return NotFound();
+            return NoContent();
+        }
+
+        [HttpGet("{id}/theme")]
+        [Authorize(Roles = "Admin,Buyer,Seller,ProxyShopper")]
+        public async Task<ActionResult<string>> GetTheme(string id)
+        {
+            var theme = await _userService.GetThemeAsync(id);
+            if (theme == null) return NotFound();
+            return Ok(theme);
         }
 
         [HttpPatch("{id}/toggle")]
