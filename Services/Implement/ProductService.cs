@@ -170,7 +170,7 @@ namespace LocalMartOnline.Services.Implement
                 {
                     var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
                     if (store == null) return false;
-                    var dist = GetDistanceKm(latitude.Value, longitude.Value, store.Latitude ?? 0, store.Longitude ?? 0);
+                    var dist = GetDistanceKm(latitude.Value, longitude.Value, store.Latitude, store.Longitude);
                     return dist <= 50; // ví dụ: chỉ lấy trong bán kính 50km
                 }).ToList();
             }
@@ -211,7 +211,7 @@ namespace LocalMartOnline.Services.Implement
                 {
                     var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
                     if (store == null) return false;
-                    var dist = GetDistanceKm(filter.Latitude.Value, filter.Longitude.Value, store.Latitude ?? 0, store.Longitude ?? 0);
+                    var dist = GetDistanceKm(filter.Latitude.Value, filter.Longitude.Value, store.Latitude, store.Longitude);
                     return dist <= filter.MaxDistanceKm.Value;
                 }).ToList();
             }

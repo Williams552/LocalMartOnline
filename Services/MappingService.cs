@@ -9,6 +9,7 @@ using LocalMartOnline.Models.DTOs.Order;
 using LocalMartOnline.Models.DTOs.PlatformPolicy;
 using LocalMartOnline.Models.DTOs.Product;
 using LocalMartOnline.Models.DTOs.Store;
+using LocalMartOnline.Models.DTOs.FastBargain;
 
 namespace LocalMartOnline.Services
 {

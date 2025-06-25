@@ -23,10 +23,10 @@ namespace LocalMartOnline.Models
         public string Address { get; set; } = string.Empty;
 
         [BsonElement("latitude")]
-        public decimal? Latitude { get; set; }
+        public decimal Latitude { get; set; }
 
         [BsonElement("longitude")]
-        public decimal? Longitude { get; set; }
+        public decimal Longitude { get; set; }
 
         [BsonElement("contact_number")]
         public string? ContactNumber { get; set; }
