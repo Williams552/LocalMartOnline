@@ -1,0 +1,33 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+
+namespace LocalMartOnline.Models
+{
+    public class CartItem
+    {
+        [BsonId]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string? Id { get; set; }
+
+        [BsonElement("cart_id")]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string CartId { get; set; } = string.Empty;
+
+        [BsonElement("product_id")]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string ProductId { get; set; } = string.Empty;
+
+        [BsonElement("quantity")]
+        public int Quantity { get; set; }
+
+        [BsonElement("created_at")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [BsonElement("updated_at")]
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    }
+}

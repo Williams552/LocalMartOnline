@@ -1,6 +1,7 @@
 using MongoDB.Driver;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Models;
+using LocalMartOnline.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -29,6 +30,47 @@ builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.User>>(sp =
     return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.User>(mongoService, "Users");
 });
 
+// Add Cart repositories
+builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Cart>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Cart>(mongoService, "Carts");
+});
+
+builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.CartItem>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.CartItem>(mongoService, "CartItems");
+});
+
+builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Product>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Product>(mongoService, "Products");
+});
+
+builder.Services.AddScoped<IGenericRepository<LocalMartOnline.Models.Category>>(sp =>
+{
+    var mongoService = sp.GetRequiredService<LocalMartOnline.Services.MongoDBService>();
+    return new LocalMartOnline.Repositories.GenericRepository<LocalMartOnline.Models.Category>(mongoService, "Categories");
+});
+
+// Add SignalR
+builder.Services.AddSignalR();
+
+// Add Service
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IFavoriteService, FavoriteService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IMarketRuleService, MarketRuleService>();
+builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<ISellerLicenseService, SellerLicenseService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<ISupportRequestService, SupportRequestService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -43,5 +85,8 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Map SignalR Hub
+app.MapHub<LocalMartOnline.Hubs.ChatHub>("/chatHub");
 
 app.Run();
