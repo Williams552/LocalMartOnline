@@ -26,10 +26,6 @@ namespace LocalMartOnline.Services
                 throw new InvalidOperationException("Sender email address (Email:From) is not configured.");
             }
 
-            var baseUrl = Environment.GetEnvironmentVariable("BASE_URL") 
-                ?? _configuration["App:BaseUrl"] 
-                ?? "https://localmartonline-1.onrender.com/";
-
             using (var client = new SmtpClient(smtpHost, smtpPort))
             {
                 client.EnableSsl = true; // Bắt buộc phải bật SSL/TLS với Gmail
