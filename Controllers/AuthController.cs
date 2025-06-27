@@ -63,7 +63,8 @@ namespace LocalMartOnline.Controllers
         /// </summary>
         public async Task<IActionResult> Register([FromBody] RegisterDTO registerDto)
         {
-            var error = await _authService.RegisterAsync(registerDto);
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var error = await _authService.RegisterAsync(registerDto, baseUrl);
             if (error != null)
                 return BadRequest(new { success = false, message = error, data = (object?)null });
             return Ok(new { success = true, message = "User registered successfully", data = (object?)null });

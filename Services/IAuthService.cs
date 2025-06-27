@@ -6,7 +6,7 @@ namespace LocalMartOnline.Services
     public interface IAuthService
     {
         Task<AuthResponseDTO?> LoginAsync(LoginRequestDTO loginDto);
-        Task<string?> RegisterAsync(RegisterDTO registerDto);
+        Task<string?> RegisterAsync(RegisterDTO registerDto, string baseUrl);
         Task<bool> VerifyEmailAsync(string token);
         Task ForgotPasswordAsync(string email);
         Task<bool> ResetPasswordAsync(string token, string newPassword);

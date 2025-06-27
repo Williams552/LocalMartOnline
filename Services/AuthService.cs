@@ -61,7 +61,7 @@ namespace LocalMartOnline.Services
             };
         }
 
-        public async Task<string?> RegisterAsync(RegisterDTO registerDto)
+        public async Task<string?> RegisterAsync(RegisterDTO registerDto,string baseUrl)
         {
             var existingByUsername = await _userRepo.FindOneAsync(u => u.Username == registerDto.Username);
             if (existingByUsername != null)
@@ -92,7 +92,6 @@ namespace LocalMartOnline.Services
             await _userRepo.CreateAsync(newUser);
 
             // Gửi email xác thực
-            var baseUrl = Environment.GetEnvironmentVariable("BASE_URL");
             var verifyUrl = baseUrl + "/api/Auth/verify-email?token=" + otpToken;
             var subject = "Xác thực email tài khoản LocalMartOnline";
             var body = $"<p>Chào {registerDto.FullName},</p><p>Vui lòng xác thực email bằng cách nhấn vào link sau: <a href='{verifyUrl}'>Xác thực Email</a></p>";
