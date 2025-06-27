@@ -90,6 +90,10 @@ namespace LocalMartOnline.Services
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<StoreFollow>(mongoService, "StoreFollows");
             });
+            services.AddScoped<IRepository<ProductUnit>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<ProductUnit>(mongoService, "ProductUnits");
+            });
             return services;
         }
 
@@ -114,6 +118,7 @@ namespace LocalMartOnline.Services
             services.AddScoped<IMarketService, MarketService>();
             services.AddScoped<IFaqService, FaqService>();
             services.AddScoped<IPlatformPolicyService, PlatformPolicyService>();
+            services.AddScoped<IProductUnitService, ProductUnitService>();
             return services;
         }
 
@@ -140,6 +145,7 @@ namespace LocalMartOnline.Services
             AddRepository<Faq>("Faqs");
             AddRepository<PlatformPolicy>("PlatformPolicies");
             AddRepository<Market>("Markets");
+            AddRepository<ProductUnit>("ProductUnits");
             return services;
         }
     }
