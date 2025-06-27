@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Mail;
 using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks;
+using System;
 
 namespace LocalMartOnline.Services
 {
@@ -24,6 +25,10 @@ namespace LocalMartOnline.Services
             {
                 throw new InvalidOperationException("Sender email address (Email:From) is not configured.");
             }
+
+            var baseUrl = Environment.GetEnvironmentVariable("BASE_URL") 
+                ?? _configuration["App:BaseUrl"] 
+                ?? "https://localmartonline-1.onrender.com/";
 
             using (var client = new SmtpClient(smtpHost, smtpPort))
             {
