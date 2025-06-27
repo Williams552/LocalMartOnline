@@ -4,7 +4,8 @@ namespace LocalMartOnline.Models.DTOs
     {
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
-        public string? UserToken { get; set; }
+
+        public string? UserToken { get; set; } = null;
     }
 
     public class AuthResponseDTO
