@@ -20,6 +20,10 @@ namespace LocalMartOnline.Controllers
 
         [HttpPost("login")]
         [AllowAnonymous]
+        /// <summary>
+        /// Đăng nhập tài khoản. Nếu client có FCM Token (Firebase Cloud Messaging Token) thì gửi lên qua trường userToken trong LoginRequestDTO.
+        /// Server sẽ lưu FCM Token này để gửi thông báo đẩy đến thiết bị của người dùng.
+        /// </summary>
         public async Task<IActionResult> Login([FromBody] LoginRequestDTO loginDto)
         {
             if (!ModelState.IsValid)
@@ -53,6 +57,10 @@ namespace LocalMartOnline.Controllers
 
         [HttpPost("register")]
         [AllowAnonymous]
+        /// <summary>
+        /// Đăng ký tài khoản mới. Nếu client có FCM Token (Firebase Cloud Messaging Token) thì gửi lên qua trường userToken trong RegisterDTO.
+        /// Server sẽ lưu FCM Token này để gửi thông báo đẩy đến thiết bị của người dùng.
+        /// </summary>
         public async Task<IActionResult> Register([FromBody] RegisterDTO registerDto)
         {
             var error = await _authService.RegisterAsync(registerDto);

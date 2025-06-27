@@ -17,8 +17,8 @@ namespace LocalMartOnline.Services
         {
             var smtpHost = _configuration["Email:SmtpHost"];
             var smtpPort = int.Parse(_configuration["Email:SmtpPort"] ?? "587");
-            var smtpUser = _configuration["Email:SmtpUser"];
-            var smtpPass = _configuration["Email:SmtpPass"];
+            var smtpUser = _configuration["Email:Username"];
+            var smtpPass = _configuration["Email:Password"];
             var fromEmail = _configuration["Email:From"];
             if (string.IsNullOrWhiteSpace(fromEmail))
             {
@@ -27,7 +27,8 @@ namespace LocalMartOnline.Services
 
             using (var client = new SmtpClient(smtpHost, smtpPort))
             {
-                client.EnableSsl = true;
+                client.EnableSsl = true; // Bắt buộc phải bật SSL/TLS với Gmail
+                client.UseDefaultCredentials = false;
                 client.Credentials = new NetworkCredential(smtpUser, smtpPass);
                 var mail = new MailMessage(fromEmail, to, subject, body);
                 mail.IsBodyHtml = true;
