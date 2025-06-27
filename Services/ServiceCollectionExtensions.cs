@@ -128,7 +128,7 @@ namespace LocalMartOnline.Services
                     return new Repository<TEntity>(mongoService, collectionName);
                 });
             }
-            AddRepository<User>("User");
+            AddRepository<User>("Users");
             AddRepository<Category>("Categories");
             AddRepository<CategoryRegistration>("CategoryRegistrations");
             AddRepository<Store>("Stores");
