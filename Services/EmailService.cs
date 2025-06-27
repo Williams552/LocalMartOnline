@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Mail;
 using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks;
-using System;
 
 namespace LocalMartOnline.Services
 {

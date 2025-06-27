@@ -61,7 +61,7 @@ namespace LocalMartOnline.Services
             };
         }
 
-        public async Task<string?> RegisterAsync(RegisterDTO registerDto,string baseUrl)
+        public async Task<string?> RegisterAsync(RegisterDTO registerDto, string baseUrl)
         {
             var existingByUsername = await _userRepo.FindOneAsync(u => u.Username == registerDto.Username);
             if (existingByUsername != null)
@@ -112,7 +112,7 @@ namespace LocalMartOnline.Services
             return true;
         }
 
-        public async Task ForgotPasswordAsync(string email)
+        public async Task ForgotPasswordAsync(string email, string baseUrl)
         {
             var user = await _userRepo.FindOneAsync(u => u.Email == email);
             if (user == null) return;
@@ -122,7 +122,7 @@ namespace LocalMartOnline.Services
             user.OTPExpiry = otpExpiry;
             user.UpdatedAt = DateTime.UtcNow;
             await _userRepo.UpdateAsync(user.Id!, user);
-            var resetUrl = _configuration["App:BaseUrl"] + "/api/Auth/reset-password?token=" + otpToken;
+            var resetUrl = baseUrl + "/api/Auth/reset-password?token=" + otpToken;
             var subject = "Đặt lại mật khẩu LocalMartOnline";
             var body = $"<p>Bạn vừa yêu cầu đặt lại mật khẩu. Nhấn vào link sau để đặt lại mật khẩu: <a href='{resetUrl}'>Đặt lại mật khẩu</a></p>";
             await _emailService.SendEmailAsync(user.Email, subject, body);
