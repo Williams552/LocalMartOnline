@@ -8,7 +8,6 @@ namespace LocalMartOnline.Models.DTOs
         public string FullName { get; set; } = null!;
         public string Role { get; set; } = null!;
         public string Status { get; set; } = null!;
-        
         public bool TwoFactorEnabled { get; set; } = false;
         public string PhoneNumber { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
