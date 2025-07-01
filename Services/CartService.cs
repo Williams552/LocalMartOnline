@@ -48,7 +48,7 @@ namespace LocalMartOnline.Services
             var productFilter = Builders<Product>.Filter.Eq(p => p.Id, productId);
             var product = await _productCollection.Find(productFilter).FirstOrDefaultAsync();
 
-            if (product == null || product.StockQuantity < quantity)
+            if (product == null /*|| product.StockQuantity < quantity*/)
                 return false;
 
             var cart = await GetOrCreateCartAsync(userId);
@@ -62,10 +62,10 @@ namespace LocalMartOnline.Services
 
             if (existingItem != null)
             {
-                // Update existing item quantity
+/*                // Update existing item quantity
                 if (product.StockQuantity < existingItem.Quantity + quantity)
                     return false;
-
+*/
                 var update = Builders<CartItem>.Update
                     .Set(ci => ci.Quantity, existingItem.Quantity + quantity)
                     .Set(ci => ci.UpdatedAt, DateTime.UtcNow);
@@ -113,7 +113,7 @@ namespace LocalMartOnline.Services
             var productFilter = Builders<Product>.Filter.Eq(p => p.Id, productId);
             var product = await _productCollection.Find(productFilter).FirstOrDefaultAsync();
 
-            if (product == null || product.StockQuantity < newQuantity)
+            if (product == null /*|| product.StockQuantity < newQuantity*/)
                 return false;
 
             // Update cart item quantity

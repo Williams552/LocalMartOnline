@@ -4,12 +4,13 @@ using LocalMartOnline.Models.DTOs;
 using LocalMartOnline.Models.DTOs.Category;
 using LocalMartOnline.Models.DTOs.CategoryRegistration;
 using LocalMartOnline.Models.DTOs.Faq;
+using LocalMartOnline.Models.DTOs.FastBargain;
 using LocalMartOnline.Models.DTOs.Market;
 using LocalMartOnline.Models.DTOs.Order;
 using LocalMartOnline.Models.DTOs.PlatformPolicy;
 using LocalMartOnline.Models.DTOs.Product;
+using LocalMartOnline.Models.DTOs.ProductUnit;
 using LocalMartOnline.Models.DTOs.Store;
-using LocalMartOnline.Models.DTOs.FastBargain;
 
 namespace LocalMartOnline.Services
 {
@@ -116,6 +117,11 @@ namespace LocalMartOnline.Services
             CreateMap<Market, MarketDto>().ReverseMap();
             CreateMap<MarketCreateDto, Market>();
             CreateMap<MarketUpdateDto, Market>();
+
+            //oductUnit <-> ProductUnitDto, ProductUnitCreateDto, ProductUnitUpdateDto
+            CreateMap<ProductUnitCreateDto, ProductUnit>();
+            CreateMap<ProductUnitUpdateDto, ProductUnit>();
+            CreateMap<ProductUnit, ProductUnitDto>();
         }
     }
 }

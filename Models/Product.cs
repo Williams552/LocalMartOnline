@@ -1,4 +1,4 @@
-using MongoDB.Bson;
+﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
@@ -7,8 +7,9 @@ namespace LocalMartOnline.Models
 {
     public enum ProductStatus
     {
-        Active,
-        Inactive
+        Active,      // Còn hàng - hiển thị cho user và seller
+        OutOfStock,  // Hết hàng - chỉ hiển thị cho seller
+        Inactive     // Đã xóa - không hiển thị cho ai
     }
 
     public class Product
@@ -32,8 +33,11 @@ namespace LocalMartOnline.Models
         [BsonElement("price")]
         public decimal Price { get; set; }
 
-        [BsonElement("stock_quantity")]
-        public int StockQuantity { get; set; }
+        [BsonElement("unit_id")]
+        public string UnitId { get; set; } = string.Empty;
+
+        [BsonElement("minimum_quantity")]
+        public decimal MinimumQuantity { get; set; } = 1;
 
         [BsonElement("status")]
         [BsonRepresentation(BsonType.String)]
@@ -46,5 +50,12 @@ namespace LocalMartOnline.Models
         [BsonElement("updated_at")]
         [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        // Helper properties
+        [BsonIgnore]
+        public bool IsVisibleToUsers => Status == ProductStatus.Active;
+
+        [BsonIgnore]
+        public bool IsVisibleToSellers => Status == ProductStatus.Active || Status == ProductStatus.OutOfStock;
     }
 }
