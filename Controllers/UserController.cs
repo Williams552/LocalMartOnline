@@ -40,7 +40,7 @@ namespace LocalMartOnline.Controllers
                 return BadRequest(new { success = false, message = "pageNumber and pageSize must be positive integers greater than zero.", data = (object?)null });
             }
             var (users, total) = await _userService.GetUsersPagingAsync(pageNumber, pageSize, search, role, sortField, sortOrder);
-            var userDtos = users.Select(u => _mapper.Map<RegisterDTO>(u));
+            var userDtos = users.Select(u => _mapper.Map<UserDTO>(u));
             return Ok(new {
                 success = true,
                 message = "Lấy danh sách người dùng thành công",
