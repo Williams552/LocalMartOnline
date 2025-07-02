@@ -122,6 +122,10 @@ namespace LocalMartOnline.Services
             CreateMap<ProductUnitCreateDto, ProductUnit>();
             CreateMap<ProductUnitUpdateDto, ProductUnit>();
             CreateMap<ProductUnit, ProductUnitDto>();
+
+            // User <-> UserDTO
+            CreateMap<User, UserDTO>();
+            CreateMap<UserDTO, User>();
         }
     }
 }
