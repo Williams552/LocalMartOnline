@@ -12,8 +12,8 @@ namespace LocalMartOnline.Services
 
         public FavoriteService(IMongoDatabase database)
         {
-            _favoriteCollection = database.GetCollection<Favorite>("favorites");
-            _productCollection = database.GetCollection<Product>("products");
+            _favoriteCollection = database.GetCollection<Favorite>("Favorites");
+            _productCollection = database.GetCollection<Product>("Products");
         }
 
         public async Task<FavoriteActionResponseDto> AddToFavoriteAsync(string userId, string productId)
@@ -79,55 +79,46 @@ namespace LocalMartOnline.Services
             {
                 // Match user's favorites
                 new BsonDocument("$match", new BsonDocument("user_id", new ObjectId(userId))),
-                
                 // Lookup product information
                 new BsonDocument("$lookup", new BsonDocument
                 {
-                    { "from", "products" },
+                    { "from", "Products" },
                     { "localField", "product_id" },
                     { "foreignField", "_id" },
                     { "as", "product" }
                 }),
-                
                 // Unwind product array
                 new BsonDocument("$unwind", "$product"),
-                
                 // Match only active products
                 new BsonDocument("$match", new BsonDocument("product.status", "Active")),
-                
                 // Lookup store information
                 new BsonDocument("$lookup", new BsonDocument
                 {
-                    { "from", "stores" },
+                    { "from", "Stores" },
                     { "localField", "product.store_id" },
                     { "foreignField", "_id" },
                     { "as", "store" }
                 }),
-                
                 // Unwind store array
                 new BsonDocument("$unwind", "$store"),
-                
                 // Lookup category information
                 new BsonDocument("$lookup", new BsonDocument
                 {
-                    { "from", "categories" },
+                    { "from", "Categories" },
                     { "localField", "product.category_id" },
                     { "foreignField", "_id" },
                     { "as", "category" }
                 }),
-                
                 // Unwind category array
                 new BsonDocument("$unwind", "$category"),
-                
                 // Lookup product images
                 new BsonDocument("$lookup", new BsonDocument
                 {
-                    { "from", "product_images" },
+                    { "from", "ProductImages" },
                     { "localField", "product._id" },
                     { "foreignField", "product_id" },
                     { "as", "images" }
                 }),
-                
                 // Sort by most recently added to favorites
                 new BsonDocument("$sort", new BsonDocument("created_at", -1))
             };

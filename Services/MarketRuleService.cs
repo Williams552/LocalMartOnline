@@ -12,9 +12,9 @@ namespace LocalMartOnline.Services
 
         public MarketRuleService(IMongoDatabase database)
         {
-            _marketRuleCollection = database.GetCollection<MarketRule>("market_rules");
-            _marketCollection = database.GetCollection<Market>("markets");
-            _userCollection = database.GetCollection<User>("users");
+            _marketRuleCollection = database.GetCollection<MarketRule>("MarketRules");
+            _marketCollection = database.GetCollection<Market>("Markets");
+            _userCollection = database.GetCollection<User>("Users");
         }
 
         public async Task<GetMarketRulesResponseDto> GetMarketRulesAsync(GetMarketRulesRequestDto request)

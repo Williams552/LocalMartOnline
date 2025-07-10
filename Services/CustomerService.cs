@@ -14,11 +14,11 @@ namespace LocalMartOnline.Services
 
         public CustomerService(IMongoDatabase database)
         {
-            _orderCollection = database.GetCollection<Order>("orders");
-            _orderItemCollection = database.GetCollection<OrderItem>("order_items");
-            _productCollection = database.GetCollection<Product>("products");
-            _storeCollection = database.GetCollection<Store>("stores");
-            _userCollection = database.GetCollection<User>("users");
+            _orderCollection = database.GetCollection<Order>("Orders");
+            _orderItemCollection = database.GetCollection<OrderItem>("OrderItems");
+            _productCollection = database.GetCollection<Product>("Products");
+            _storeCollection = database.GetCollection<Store>("Stores");
+            _userCollection = database.GetCollection<User>("Users");
         }
 
         public async Task<GetLoyalCustomersResponseDto> GetLoyalCustomersAsync(string sellerId, GetLoyalCustomersRequestDto request)

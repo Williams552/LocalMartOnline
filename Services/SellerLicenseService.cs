@@ -12,9 +12,9 @@ namespace LocalMartOnline.Services
 
         public SellerLicenseService(IMongoDatabase database)
         {
-            _licenseCollection = database.GetCollection<SellerLicenses>("seller_licenses");
-            _registrationCollection = database.GetCollection<SellerRegistrations>("seller_registrations");
-            _userCollection = database.GetCollection<User>("users");
+            _licenseCollection = database.GetCollection<SellerLicenses>("SellerLicenses");
+            _registrationCollection = database.GetCollection<SellerRegistrations>("SellerRegistrations");
+            _userCollection = database.GetCollection<User>("Users");
         }
 
         public async Task<SellerLicenseDto?> CreateSellerLicenseAsync(string userId, string userRole, CreateSellerLicenseDto createLicenseDto)

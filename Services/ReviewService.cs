@@ -11,9 +11,9 @@ namespace LocalMartOnline.Services
         private readonly IMongoCollection<Models.Order> _orderCollection;
         private readonly IMongoCollection<ProxyShoppingOrder> _proxyOrderCollection;        public ReviewService(IMongoDatabase database)
         {
-            _reviewCollection = database.GetCollection<Review>("reviews");
-            _orderCollection = database.GetCollection<Order>("orders");
-            _proxyOrderCollection = database.GetCollection<ProxyShoppingOrder>("proxy_shopping_orders");
+            _reviewCollection = database.GetCollection<Review>("Reviews");
+            _orderCollection = database.GetCollection<Order>("Orders");
+            _proxyOrderCollection = database.GetCollection<ProxyShoppingOrder>("ProxyShoppingOrders");
         }
 
         public async Task<ReviewDto?> CreateReviewAsync(string userId, CreateReviewDto createReviewDto)
