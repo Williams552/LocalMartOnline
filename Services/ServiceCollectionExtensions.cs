@@ -53,6 +53,10 @@ namespace LocalMartOnline.Services
                 return new FastBargainRepository(db);
             });
             services.AddScoped<IFastBargainService, Implement.FastBargainService>();
+            
+            // Add Cart Service here
+            services.AddScoped<ICartService, CartService>();
+            
             services.AddStackExchangeRedisCache(options =>
             {
                 var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
@@ -110,6 +114,8 @@ namespace LocalMartOnline.Services
             services.AddScoped<ICategoryService, CategoryService>();
             services.AddScoped<ICategoryRegistrationService, CategoryRegistrationService>();
             services.AddScoped<IProductService, ProductService>();
+            services.AddScoped<IFavoriteService, FavoriteService>();
+            // ICartService đã được đăng ký trong AddMongoDbAndRepositories
             services.AddScoped<IOrderService, OrderService>();
             services.AddScoped<IStoreService, StoreService>();
             services.AddScoped<IMarketFeeService, MarketFeeService>();
@@ -119,6 +125,7 @@ namespace LocalMartOnline.Services
             services.AddScoped<IFaqService, FaqService>();
             services.AddScoped<IPlatformPolicyService, PlatformPolicyService>();
             services.AddScoped<IProductUnitService, ProductUnitService>();
+            services.AddScoped<IReviewService, ReviewService>();
             return services;
         }
 
@@ -140,6 +147,9 @@ namespace LocalMartOnline.Services
             AddRepository<StoreFollow>("StoreFollows");
             AddRepository<Product>("Products");
             AddRepository<ProductImage>("ProductImages");
+            AddRepository<Favorite>("Favorites");
+            AddRepository<Cart>("Carts");
+            AddRepository<CartItem>("CartItems");
             AddRepository<Order>("Orders");
             AddRepository<OrderItem>("OrderItems");
             AddRepository<Faq>("Faqs");

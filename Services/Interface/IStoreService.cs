@@ -17,6 +17,8 @@ namespace LocalMartOnline.Services.Interface
         Task<bool> FollowStoreAsync(long userId, long storeId);
         Task<bool> UnfollowStoreAsync(long userId, long storeId);
         Task<IEnumerable<StoreDto>> GetFollowingStoresAsync(long userId);
+        Task<bool> IsFollowingStoreAsync(long userId, long storeId);
+        Task<PagedResultDto<object>> GetStoreFollowersAsync(long storeId, int page, int pageSize);
         Task<StoreDto?> GetStoreProfileAsync(string id);
         Task<PagedResultDto<StoreDto>> GetActiveStoresByMarketIdAsync(string marketId, int page, int pageSize);
         Task<bool> ToggleStoreStatusAsync(string id);
@@ -30,5 +32,8 @@ namespace LocalMartOnline.Services.Interface
         
         Task<PagedResultDto<StoreDto>> GetActiveStoresAsync(int page, int pageSize);
         Task<bool> HasExistingStoreAsync(string sellerId);
+        
+        // Get store statistics and featured products
+        Task<object> GetStoreStatisticsAsync(string storeId);
     }
 }

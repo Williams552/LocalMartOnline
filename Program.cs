@@ -80,6 +80,9 @@ builder.Services.AddAutoMapper(typeof(MappingService).Assembly);
 // SignalR
 builder.Services.AddSignalR();
 
+// Chat Service
+builder.Services.AddScoped<IChatService, ChatService>();
+
 // CORS policy
 builder.Services.AddCors(options =>
 {
