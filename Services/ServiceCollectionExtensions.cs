@@ -124,6 +124,8 @@ namespace LocalMartOnline.Services
             services.AddScoped<IPlatformPolicyService, PlatformPolicyService>();
             services.AddScoped<IProductUnitService, ProductUnitService>();
             services.AddScoped<IFavoriteService, FavoriteService>();
+            services.AddScoped<ICartService, CartService>();
+            services.AddScoped<ICustomerService, CustomerService>();
             return services;
         }
 
