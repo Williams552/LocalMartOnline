@@ -39,26 +39,30 @@ namespace LocalMartOnline.Services
             try
             {
                 // Check if already in favorites
-                var existingFavorite = await _favoriteRepo
-                    .FindOneAsync(f => f.UserId == userId && f.ProductId == productId);
+                var existingFavorite = await _favoriteCollection
+                    .Find(f => f.UserId == userId && f.ProductId == productId)
+                    .FirstOrDefaultAsync();
 
                 if (existingFavorite != null)
                 {
                     return new FavoriteActionResponseDto
                     {
                         Success = false,
-                        Message = "Sản phẩm đã có trong danh sách yêu thích"
+                        Message = "Product is already in your favorites"
                     };
                 }
 
                 // Check if product exists and is active
-                var product = await _productRepo.GetByIdAsync(productId);
-                if (product == null || product.Status != ProductStatus.Active)
+                var product = await _productCollection
+                    .Find(p => p.Id == productId && p.Status == ProductStatus.Active)
+                    .FirstOrDefaultAsync();
+
+                if (product == null)
                 {
                     return new FavoriteActionResponseDto
                     {
                         Success = false,
-                        Message = "Sản phẩm không tồn tại hoặc không khả dụng"
+                        Message = "Product not found or inactive"
                     };
                 }
 

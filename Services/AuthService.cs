@@ -57,7 +57,8 @@ namespace LocalMartOnline.Services
             {
                 Token = GenerateJwtToken(user),
                 Role = user.Role,
-                Username = user.Username
+                Username = user.Username,
+                UserId = user.Id ?? string.Empty
             };
         }
 
