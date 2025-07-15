@@ -232,6 +232,75 @@ namespace LocalMartOnline.Controllers
             });
         }
 
+        // Get store by seller ID (1 seller = 1 store)
+        [HttpGet("seller/{sellerId}")]
+        //[Authorize(Roles = "Seller,Admin")]
+        public async Task<IActionResult> GetStoreBySeller(string sellerId)
+        {
+            if (!MongoDB.Bson.ObjectId.TryParse(sellerId, out _))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID người bán không hợp lệ",
+                    data = (object?)null
+                });
+            }
+
+            var store = await _storeService.GetStoreBySellerAsync(sellerId);
+            if (store == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Người bán chưa có gian hàng",
+                    data = (object?)null
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy thông tin gian hàng của người bán thành công",
+                data = store
+            });
+        }
+
+        // Get current seller's store (from JWT token)
+        [HttpGet("my-store")]
+        [Authorize(Roles = "Seller")]
+        public async Task<IActionResult> GetMyStore()
+        {
+            var sellerId = User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(sellerId))
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Không thể xác định người bán",
+                    data = (object?)null
+                });
+            }
+
+            var store = await _storeService.GetStoreBySellerAsync(sellerId);
+            if (store == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Bạn chưa có gian hàng. Vui lòng tạo gian hàng mới.",
+                    data = (object?)null
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy thông tin gian hàng của bạn thành công",
+                data = store
+            });
+        }
+
         // View All Stores of a Market
         [HttpGet("market/{marketId}")]
         [AllowAnonymous]

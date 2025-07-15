@@ -9,6 +9,7 @@ namespace LocalMartOnline.Services.Interface
     {
         Task<PagedResultDto<StoreDto>> GetAllStoresAsync(int page, int pageSize);
         Task<PagedResultDto<StoreDto>> GetSuspendedStoresAsync(int page, int pageSize);
+        Task<StoreDto?> GetStoreBySellerAsync(string sellerId);
         Task<bool> SuspendStoreAsync(string id, string reason);
         Task<bool> ReactivateStoreAsync(string id);
         Task<StoreDto> CreateStoreAsync(StoreCreateDto dto);

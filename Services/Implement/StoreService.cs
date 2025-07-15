@@ -135,6 +135,25 @@ namespace LocalMartOnline.Services.Implement
                 PageSize = pageSize
             };
         }
+        // Sửa lại method GetStoresBySellerAsync để trả về 1 store duy nhất
+        public async Task<StoreDto?> GetStoreBySellerAsync(string sellerId)
+        {
+            try
+            {
+                var stores = await _storeRepo.FindManyAsync(s => s.SellerId == sellerId);
+                var store = stores.FirstOrDefault(); // Lấy store đầu tiên (chỉ có 1)
+
+                if (store == null)
+                    return null;
+
+                return _mapper.Map<StoreDto>(store);
+            }
+            catch (Exception ex)
+            {
+                // Log error nếu cần
+                throw new InvalidOperationException($"Lỗi khi lấy thông tin gian hàng: {ex.Message}");
+            }
+        }
 
         public async Task<PagedResultDto<StoreDto>> GetSuspendedStoresAsync(int page, int pageSize)
         {
