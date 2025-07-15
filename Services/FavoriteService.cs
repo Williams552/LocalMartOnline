@@ -1,19 +1,37 @@
-using LocalMartOnline.Models;
+﻿using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.Favorite;
-using MongoDB.Driver;
-using MongoDB.Bson;
+using LocalMartOnline.Repositories;
+using AutoMapper;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace LocalMartOnline.Services
 {
     public class FavoriteService : IFavoriteService
     {
-        private readonly IMongoCollection<Favorite> _favoriteCollection;
-        private readonly IMongoCollection<Product> _productCollection;
+        private readonly IRepository<Favorite> _favoriteRepo;
+        private readonly IRepository<Product> _productRepo;
+        private readonly IRepository<ProductImage> _imageRepo;
+        private readonly IRepository<Store> _storeRepo;
+        private readonly IRepository<Category> _categoryRepo;
+        private readonly IMapper _mapper;
 
-        public FavoriteService(IMongoDatabase database)
+        public FavoriteService(
+            IRepository<Favorite> favoriteRepo,
+            IRepository<Product> productRepo,
+            IRepository<ProductImage> imageRepo,
+            IRepository<Store> storeRepo,
+            IRepository<Category> categoryRepo,
+            IMapper mapper)
         {
-            _favoriteCollection = database.GetCollection<Favorite>("Favorites");
-            _productCollection = database.GetCollection<Product>("Products");
+            _favoriteRepo = favoriteRepo;
+            _productRepo = productRepo;
+            _imageRepo = imageRepo;
+            _storeRepo = storeRepo;
+            _categoryRepo = categoryRepo;
+            _mapper = mapper;
         }
 
         public async Task<FavoriteActionResponseDto> AddToFavoriteAsync(string userId, string productId)
@@ -21,30 +39,26 @@ namespace LocalMartOnline.Services
             try
             {
                 // Check if already in favorites
-                var existingFavorite = await _favoriteCollection
-                    .Find(f => f.UserId == userId && f.ProductId == productId)
-                    .FirstOrDefaultAsync();
+                var existingFavorite = await _favoriteRepo
+                    .FindOneAsync(f => f.UserId == userId && f.ProductId == productId);
 
                 if (existingFavorite != null)
                 {
                     return new FavoriteActionResponseDto
                     {
                         Success = false,
-                        Message = "Product is already in your favorites"
+                        Message = "Sản phẩm đã có trong danh sách yêu thích"
                     };
                 }
 
                 // Check if product exists and is active
-                var product = await _productCollection
-                    .Find(p => p.Id == productId && p.Status == ProductStatus.Active)
-                    .FirstOrDefaultAsync();
-
-                if (product == null)
+                var product = await _productRepo.GetByIdAsync(productId);
+                if (product == null || product.Status != ProductStatus.Active)
                 {
                     return new FavoriteActionResponseDto
                     {
                         Success = false,
-                        Message = "Product not found or inactive"
+                        Message = "Sản phẩm không tồn tại hoặc không khả dụng"
                     };
                 }
 
@@ -55,12 +69,12 @@ namespace LocalMartOnline.Services
                     CreatedAt = DateTime.UtcNow
                 };
 
-                await _favoriteCollection.InsertOneAsync(favorite);
+                await _favoriteRepo.CreateAsync(favorite);
 
                 return new FavoriteActionResponseDto
                 {
                     Success = true,
-                    Message = "Product added to favorites successfully"
+                    Message = "Đã thêm sản phẩm vào danh sách yêu thích"
                 };
             }
             catch (Exception ex)
@@ -68,138 +82,123 @@ namespace LocalMartOnline.Services
                 return new FavoriteActionResponseDto
                 {
                     Success = false,
-                    Message = $"Error adding to favorites: {ex.Message}"
+                    Message = $"Lỗi khi thêm vào yêu thích: {ex.Message}"
                 };
             }
         }
 
         public async Task<GetFavoriteProductsResponseDto> GetUserFavoriteProductsAsync(string userId, int page = 1, int pageSize = 20)
         {
-            var pipeline = new List<BsonDocument>
+            try
             {
-                // Match user's favorites
-                new BsonDocument("$match", new BsonDocument("user_id", new ObjectId(userId))),
-                // Lookup product information
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "Products" },
-                    { "localField", "product_id" },
-                    { "foreignField", "_id" },
-                    { "as", "product" }
-                }),
-                // Unwind product array
-                new BsonDocument("$unwind", "$product"),
-                // Match only active products
-                new BsonDocument("$match", new BsonDocument("product.status", "Active")),
-                // Lookup store information
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "Stores" },
-                    { "localField", "product.store_id" },
-                    { "foreignField", "_id" },
-                    { "as", "store" }
-                }),
-                // Unwind store array
-                new BsonDocument("$unwind", "$store"),
-                // Lookup category information
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "Categories" },
-                    { "localField", "product.category_id" },
-                    { "foreignField", "_id" },
-                    { "as", "category" }
-                }),
-                // Unwind category array
-                new BsonDocument("$unwind", "$category"),
-                // Lookup product images
-                new BsonDocument("$lookup", new BsonDocument
-                {
-                    { "from", "ProductImages" },
-                    { "localField", "product._id" },
-                    { "foreignField", "product_id" },
-                    { "as", "images" }
-                }),
-                // Sort by most recently added to favorites
-                new BsonDocument("$sort", new BsonDocument("created_at", -1))
-            };
+                // Get user's favorites
+                var favorites = await _favoriteRepo.FindManyAsync(f => f.UserId == userId);
+                var productIds = favorites.Select(f => f.ProductId).ToList();
 
-            // Get total count
-            var countPipeline = new List<BsonDocument>(pipeline);
-            countPipeline.Add(new BsonDocument("$count", "total"));
-            
-            var countResult = await _favoriteCollection.Aggregate<BsonDocument>(countPipeline).FirstOrDefaultAsync();
-            var totalCount = countResult?.GetValue("total", 0).AsInt32 ?? 0;
+                if (!productIds.Any())
+                {
+                    return new GetFavoriteProductsResponseDto
+                    {
+                        FavoriteProducts = new List<FavoriteProductDto>(),
+                        TotalCount = 0,
+                        CurrentPage = page,
+                        PageSize = pageSize,
+                        TotalPages = 0
+                    };
+                }
 
-            // Add pagination
-            pipeline.Add(new BsonDocument("$skip", (page - 1) * pageSize));
-            pipeline.Add(new BsonDocument("$limit", pageSize));
+                // Get products that are still active
+                var products = await _productRepo.GetAllAsync();
+                var activeProducts = products.Where(p =>
+                    productIds.Contains(p.Id) &&
+                    p.Status == ProductStatus.Active).ToList();
 
-            // Project final result
-            pipeline.Add(new BsonDocument("$project", new BsonDocument
+                // Get additional data
+                var stores = await _storeRepo.GetAllAsync();
+                var categories = await _categoryRepo.GetAllAsync();
+                var allImages = await _imageRepo.GetAllAsync();
+
+                var favoriteProducts = new List<FavoriteProductDto>();
+
+                foreach (var product in activeProducts)
+                {
+                    var favorite = favorites.First(f => f.ProductId == product.Id);
+                    var store = stores.FirstOrDefault(s => s.Id == product.StoreId);
+                    var category = categories.FirstOrDefault(c => c.Id == product.CategoryId);
+                    var images = allImages.Where(i => i.ProductId == product.Id).ToList();
+
+                    var favoriteProduct = new FavoriteProductDto
+                    {
+                        FavoriteId = favorite.Id!,
+                        ProductId = product.Id!,
+                        ProductName = product.Name,
+                        Description = product.Description,
+                        Price = product.Price,
+                        Status = product.Status.ToString(),
+                        CategoryName = category?.Name ?? "Không xác định",
+                        StoreName = store?.Name ?? "Không xác định",
+                        StoreId = product.StoreId,
+                        ImageUrl = images.FirstOrDefault()?.ImageUrl,
+                        AddedToFavoriteAt = favorite.CreatedAt
+                    };
+
+                    favoriteProducts.Add(favoriteProduct);
+                }
+
+                // Sort by most recently added
+                favoriteProducts = favoriteProducts
+                    .OrderByDescending(f => f.AddedToFavoriteAt)
+                    .ToList();
+
+                // Apply pagination
+                var total = favoriteProducts.Count;
+                var paged = favoriteProducts
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                return new GetFavoriteProductsResponseDto
+                {
+                    FavoriteProducts = paged,
+                    TotalCount = total,
+                    CurrentPage = page,
+                    PageSize = pageSize,
+                    TotalPages = (int)Math.Ceiling((double)total / pageSize)
+                };
+            }
+            catch (Exception ex)
             {
-                { "favorite_id", "$_id" },
-                { "product_id", "$product._id" },
-                { "product_name", "$product.name" },
-                { "description", "$product.description" },
-                { "price", "$product.price" },
-                { "stock_quantity", "$product.stock_quantity" },
-                { "status", "$product.status" },
-                { "category_name", "$category.name" },
-                { "store_name", "$store.name" },
-                { "store_id", "$store._id" },
-                { "image_url", new BsonDocument("$arrayElemAt", new BsonArray { "$images.image_url", 0 }) },
-                { "added_to_favorite_at", "$created_at" }
-            }));
-
-            var favorites = await _favoriteCollection.Aggregate<BsonDocument>(pipeline).ToListAsync();
-
-            var favoriteProducts = favorites.Select(doc => new FavoriteProductDto
-            {
-                FavoriteId = doc.GetValue("favorite_id").AsObjectId.ToString(),
-                ProductId = doc.GetValue("product_id").AsObjectId.ToString(),
-                ProductName = doc.GetValue("product_name").AsString,
-                Description = doc.Contains("description") ? doc.GetValue("description").AsString : null,
-                Price = doc.GetValue("price").AsDecimal,
-                StockQuantity = doc.GetValue("stock_quantity").AsInt32,
-                Status = doc.GetValue("status").AsString,
-                CategoryName = doc.GetValue("category_name").AsString,
-                StoreName = doc.GetValue("store_name").AsString,
-                StoreId = doc.GetValue("store_id").AsObjectId.ToString(),
-                ImageUrl = doc.Contains("image_url") && !doc.GetValue("image_url").IsBsonNull ? 
-                          doc.GetValue("image_url").AsString : null,
-                AddedToFavoriteAt = doc.GetValue("added_to_favorite_at").ToUniversalTime()
-            }).ToList();
-
-            return new GetFavoriteProductsResponseDto
-            {
-                FavoriteProducts = favoriteProducts,
-                TotalCount = totalCount,
-                CurrentPage = page,
-                PageSize = pageSize,
-                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
-            };
+                return new GetFavoriteProductsResponseDto
+                {
+                    FavoriteProducts = new List<FavoriteProductDto>(),
+                    TotalCount = 0,
+                    CurrentPage = page,
+                    PageSize = pageSize,
+                    TotalPages = 0
+                };
+            }
         }
 
         public async Task<FavoriteActionResponseDto> RemoveFromFavoriteAsync(string userId, string productId)
         {
             try
             {
-                var result = await _favoriteCollection.DeleteOneAsync(
-                    f => f.UserId == userId && f.ProductId == productId);
-
-                if (result.DeletedCount == 0)
+                var favorite = await _favoriteRepo.FindOneAsync(f => f.UserId == userId && f.ProductId == productId);
+                if (favorite == null)
                 {
                     return new FavoriteActionResponseDto
                     {
                         Success = false,
-                        Message = "Product not found in favorites"
+                        Message = "Sản phẩm không có trong danh sách yêu thích"
                     };
                 }
+
+                await _favoriteRepo.DeleteAsync(favorite.Id!);
 
                 return new FavoriteActionResponseDto
                 {
                     Success = true,
-                    Message = "Product removed from favorites successfully"
+                    Message = "Đã xóa sản phẩm khỏi danh sách yêu thích"
                 };
             }
             catch (Exception ex)
@@ -207,17 +206,14 @@ namespace LocalMartOnline.Services
                 return new FavoriteActionResponseDto
                 {
                     Success = false,
-                    Message = $"Error removing from favorites: {ex.Message}"
+                    Message = $"Lỗi khi xóa khỏi yêu thích: {ex.Message}"
                 };
             }
         }
 
         public async Task<bool> IsProductInFavoriteAsync(string userId, string productId)
         {
-            var favorite = await _favoriteCollection
-                .Find(f => f.UserId == userId && f.ProductId == productId)
-                .FirstOrDefaultAsync();
-
+            var favorite = await _favoriteRepo.FindOneAsync(f => f.UserId == userId && f.ProductId == productId);
             return favorite != null;
         }
     }
