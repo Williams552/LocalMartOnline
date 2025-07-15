@@ -22,7 +22,7 @@ namespace LocalMartOnline.Models
         public string ProductId { get; set; } = string.Empty;
 
         [BsonElement("quantity")]
-        public int Quantity { get; set; }
+        public double Quantity { get; set; }
 
         [BsonElement("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
