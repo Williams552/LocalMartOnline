@@ -11,10 +11,9 @@ namespace LocalMartOnline.Services.Implement
 {
     public class FastBargainService : IFastBargainService
     {
-        private readonly IFastBargainRepository _repository;
-        // Inject notification service, product service, etc. as needed
+        private readonly IRepository<FastBargain> _repository;
 
-        public FastBargainService(IFastBargainRepository repository)
+        public FastBargainService(IRepository<FastBargain> repository)
         {
             _repository = repository;
         }
@@ -61,7 +60,7 @@ namespace LocalMartOnline.Services.Implement
                 ProposedAt = DateTime.UtcNow
             });
             bargain.ProposalCount++;
-            await _repository.UpdateAsync(bargain);
+            await _repository.UpdateAsync(bargain.Id, bargain);
             return ToResponseDTO(bargain);
         }
 
@@ -93,7 +92,7 @@ namespace LocalMartOnline.Services.Implement
                 bargain.ProposalCount++;
             }
             // TODO: Notification, timeout, abuse check, etc.
-            await _repository.UpdateAsync(bargain);
+            await _repository.UpdateAsync(bargain.Id, bargain);
             return ToResponseDTO(bargain);
         }
 
@@ -105,7 +104,7 @@ namespace LocalMartOnline.Services.Implement
 
         public async Task<List<FastBargainResponseDTO>> GetByUserIdAsync(string userId)
         {
-            var bargains = await _repository.GetByUserIdAsync(userId);
+            var bargains = await _repository.FindManyAsync(b => b.BuyerId == userId || b.SellerId == userId);
             return bargains.Select(ToResponseDTO).ToList();
         }
 

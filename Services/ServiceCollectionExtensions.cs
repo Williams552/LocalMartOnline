@@ -48,9 +48,9 @@ namespace LocalMartOnline.Services
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<MarketFeePayment>(mongoService, "MarketFeePayments");
             });
-            services.AddScoped<IFastBargainRepository>(sp => {
-                var db = sp.GetRequiredService<MongoDB.Driver.IMongoDatabase>();
-                return new FastBargainRepository(db);
+            services.AddScoped<IRepository<FastBargain>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<FastBargain>(mongoService, "FastBargains");
             });
             services.AddScoped<IFastBargainService, Implement.FastBargainService>();
             services.AddStackExchangeRedisCache(options =>
