@@ -105,17 +105,37 @@ namespace LocalMartOnline.Controllers
         }
 
         /// <summary>
-        /// Xem đánh giá cho một target cụ thể (Product, Seller, ProxyShopper)
+        /// Xem đánh giá cho một target cụ thể (Product, Seller, ProxyShopper) với phân trang và lọc
         /// </summary>
         [HttpGet("target")]
-        public async Task<IActionResult> GetReviewsForTarget([FromQuery] string targetType, [FromQuery] string targetId)
+        public async Task<IActionResult> GetReviewsForTarget(
+            [FromQuery] string targetType, 
+            [FromQuery] string targetId,
+            [FromQuery] int? rating = null,
+            [FromQuery] bool? hasImages = null,
+            [FromQuery] bool? verifiedPurchaseOnly = null,
+            [FromQuery] string sortBy = "newest",
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
             try
             {
                 if (string.IsNullOrEmpty(targetType) || string.IsNullOrEmpty(targetId))
                     return BadRequest(new { message = "Target type and target ID are required" });
 
-                var reviews = await _reviewService.GetReviewsForTargetAsync(targetType, targetId);
+                var filterOptions = new
+                {
+                    TargetType = targetType,
+                    TargetId = targetId,
+                    Rating = rating,
+                    HasImages = hasImages,
+                    VerifiedPurchaseOnly = verifiedPurchaseOnly,
+                    SortBy = sortBy,
+                    Page = page,
+                    PageSize = Math.Min(pageSize, 50) // Limit max page size
+                };
+
+                var reviews = await _reviewService.GetReviewsForTargetAsync(filterOptions);
                 return Ok(reviews);
             }
             catch (Exception ex)

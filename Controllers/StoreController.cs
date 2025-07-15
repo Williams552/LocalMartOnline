@@ -200,6 +200,34 @@ namespace LocalMartOnline.Controllers
             });
         }
 
+        // Check if user is following a store
+        [HttpGet("{storeId}/check-follow")]
+        [Authorize(Roles = "Buyer")]
+        public async Task<IActionResult> CheckFollowStatus(long storeId, [FromQuery] long userId)
+        {
+            var isFollowing = await _storeService.IsFollowingStoreAsync(userId, storeId);
+            return Ok(new
+            {
+                success = true,
+                message = "Kiểm tra trạng thái theo dõi thành công",
+                data = new { isFollowing }
+            });
+        }
+
+        // Get store followers
+        [HttpGet("{storeId}/followers")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetStoreFollowers(long storeId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var followers = await _storeService.GetStoreFollowersAsync(storeId, page, pageSize);
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách người theo dõi thành công",
+                data = followers
+            });
+        }
+
         // UC040: View Store Profile
         [HttpGet("{id}")]
         [AllowAnonymous]
@@ -435,6 +463,38 @@ namespace LocalMartOnline.Controllers
                 success = true,
                 message = "Lấy danh sách gian hàng đang hoạt động thành công",
                 data = result
+            });
+        }
+
+        // Get store statistics
+        [HttpGet("{id}/statistics")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetStoreStatistics(string id)
+        {
+            if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID gian hàng không hợp lệ",
+                    data = (object?)null
+                });
+            }
+
+            var statistics = await _storeService.GetStoreStatisticsAsync(id);
+            if (statistics == null)
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Không tìm thấy gian hàng",
+                    data = (object?)null
+                });
+
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy thống kê gian hàng thành công",
+                data = statistics
             });
         }
     }

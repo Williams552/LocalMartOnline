@@ -9,6 +9,7 @@ namespace LocalMartOnline.Services
         Task<bool> DeleteReviewAsync(string userId, string reviewId);
         Task<GetReviewsResponseDto> GetReviewsByUserAsync(string userId);
         Task<GetReviewsResponseDto> GetReviewsForTargetAsync(string targetType, string targetId);
+        Task<GetReviewsResponseDto> GetReviewsForTargetAsync(object filterOptions);
         Task<ReviewDto?> GetReviewByIdAsync(string reviewId);
         Task<bool> CanUserReviewAsync(string userId, string targetType, string targetId);
     }

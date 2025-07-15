@@ -16,7 +16,7 @@ namespace LocalMartOnline.Models.DTOs.Product
         public double MaxDistanceKm { get; set; }
         public string? SortBy { get; set; } // "price", "name", "status", "created", "updated"
         public bool? Ascending { get; set; } = true;
-        public int Page { get; set; } = 1;
-        public int PageSize { get; set; } = 20;
+        public new int Page { get; set; } = 1;
+        public new int PageSize { get; set; } = 20;
     }
 }
