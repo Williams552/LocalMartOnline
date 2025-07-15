@@ -14,11 +14,13 @@ namespace LocalMartOnline.Controllers
     {
         private readonly IRepository<SellerRegistration> _sellerRepo;
         private readonly IRepository<User> _userRepo;
+        private readonly IRepository<Store> _storeRepo;
         private readonly IMapper _mapper;
-        public SellerRegistrationController(IRepository<SellerRegistration> sellerRepo, IRepository<User> userRepo, IMapper mapper)
+        public SellerRegistrationController(IRepository<SellerRegistration> sellerRepo, IRepository<User> userRepo, IRepository<Store> storeRepo, IMapper mapper)
         {
             _sellerRepo = sellerRepo;
             _userRepo = userRepo;
+            _storeRepo = storeRepo;
             _mapper = mapper;
         }
 
@@ -61,11 +63,30 @@ namespace LocalMartOnline.Controllers
         public async Task<IActionResult> Approve([FromBody] SellerRegistrationApproveDTO dto)
         {
             var reg = await _sellerRepo.FindOneAsync(r => r.Id == dto.RegistrationId);
-            if (reg == null) return NotFound(new { success = false, message = "Không tìm thấy đăng ký seller.", data = (object?)null });
+            if (reg == null) 
+                return NotFound(new { success = false, message = "Không tìm thấy đăng ký seller.", data = (object?)null });
+
             reg.Status = dto.Approve ? "Approved" : "Rejected";
             reg.RejectionReason = dto.Approve ? null : dto.RejectionReason;
             reg.UpdatedAt = DateTime.UtcNow;
             await _sellerRepo.UpdateAsync(reg.Id!, reg);
+
+            // Nếu duyệt thành công thì tạo Store mới
+            if (dto.Approve)
+            {
+                var store = new Store
+                {
+                    Name = reg.StoreName,
+                    Address = reg.StoreAddress,
+                    MarketId = reg.MarketId,
+                    SellerId = reg.UserId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    Status = "Active"
+                };
+                await _storeRepo.CreateAsync(store);
+            }
+
             return Ok(new { success = true, message = "Cập nhật trạng thái đăng ký seller thành công.", data = (object?)null });
         }
 

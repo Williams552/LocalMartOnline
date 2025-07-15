@@ -61,7 +61,7 @@ namespace LocalMartOnline.Controllers
             var user = await _userRepo.GetByIdAsync(id);
             if (user == null)
                 return NotFound(new { success = false, message = "User not found", data = (object?)null });
-            var userDto = _mapper.Map<RegisterDTO>(user);
+            var userDto = _mapper.Map<UserDTO>(user);
             return Ok(new { success = true, message = "Lấy thông tin người dùng thành công", data = userDto });
         }
 

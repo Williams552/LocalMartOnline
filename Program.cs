@@ -80,16 +80,18 @@ builder.Services.AddAutoMapper(typeof(MappingService).Assembly);
 // SignalR
 builder.Services.AddSignalR();
 
+// Chat Service
+builder.Services.AddScoped<IChatService, ChatService>();
+
 // CORS policy
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend",
+    options.AddPolicy("AllowAll",
         policy =>
         {
-            policy.WithOrigins("http://localhost:3000") // Thay bằng địa chỉ frontend của bạn
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials(); // nếu dùng cookie / auth
+            policy.AllowAnyOrigin()   // Cho phép mọi domain
+                  .AllowAnyHeader()   // Cho phép mọi header
+                  .AllowAnyMethod();  // Cho phép mọi method (GET, POST, PUT,...)
         });
 });
 

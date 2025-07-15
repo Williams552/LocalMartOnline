@@ -2,6 +2,7 @@ using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.Review;
 using MongoDB.Driver;
 using MongoDB.Bson;
+using Newtonsoft.Json;
 
 namespace LocalMartOnline.Services
 {
@@ -9,7 +10,9 @@ namespace LocalMartOnline.Services
     {
         private readonly IMongoCollection<Review> _reviewCollection;
         private readonly IMongoCollection<Models.Order> _orderCollection;
-        private readonly IMongoCollection<ProxyShoppingOrder> _proxyOrderCollection;        public ReviewService(IMongoDatabase database)
+        private readonly IMongoCollection<ProxyShoppingOrder> _proxyOrderCollection;
+        
+        public ReviewService(IMongoDatabase database)
         {
             _reviewCollection = database.GetCollection<Review>("Reviews");
             _orderCollection = database.GetCollection<Order>("Orders");
@@ -128,6 +131,99 @@ namespace LocalMartOnline.Services
                 TotalCount = reviews.Count,
                 AverageRating = Math.Round(averageRating, 2)
             };
+        }
+
+        public async Task<GetReviewsResponseDto> GetReviewsForTargetAsync(object filterOptions)
+        {
+            try
+            {
+                // Parse filter options
+                var filterDict = filterOptions as IDictionary<string, object> ?? 
+                    Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(
+                        Newtonsoft.Json.JsonConvert.SerializeObject(filterOptions));
+
+                var targetType = filterDict.ContainsKey("TargetType") ? filterDict["TargetType"]?.ToString() ?? "" : "";
+                var targetId = filterDict.ContainsKey("TargetId") ? filterDict["TargetId"]?.ToString() ?? "" : "";
+                var rating = filterDict.ContainsKey("Rating") && filterDict["Rating"] != null ? 
+                    Convert.ToInt32(filterDict["Rating"]) : (int?)null;
+                var sortBy = filterDict.ContainsKey("SortBy") ? filterDict["SortBy"]?.ToString() ?? "newest" : "newest";
+                var page = 1;
+                var pageSize = 10;
+                
+                if (filterDict.ContainsKey("Page") && filterDict["Page"] != null)
+                {
+                    if (int.TryParse(filterDict["Page"].ToString(), out var parsedPage))
+                        page = parsedPage;
+                }
+                
+                if (filterDict.ContainsKey("PageSize") && filterDict["PageSize"] != null)
+                {
+                    if (int.TryParse(filterDict["PageSize"].ToString(), out var parsedPageSize))
+                        pageSize = parsedPageSize;
+                }
+
+                // Build filter
+                var filterBuilder = Builders<Review>.Filter;
+                var filters = new List<FilterDefinition<Review>>
+                {
+                    filterBuilder.Eq(r => r.TargetType, targetType),
+                    filterBuilder.Eq(r => r.TargetId, targetId)
+                };
+
+                if (rating.HasValue)
+                {
+                    filters.Add(filterBuilder.Eq(r => r.Rating, rating.Value));
+                }
+
+                var combinedFilter = filterBuilder.And(filters);
+
+                // Build sort
+                SortDefinition<Review> sort = sortBy.ToLower() switch
+                {
+                    "oldest" => Builders<Review>.Sort.Ascending(r => r.CreatedAt),
+                    "rating_high" => Builders<Review>.Sort.Descending(r => r.Rating),
+                    "rating_low" => Builders<Review>.Sort.Ascending(r => r.Rating),
+                    _ => Builders<Review>.Sort.Descending(r => r.CreatedAt) // newest (default)
+                };
+
+                // Get total count
+                var totalCount = await _reviewCollection.CountDocumentsAsync(combinedFilter);
+
+                // Get paginated results
+                var reviews = await _reviewCollection
+                    .Find(combinedFilter)
+                    .Sort(sort)
+                    .Skip((page - 1) * pageSize)
+                    .Limit(pageSize)
+                    .ToListAsync();
+
+                // Calculate average rating for all reviews (not just current page)
+                var allReviews = await _reviewCollection
+                    .Find(filterBuilder.And(
+                        filterBuilder.Eq(r => r.TargetType, targetType),
+                        filterBuilder.Eq(r => r.TargetId, targetId)))
+                    .ToListAsync();
+
+                var reviewDtos = reviews.Select(MapToDto).ToList();
+                var averageRating = allReviews.Any() ? allReviews.Average(r => r.Rating) : 0;
+
+                return new GetReviewsResponseDto
+                {
+                    Reviews = reviewDtos,
+                    TotalCount = (int)totalCount,
+                    AverageRating = Math.Round(averageRating, 2)
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetReviewsForTargetAsync: {ex.Message}");
+                return new GetReviewsResponseDto
+                {
+                    Reviews = new List<ReviewDto>(),
+                    TotalCount = 0,
+                    AverageRating = 0
+                };
+            }
         }
 
         public async Task<ReviewDto?> GetReviewByIdAsync(string reviewId)

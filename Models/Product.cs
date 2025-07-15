@@ -36,8 +36,14 @@ namespace LocalMartOnline.Models
         [BsonElement("unit_id")]
         public string UnitId { get; set; } = string.Empty;
 
+        [BsonElement("images")]
+        public List<string> Images { get; set; } = new List<string>();
+
         [BsonElement("minimum_quantity")]
         public decimal MinimumQuantity { get; set; } = 1;
+
+        [BsonElement("stock_quantity")]
+        public decimal StockQuantity { get; set; } = 0; // Added stock management
 
         [BsonElement("status")]
         [BsonRepresentation(BsonType.String)]
