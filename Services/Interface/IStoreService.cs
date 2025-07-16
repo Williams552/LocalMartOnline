@@ -15,11 +15,12 @@ namespace LocalMartOnline.Services.Interface
         Task<StoreDto> CreateStoreAsync(StoreCreateDto dto);
         Task<bool> CloseStoreAsync(string id);
         Task<bool> UpdateStoreAsync(string id, StoreUpdateDto dto);
-        Task<bool> FollowStoreAsync(long userId, long storeId);
-        Task<bool> UnfollowStoreAsync(long userId, long storeId);
-        Task<IEnumerable<StoreDto>> GetFollowingStoresAsync(long userId);
-        Task<bool> IsFollowingStoreAsync(long userId, long storeId);
-        Task<PagedResultDto<object>> GetStoreFollowersAsync(long storeId, int page, int pageSize);
+        // Thay đổi các method signatures từ long thành string
+        Task<bool> FollowStoreAsync(string userId, string storeId); // ✅ long → string
+        Task<bool> UnfollowStoreAsync(string userId, string storeId); // ✅ long → string
+        Task<IEnumerable<StoreDto>> GetFollowingStoresAsync(string userId); // ✅ long → string
+        Task<bool> IsFollowingStoreAsync(string userId, string storeId); // ✅ long → string
+        Task<PagedResultDto<object>> GetStoreFollowersAsync(string storeId, int page, int pageSize); // ✅ long → string
         Task<StoreDto?> GetStoreProfileAsync(string id);
         Task<PagedResultDto<StoreDto>> GetActiveStoresByMarketIdAsync(string marketId, int page, int pageSize);
         Task<bool> ToggleStoreStatusAsync(string id);

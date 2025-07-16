@@ -1,4 +1,4 @@
-using MongoDB.Bson;
+﻿using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 
@@ -11,10 +11,10 @@ namespace LocalMartOnline.Models
         public string? Id { get; set; }
 
         [BsonElement("user_id")]
-        public long UserId { get; set; }
+        public string UserId { get; set; } = string.Empty; // ✅ Chuyển từ long thành string
 
         [BsonElement("store_id")]
-        public long StoreId { get; set; }
+        public string StoreId { get; set; } = string.Empty; // ✅ Chuyển từ long thành string
 
         [BsonElement("created_at")]
         [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]

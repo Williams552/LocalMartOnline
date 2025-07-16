@@ -71,15 +71,16 @@ namespace LocalMartOnline.Services.Implement
         }
 
         // UC037: Follow Store
-        public async Task<bool> FollowStoreAsync(long userId, long storeId)
+        public async Task<bool> FollowStoreAsync(string userId, string storeId)
         {
-            // Tìm store theo ObjectId (Id) thay vì StoreId
-            var store = await _storeRepo.GetByIdAsync(storeId.ToString());
+            // Kiểm tra store có tồn tại không
+            var store = await _storeRepo.GetByIdAsync(storeId);
             if (store == null) return false;
 
             // Check if already followed
             var follows = await _followRepo.FindManyAsync(f => f.UserId == userId && f.StoreId == storeId);
             if (follows.Any()) return false;
+
             var follow = new StoreFollow
             {
                 UserId = userId,
@@ -91,7 +92,7 @@ namespace LocalMartOnline.Services.Implement
         }
 
         // UC039: Unfollow Store
-        public async Task<bool> UnfollowStoreAsync(long userId, long storeId)
+        public async Task<bool> UnfollowStoreAsync(string userId, string storeId)
         {
             var follows = await _followRepo.FindManyAsync(f => f.UserId == userId && f.StoreId == storeId);
             var follow = follows.FirstOrDefault();
@@ -101,39 +102,37 @@ namespace LocalMartOnline.Services.Implement
         }
 
         // UC038: View Following Store List
-        public async Task<IEnumerable<StoreDto>> GetFollowingStoresAsync(long userId)
+        public async Task<IEnumerable<StoreDto>> GetFollowingStoresAsync(string userId)
         {
             var follows = await _followRepo.FindManyAsync(f => f.UserId == userId);
-            var storeIds = follows.Select(f => f.StoreId.ToString()).ToList();
+            var storeIds = follows.Select(f => f.StoreId).ToList();
             if (!storeIds.Any()) return Enumerable.Empty<StoreDto>();
+
             // Tìm theo Id (ObjectId dạng string)
             var stores = await _storeRepo.FindManyAsync(s => storeIds.Contains(s.Id!));
             return _mapper.Map<IEnumerable<StoreDto>>(stores);
         }
 
         // Check if user is following a store
-        public async Task<bool> IsFollowingStoreAsync(long userId, long storeId)
+        public async Task<bool> IsFollowingStoreAsync(string userId, string storeId)
         {
             var follows = await _followRepo.FindManyAsync(f => f.UserId == userId && f.StoreId == storeId);
             return follows.Any();
         }
 
         // Get store followers with pagination
-        public async Task<PagedResultDto<object>> GetStoreFollowersAsync(long storeId, int page, int pageSize)
+        public async Task<PagedResultDto<object>> GetStoreFollowersAsync(string storeId, int page, int pageSize)
         {
             var follows = await _followRepo.FindManyAsync(f => f.StoreId == storeId);
             var totalCount = follows.Count();
-            
+
             var pagedFollows = follows
                 .OrderByDescending(f => f.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToList();
 
-            var userIds = pagedFollows.Select(f => f.UserId).ToList();
-            
-            // Here you would typically join with User table to get user info
-            // For now, returning basic info
+            // Trả về thông tin cơ bản của followers
             var followers = pagedFollows.Select(f => new
             {
                 UserId = f.UserId,
