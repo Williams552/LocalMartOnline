@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using FirebaseAdmin;
+using FcmNotification = FirebaseAdmin.Messaging.Notification;
 using FirebaseAdmin.Messaging;
 using Google.Apis.Auth.OAuth2;
 using LocalMartOnline.Models;
@@ -16,11 +17,13 @@ namespace LocalMartOnline.Services
         private static int _isInitialized = 0;
         private static readonly object _initLock = new object();
         private readonly IRepository<User> _userRepo;
+        private readonly IRepository<LocalMartOnline.Models.Notification> _notificationRepo;
         private readonly string _firebaseCredentialPath;
 
-        public NotificationService(IRepository<User> userRepo, IConfiguration configuration)
+        public NotificationService(IRepository<User> userRepo, IRepository<LocalMartOnline.Models.Notification> notificationRepo, IConfiguration configuration)
         {
             _userRepo = userRepo;
+            _notificationRepo = notificationRepo;
             _firebaseCredentialPath = configuration["Firebase:CredentialPath"] ??
                 Environment.GetEnvironmentVariable("FIREBASE_CREDENTIAL_PATH") ??
                 throw new InvalidOperationException("Firebase credential path not configured");
@@ -43,7 +46,7 @@ namespace LocalMartOnline.Services
             var notification = new Message()
             {
                 Token = userToken, // userToken là FCM token của thiết bị người dùng
-                Notification = new Notification
+                Notification = new FcmNotification
                 {
                     Title = "Thông báo từ LocalMartOnline",
                     Body = message
@@ -95,10 +98,39 @@ namespace LocalMartOnline.Services
             }
         }
 
+
         public Task<IEnumerable<NotificationDto>> GetNotificationsAsync(string userId)
         {
             // Giả lập lấy danh sách notification từ DB, cần thay bằng truy vấn thực tế
             return Task.FromResult<IEnumerable<NotificationDto>>(new List<NotificationDto>());
+        }
+
+        public async Task<(IEnumerable<NotificationDto> Notifications, int Total)> GetNotificationsPagedAsync(string userId, int page, int limit)
+        {
+            // Lấy tất cả notification của userId
+            var all = await _notificationRepo.FindManyAsync(n => n.UserId == userId);
+            var total = all.Count();
+            var paged = all.OrderByDescending(n => n.CreatedAt)
+                           .Skip((page - 1) * limit)
+                           .Take(limit)
+                           .Select(n => new NotificationDto
+                           {
+                               Id = n.Id,
+                               UserId = n.UserId,
+                               Title = n.Title,
+                               Message = n.Message,
+                               Type = n.Type,
+                               IsRead = n.IsRead,
+                               CreatedAt = n.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")
+                           });
+            return (paged, total);
+        }
+
+        public async Task<int> GetUnreadCountAsync(string userId)
+        {
+            // Đếm số lượng notification chưa đọc của userId
+            var unread = await _notificationRepo.FindManyAsync(n => n.UserId == userId && !n.IsRead);
+            return unread.Count();
         }
 
     }

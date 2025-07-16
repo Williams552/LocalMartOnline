@@ -7,6 +7,7 @@ namespace LocalMartOnline.Models.DTOs.Order
     {
         public string? Id { get; set; }
         public string BuyerId { get; set; } = string.Empty;
+        public string SellerId { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public string DeliveryAddress { get; set; } = string.Empty;
         public string Status { get; set; } = "Pending";
