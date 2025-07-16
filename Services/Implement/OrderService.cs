@@ -33,6 +33,7 @@ namespace LocalMartOnline.Services.Implement
             var order = new Order
             {
                 BuyerId = dto.BuyerId,
+                SellerId = dto.SellerId,
                 DeliveryAddress = dto.DeliveryAddress,
                 Status = OrderStatus.Pending,
                 PaymentStatus = PaymentStatus.Pending,
@@ -131,6 +132,35 @@ namespace LocalMartOnline.Services.Implement
                 TotalCount = total,
                 Page = filter.Page,
                 PageSize = filter.PageSize
+            };
+        }
+
+        public async Task<PagedResultDto<OrderDto>> GetOrderListBySellerAsync(string sellerId, int page, int pageSize)
+        {
+            var orders = await _orderRepo.FindManyAsync(o => o.SellerId == sellerId);
+            var total = orders.Count();
+            var paged = orders.OrderByDescending(o => o.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize);
+
+            var result = new List<OrderDto>();
+            foreach (var order in paged)
+            {
+                var dto = _mapper.Map<OrderDto>(order);
+                var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
+                dto.Items = items.Select(i => new OrderItemDto
+                {
+                    ProductId = i.ProductId,
+                    Quantity = i.Quantity,
+                    PriceAtPurchase = i.PriceAtPurchase
+                }).ToList();
+                result.Add(dto);
+            }
+
+            return new PagedResultDto<OrderDto>
+            {
+                Items = result,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
             };
         }
     }

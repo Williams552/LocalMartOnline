@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Services;
 using LocalMartOnline.Models.DTOs.LoyalCustomer;
+using Microsoft.AspNetCore.Authorization;
 
 namespace LocalMartOnline.Controllers
 {
@@ -81,16 +82,14 @@ namespace LocalMartOnline.Controllers
         /// Get loyal customer statistics for the seller - Seller only
         /// </summary>
         [HttpGet("statistics")]
-        public async Task<IActionResult> GetLoyalCustomerStatistics([FromHeader] string userId = "", [FromHeader] string userRole = "")
+        [Authorize(Roles = "Seller")]
+        public async Task<IActionResult> GetLoyalCustomerStatistics()
         {
             try
             {
-                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(userRole))
-                    return BadRequest(new { message = "User ID and role are required" });
-
-                if (userRole != "Seller")
-                    return Forbid("Only Sellers can view loyal customer statistics");
-
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                    return Unauthorized(new { message = "Không xác định được seller." });
                 var result = await _loyalCustomerService.GetLoyalCustomerStatisticsAsync(userId);
                 return Ok(result);
             }

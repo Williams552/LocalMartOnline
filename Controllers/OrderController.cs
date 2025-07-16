@@ -47,5 +47,17 @@ namespace LocalMartOnline.Controllers
             var result = await _service.FilterOrderListAsync(filter);
             return Ok(result);
         }
+
+        // Lấy danh sách đơn hàng của seller hiện tại
+        [HttpGet("seller/my")]
+        [Authorize(Roles = "Seller")]
+        public async Task<ActionResult<PagedResultDto<OrderDto>>> GetMyOrderList([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { success = false, message = "Không xác định được seller." });
+            var result = await _service.GetOrderListBySellerAsync(userId, page, pageSize);
+            return Ok(result);
+        }
     }
 }

@@ -89,10 +89,24 @@ namespace LocalMartOnline.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> GetNotifications([FromQuery] string userId)
+        public async Task<IActionResult> GetNotificationsPaged([FromQuery] int page = 1, [FromQuery] int limit = 5)
         {
-            var notifications = await _notificationService.GetNotificationsAsync(userId);
-            return Ok(new { success = true, data = notifications });
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { success = false, message = "Không xác định được user." });
+            var (notifications, total) = await _notificationService.GetNotificationsPagedAsync(userId, page, limit);
+            return Ok(new { success = true, data = notifications, total });
+        }
+
+        [HttpGet("unread-count")]
+        [Authorize]
+        public async Task<IActionResult> GetUnreadCount()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { success = false, message = "Không xác định được user." });
+            var count = await _notificationService.GetUnreadCountAsync(userId);
+            return Ok(new { success = true, data = count });
         }
     }
 }

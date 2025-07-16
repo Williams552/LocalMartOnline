@@ -27,8 +27,12 @@ namespace LocalMartOnline.Models
         [BsonRepresentation(BsonType.ObjectId)]
         public string? Id { get; set; }
 
+
         [BsonElement("buyer_id")]
         public string BuyerId { get; set; } = string.Empty; // ObjectId as string
+
+        [BsonElement("seller_id")]
+        public string SellerId { get; set; } = string.Empty; // ObjectId as string
 
         [BsonElement("total_amount")]
         public decimal TotalAmount { get; set; }
