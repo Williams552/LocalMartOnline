@@ -145,8 +145,29 @@ namespace LocalMartOnline.Controllers
         // UC037: Follow Store
         [HttpPost("{storeId}/follow")]
         [Authorize(Roles = "Buyer")]
-        public async Task<IActionResult> FollowStore(long storeId, [FromQuery] long userId)
+        public async Task<IActionResult> FollowStore(string storeId, [FromQuery] string userId)
         {
+            // Kiểm tra ObjectId hợp lệ
+            if (!MongoDB.Bson.ObjectId.TryParse(storeId, out _))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID gian hàng không hợp lệ",
+                    data = (object?)null
+                });
+            }
+
+            if (!MongoDB.Bson.ObjectId.TryParse(userId, out _))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID người dùng không hợp lệ",
+                    data = (object?)null
+                });
+            }
+
             var result = await _storeService.FollowStoreAsync(userId, storeId);
             if (!result)
                 return BadRequest(new
@@ -167,8 +188,28 @@ namespace LocalMartOnline.Controllers
         // UC039: Unfollow Store
         [HttpPost("{storeId}/unfollow")]
         [Authorize(Roles = "Buyer")]
-        public async Task<IActionResult> UnfollowStore(long storeId, [FromQuery] long userId)
+        public async Task<IActionResult> UnfollowStore(string storeId, [FromQuery] string userId)
         {
+            if (!MongoDB.Bson.ObjectId.TryParse(storeId, out _))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID gian hàng không hợp lệ",
+                    data = (object?)null
+                });
+            }
+
+            if (!MongoDB.Bson.ObjectId.TryParse(userId, out _))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID người dùng không hợp lệ",
+                    data = (object?)null
+                });
+            }
+
             var result = await _storeService.UnfollowStoreAsync(userId, storeId);
             if (!result)
                 return NotFound(new
@@ -189,8 +230,18 @@ namespace LocalMartOnline.Controllers
         // UC038: View Following Store List
         [HttpGet("following")]
         [Authorize(Roles = "Buyer")]
-        public async Task<IActionResult> GetFollowingStores([FromQuery] long userId)
+        public async Task<IActionResult> GetFollowingStores([FromQuery] string userId)
         {
+            if (!MongoDB.Bson.ObjectId.TryParse(userId, out _))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID người dùng không hợp lệ",
+                    data = (object?)null
+                });
+            }
+
             var stores = await _storeService.GetFollowingStoresAsync(userId);
             return Ok(new
             {
@@ -200,31 +251,54 @@ namespace LocalMartOnline.Controllers
             });
         }
 
-        // Check if user is following a store
-        [HttpGet("{storeId}/check-follow")]
-        [Authorize(Roles = "Buyer")]
-        public async Task<IActionResult> CheckFollowStatus(long storeId, [FromQuery] long userId)
+        // Get store followers
+        [HttpGet("{storeId}/followers")]
+        [Authorize(Roles = "Seller,Admin")]
+        public async Task<IActionResult> GetStoreFollowers(
+            string storeId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
+            if (!MongoDB.Bson.ObjectId.TryParse(storeId, out _))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID gian hàng không hợp lệ",
+                    data = (object?)null
+                });
+            }
+
+            var result = await _storeService.GetStoreFollowersAsync(storeId, page, pageSize);
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách người theo dõi thành công",
+                data = result
+            });
+        }
+
+        // Check if user is following store
+        [HttpGet("{storeId}/is-following")]
+        [Authorize(Roles = "Buyer")]
+        public async Task<IActionResult> IsFollowingStore(string storeId, [FromQuery] string userId)
+        {
+            if (!MongoDB.Bson.ObjectId.TryParse(storeId, out _) || !MongoDB.Bson.ObjectId.TryParse(userId, out _))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "ID không hợp lệ",
+                    data = (object?)null
+                });
+            }
+
             var isFollowing = await _storeService.IsFollowingStoreAsync(userId, storeId);
             return Ok(new
             {
                 success = true,
                 message = "Kiểm tra trạng thái theo dõi thành công",
                 data = new { isFollowing }
-            });
-        }
-
-        // Get store followers
-        [HttpGet("{storeId}/followers")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetStoreFollowers(long storeId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        {
-            var followers = await _storeService.GetStoreFollowersAsync(storeId, page, pageSize);
-            return Ok(new
-            {
-                success = true,
-                message = "Lấy danh sách người theo dõi thành công",
-                data = followers
             });
         }
 
