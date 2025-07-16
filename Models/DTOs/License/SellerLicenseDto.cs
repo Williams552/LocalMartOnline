@@ -4,7 +4,7 @@ namespace LocalMartOnline.Models.DTOs.License
     {
         public string Id { get; set; } = string.Empty; // license_id
         public string RegistrationId { get; set; } = string.Empty; // registration_id
-        public string UserId { get; set; } = string.Empty; // From SellerRegistrations
+        public string UserId { get; set; } = string.Empty; // From SellerRegistration
         public string SellerName { get; set; } = string.Empty;
         public string StoreName { get; set; } = string.Empty;
         public string LicenseType { get; set; } = string.Empty;
@@ -23,7 +23,7 @@ namespace LocalMartOnline.Models.DTOs.License
 
     public class CreateSellerLicenseDto
     {
-        public string RegistrationId { get; set; } = string.Empty; // SellerRegistrations Id
+        public string RegistrationId { get; set; } = string.Empty; // SellerRegistration Id
         public string LicenseType { get; set; } = string.Empty; // BusinessLicense, FoodSafetyCertificate, TaxRegistration, EnvironmentalPermit, Other
         public string? LicenseNumber { get; set; }
         public string LicenseUrl { get; set; } = string.Empty;

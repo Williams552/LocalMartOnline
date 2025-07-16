@@ -12,10 +12,12 @@ namespace LocalMartOnline.Services.Implement
     public class FastBargainService : IFastBargainService
     {
         private readonly IRepository<FastBargain> _repository;
+        private readonly IRepository<Product> _productRepository;
 
-        public FastBargainService(IRepository<FastBargain> repository)
+        public FastBargainService(IRepository<FastBargain> repository, IRepository<Product> productRepository)
         {
             _repository = repository;
+            _productRepository = productRepository;
         }
 
         public async Task<FastBargainResponseDTO> StartBargainAsync(FastBargainCreateRequestDTO request)
@@ -23,7 +25,7 @@ namespace LocalMartOnline.Services.Implement
             // TODO: Validate product, check inventory, check for existing active bargain, etc.
             var bargain = new FastBargain
             {
-                Id = Guid.NewGuid().ToString(),
+                // Id = null, để MongoDB tự sinh ObjectId
                 ProductId = request.ProductId,
                 BuyerId = request.BuyerId,
                 // SellerId: get from product
@@ -110,11 +112,15 @@ namespace LocalMartOnline.Services.Implement
 
         private FastBargainResponseDTO ToResponseDTO(FastBargain bargain)
         {
+            // Synchronously get product info (for async, refactor all usages to async)
+            var product = _productRepository.GetByIdAsync(bargain.ProductId).GetAwaiter().GetResult();
             return new FastBargainResponseDTO
             {
                 BargainId = bargain.Id,
                 Status = bargain.Status.ToString(),
                 FinalPrice = bargain.FinalPrice,
+                ProductName = product?.Name ?? string.Empty,
+                OriginalPrice = product?.Price,
                 Proposals = bargain.Proposals.Select(p => new FastBargainProposalDTO
                 {
                     BargainId = bargain.Id,

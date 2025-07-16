@@ -7,13 +7,13 @@ namespace LocalMartOnline.Services
     public class SellerLicenseService : ISellerLicenseService
     {
         private readonly IMongoCollection<SellerLicenses> _licenseCollection;
-        private readonly IMongoCollection<SellerRegistrations> _registrationCollection;
+        private readonly IMongoCollection<SellerRegistration> _registrationCollection;
         private readonly IMongoCollection<User> _userCollection;
 
         public SellerLicenseService(IMongoDatabase database)
         {
             _licenseCollection = database.GetCollection<SellerLicenses>("SellerLicenses");
-            _registrationCollection = database.GetCollection<SellerRegistrations>("SellerRegistrations");
+            _registrationCollection = database.GetCollection<SellerRegistration>("SellerRegistration");
             _userCollection = database.GetCollection<User>("Users");
         }
 
@@ -26,7 +26,7 @@ namespace LocalMartOnline.Services
 
             // Validate registration exists
             var registration = await _registrationCollection
-                .Find(Builders<SellerRegistrations>.Filter.Eq(r => r.Id, createLicenseDto.RegistrationId))
+                .Find(Builders<SellerRegistration>.Filter.Eq(r => r.Id, createLicenseDto.RegistrationId))
                 .FirstOrDefaultAsync();
 
             if (registration == null)
@@ -115,7 +115,7 @@ namespace LocalMartOnline.Services
             if (!string.IsNullOrEmpty(request.UserId))
             {
                 var userRegistrations = await _registrationCollection
-                    .Find(Builders<SellerRegistrations>.Filter.Eq(r => r.UserId, request.UserId))
+                    .Find(Builders<SellerRegistration>.Filter.Eq(r => r.UserId, request.UserId))
                     .ToListAsync();
 
                 var registrationIds = userRegistrations.Select(r => r.Id).ToList();
@@ -336,9 +336,9 @@ namespace LocalMartOnline.Services
         }        private async Task<bool> CheckRegistrationOwnershipAsync(string userId, string registrationId)
         {
             var registration = await _registrationCollection
-                .Find(Builders<SellerRegistrations>.Filter.And(
-                    Builders<SellerRegistrations>.Filter.Eq(r => r.Id, registrationId),
-                    Builders<SellerRegistrations>.Filter.Eq(r => r.UserId, userId)
+                .Find(Builders<SellerRegistration>.Filter.And(
+                    Builders<SellerRegistration>.Filter.Eq(r => r.Id, registrationId),
+                    Builders<SellerRegistration>.Filter.Eq(r => r.UserId, userId)
                 ))
                 .FirstOrDefaultAsync();
 
@@ -365,7 +365,7 @@ namespace LocalMartOnline.Services
 
             // Get registration info
             var registration = await _registrationCollection
-                .Find(Builders<SellerRegistrations>.Filter.Eq(r => r.Id, license.RegistrationId))
+                .Find(Builders<SellerRegistration>.Filter.Eq(r => r.Id, license.RegistrationId))
                 .FirstOrDefaultAsync();
 
             if (registration != null)

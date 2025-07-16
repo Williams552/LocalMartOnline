@@ -24,6 +24,8 @@ namespace LocalMartOnline.Models.DTOs.FastBargain
         public string BargainId { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty; // e.g. Pending, Accepted, Rejected, Expired
         public decimal? FinalPrice { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public decimal? OriginalPrice { get; set; }
         public List<FastBargainProposalDTO> Proposals { get; set; } = new();
     }
 

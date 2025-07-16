@@ -34,7 +34,7 @@ namespace LocalMartOnline.Services
             });
             services.AddScoped<IRepository<SellerRegistration>>(sp => {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
-                return new Repository<SellerRegistration>(mongoService, "SellerRegistrations");
+                return new Repository<SellerRegistration>(mongoService, "SellerRegistration");
             });
             services.AddScoped<IRepository<ProxyShopperRegistration>>(sp => {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
@@ -139,6 +139,7 @@ namespace LocalMartOnline.Services
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<ICartService, CartService>();
             services.AddScoped<ICustomerService, CustomerService>();
+            services.AddScoped<ISellerRegistrationervice, Implement.SellerRegistrationervice>();
             services.AddScoped<ISellerAnalyticsService, SellerAnalyticsService>();
             return services;
         }

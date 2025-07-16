@@ -11,7 +11,7 @@ namespace LocalMartOnline.Models
         public string? Id { get; set; }
 
         [BsonElement("registration_id")]
-        public string RegistrationId { get; set; } = string.Empty; // Reference to SellerRegistrations Id
+        public string RegistrationId { get; set; } = string.Empty; // Reference to SellerRegistration Id
 
         [BsonElement("license_type")]
         public string LicenseType { get; set; } = string.Empty; // BusinessLicense, FoodSafetyCertificate, TaxRegistration, EnvironmentalPermit, Other
