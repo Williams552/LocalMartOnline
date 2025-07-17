@@ -13,6 +13,8 @@ namespace LocalMartOnline.Services
         private readonly IMongoCollection<Cart> _cartCollection;
         private readonly IMongoCollection<CartItem> _cartItemCollection;
         private readonly IMongoCollection<Product> _productCollection;
+        private readonly IMongoCollection<ProductUnit> _productUnitCollection;
+        private readonly IMongoCollection<ProductImage> _productImageCollection;
         private readonly IMongoCollection<Store> _storeCollection;
         private readonly IMongoCollection<User> _userCollection;
 
@@ -21,6 +23,8 @@ namespace LocalMartOnline.Services
             _cartCollection = database.GetCollection<Cart>("Carts");
             _cartItemCollection = database.GetCollection<CartItem>("CartItems");
             _productCollection = database.GetCollection<Product>("Products");
+            _productUnitCollection = database.GetCollection<ProductUnit>("ProductUnits");
+            _productImageCollection = database.GetCollection<ProductImage>("ProductImages");
             _storeCollection = database.GetCollection<Store>("Stores");
             _userCollection = database.GetCollection<User>("Users");
         }
@@ -70,6 +74,18 @@ namespace LocalMartOnline.Services
 
                 if (product == null) continue;
 
+                var unit = await _productUnitCollection
+                    .Find(u => u.Id == product.UnitId)
+                    .FirstOrDefaultAsync();
+
+                var unitDisplayName = unit?.DisplayName ?? "kg";
+
+                var image = await _productImageCollection
+                    .Find(img => img.ProductId == product.Id)
+                    .FirstOrDefaultAsync();
+
+                var imgUrl = image?.ImageUrl ?? string.Empty;
+
                 // Get store and seller details
                 Store? store = null;
                 User? seller = null;
@@ -101,8 +117,8 @@ namespace LocalMartOnline.Services
                         Id = product.Id ?? string.Empty,
                         Name = product.Name,
                         Price = product.Price,
-                        Images = product.Images?.FirstOrDefault() ?? "", // Get first image or empty string
-                        Unit = product.UnitId ?? "kg", // Using UnitId instead of Unit
+                        Images = imgUrl, // Get first image or empty string
+                        Unit = unitDisplayName,
                         Description = product.Description,
                         IsAvailable = product.Status == ProductStatus.Active,
                         StockQuantity = product.StockQuantity, // Use actual stock quantity
