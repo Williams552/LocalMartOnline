@@ -1,6 +1,7 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
+using LocalMartOnline.Models.DTOs.Product;
 
 namespace LocalMartOnline.Models
 {
@@ -21,7 +22,8 @@ namespace LocalMartOnline.Models
 
         [BsonElement("delivery_address")]
         public string DeliveryAddress { get; set; } = string.Empty;
-
+        [BsonElement("items")]
+        public List<ProductDto> Items { get; set; } = new();
         [BsonElement("total_amount")]
         public decimal? TotalAmount { get; set; }
 
