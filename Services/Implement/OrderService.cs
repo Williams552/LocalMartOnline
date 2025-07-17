@@ -15,15 +15,18 @@ namespace LocalMartOnline.Services.Implement
     {
         private readonly IRepository<Order> _orderRepo;
         private readonly IRepository<OrderItem> _orderItemRepo;
+        private readonly IRepository<Product> _productRepo;
         private readonly IMapper _mapper;
 
         public OrderService(
             IRepository<Order> orderRepo,
             IRepository<OrderItem> orderItemRepo,
+            IRepository<Product> productRepo,
             IMapper mapper)
         {
             _orderRepo = orderRepo;
             _orderItemRepo = orderItemRepo;
+            _productRepo = productRepo;
             _mapper = mapper;
         }
 
@@ -162,6 +165,34 @@ namespace LocalMartOnline.Services.Implement
                 Page = page,
                 PageSize = pageSize
             };
+        }
+
+        // Xác thực đơn hàng thành công và tăng PurchaseCount
+        public async Task<bool> CompleteOrderAsync(string orderId)
+        {
+            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
+            if (order == null || order.Status == OrderStatus.Completed) return false;
+
+            // Cập nhật trạng thái đơn hàng
+            order.Status = OrderStatus.Completed;
+            order.UpdatedAt = DateTime.UtcNow;
+            await _orderRepo.UpdateAsync(orderId, order);
+
+            // Tăng PurchaseCount cho các sản phẩm trong đơn hàng
+            var orderItems = await _orderItemRepo.FindManyAsync(oi => oi.OrderId == orderId);
+            var productIds = orderItems.Select(oi => oi.ProductId).Distinct().ToList();
+
+            foreach (var productId in productIds)
+            {
+                var product = await _productRepo.FindOneAsync(p => p.Id == productId);
+                if (product != null)
+                {
+                    product.PurchaseCount += 1; // Tăng 1 lần mua (không phụ thuộc số lượng)
+                    await _productRepo.UpdateAsync(product.Id!, product);
+                }
+            }
+
+            return true;
         }
     }
 }

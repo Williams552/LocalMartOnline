@@ -18,6 +18,12 @@ namespace LocalMartOnline.Models.DTOs.Product
         public DateTime UpdatedAt { get; set; }
         public List<string> ImageUrls { get; set; } = new();
 
+        // Smart search properties
+        public string Unit { get; set; } = string.Empty;
+        public int PurchaseCount { get; set; } = 0; // Số lần được mua thành công
+        public decimal Score { get; set; } = 0;
+        public SellerDto? Seller { get; set; }
+
         // Display properties
         public string StatusDisplay => Status switch
         {

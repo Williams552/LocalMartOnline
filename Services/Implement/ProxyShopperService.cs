@@ -5,27 +5,34 @@ using System.Collections.Generic;
 using LocalMartOnline.Repositories;
 using AutoMapper;
 using LocalMartOnline.Models.DTOs.Product;
+using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Implement
 {
     public class ProxyShopperService : IProxyShopperService
     {
         private readonly IRepository<ProxyShoppingOrder> _orderRepo;
         private readonly IRepository<ProxyShopperRegistration> _proxyRepo;
         private readonly IRepository<User> _userRepo;
+        private readonly IRepository<Product> _productRepo;
+        private readonly IRepository<Store> _storeRepo;
         private readonly IMapper _mapper;
 
         public ProxyShopperService(
             IRepository<ProxyShoppingOrder> orderRepo,
             IRepository<ProxyShopperRegistration> proxyRepo,
             IRepository<User> userRepo,
+            IRepository<Product> productRepo,
+            IRepository<Store> storeRepo,
             IMapper mapper)
         {
             _orderRepo = orderRepo;
             _proxyRepo = proxyRepo;
             _userRepo = userRepo;
+            _productRepo = productRepo;
+            _storeRepo = storeRepo;
             _mapper = mapper;
         }
 
@@ -128,9 +135,28 @@ namespace LocalMartOnline.Services
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
             if (order == null || order.Status != "Confirmed") return false;
+            
+            // Cập nhật trạng thái đơn hàng
             order.Status = "Completed";
             order.UpdatedAt = DateTime.UtcNow;
             await _orderRepo.UpdateAsync(orderId, order);
+
+            // Tăng PurchaseCount cho các sản phẩm trong đơn hàng proxy shopping
+            if (order.Items != null)
+            {
+                var productIds = order.Items.Select(item => item.Id).Distinct().ToList();
+                foreach (var productId in productIds)
+                {
+                    if (string.IsNullOrEmpty(productId)) continue;
+                    var product = await _productRepo.FindOneAsync(p => p.Id == productId);
+                    if (product != null)
+                    {
+                        product.PurchaseCount += 1; // Tăng 1 lần mua (không phụ thuộc số lượng)
+                        await _productRepo.UpdateAsync(product.Id!, product);
+                    }
+                }
+            }
+
             return true;
         }
 
@@ -153,6 +179,53 @@ namespace LocalMartOnline.Services
             order.UpdatedAt = DateTime.UtcNow;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
+        }
+
+        public async Task<List<ProductDto>> SmartSearchProductsAsync(string query, int limit = 10)
+        {
+            // Tìm sản phẩm theo từ khóa
+            var products = (await _productRepo.FindManyAsync(p => p.Name.Contains(query) && p.Status == ProductStatus.Active)).ToList();
+            if (!products.Any()) return new List<ProductDto>();
+
+            // Lấy thông tin store cho từng sản phẩm
+            var storeIds = products.Select(p => p.StoreId).Distinct().ToList();
+            var stores = (await _storeRepo.FindManyAsync(s => storeIds.Contains(s.Id!))).ToList();
+
+            // Tìm min/max cho price và purchase_count
+            var minPrice = products.Min(p => p.Price);
+            var maxPrice = products.Max(p => p.Price);
+            var minPurchase = products.Min(p => p.PurchaseCount);
+            var maxPurchase = products.Max(p => p.PurchaseCount);
+
+            // Chuẩn hóa và tính score
+            var result = products.Select(p =>
+            {
+                var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
+                decimal priceNorm = (maxPrice == minPrice) ? 1 : 1 - (p.Price - minPrice) / (maxPrice - minPrice);
+                decimal ratingNorm = store != null ? ((store.Rating - 1m) / 4m) : 0;
+                decimal purchaseNorm = (maxPurchase == minPurchase) ? 1 : (p.PurchaseCount - minPurchase) / (decimal)(maxPurchase - minPurchase);
+                decimal score = 0.5m * priceNorm + 0.3m * ratingNorm + 0.2m * purchaseNorm;
+                return new ProductDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Price = p.Price,
+                    Unit = p.UnitId,
+                    PurchaseCount = p.PurchaseCount,
+                    Score = Math.Round(score, 2),
+                    Seller = new SellerDto
+                    {
+                        Name = store?.Name ?? "",
+                        Rating = store?.Rating ?? 0,
+                        Market = store?.MarketId ?? ""
+                    }
+                };
+            })
+            .OrderByDescending(x => x.Score)
+            .Take(limit)
+            .ToList();
+
+            return result;
         }
     }
 }

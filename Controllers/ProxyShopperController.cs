@@ -5,6 +5,7 @@ using LocalMartOnline.Services;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using LocalMartOnline.Models.DTOs.Product;
+using LocalMartOnline.Services.Interface;
 
 namespace LocalMartOnline.Controllers
 {
@@ -12,8 +13,8 @@ namespace LocalMartOnline.Controllers
     [Route("api/[controller]")]
     public class ProxyShopperController : ControllerBase
     {
-        private readonly ProxyShopperService _service;
-        public ProxyShopperController(ProxyShopperService service)
+        private readonly IProxyShopperService _service;
+        public ProxyShopperController(IProxyShopperService service)
         {
             _service = service;
         }
@@ -81,8 +82,11 @@ namespace LocalMartOnline.Controllers
         [Authorize]
         public async Task<IActionResult> ConfirmDelivery(string orderId)
         {
-            await _service.ConfirmDeliveryAsync(orderId);
-            return Ok(new { success = true });
+            var result = await _service.ConfirmDeliveryAsync(orderId);
+            if (!result)
+                return BadRequest(new { success = false, message = "Không thể xác nhận giao hàng hoặc đơn hàng không ở trạng thái phù hợp." });
+            
+            return Ok(new { success = true, message = "Đã xác nhận giao hàng thành công và cập nhật thống kê sản phẩm." });
         }
 
         [HttpPut("orders/{orderId}/items/{productId}")]
@@ -91,6 +95,14 @@ namespace LocalMartOnline.Controllers
         {
             var result = await _service.ReplaceOrRemoveProductAsync(orderId, productId, replacementItem);
             return Ok(new { success = result });
+        }
+
+        [HttpGet("products/smart-search")]
+        [Authorize]
+        public async Task<IActionResult> SmartSearchProducts([FromQuery] string q, [FromQuery] int limit = 10)
+        {
+            var products = await _service.SmartSearchProductsAsync(q, limit);
+            return Ok(new { success = true, data = products });
         }
     }
 }

@@ -66,7 +66,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(RegisterDTO userDto)
+        public async Task<IActionResult> Create(UserDTO userDto)
         {
             var user = _mapper.Map<User>(userDto);
             await _userRepo.CreateAsync(user);
@@ -75,7 +75,7 @@ namespace LocalMartOnline.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> Update(string id, [FromBody] RegisterDTO updateUserDto)
+        public async Task<IActionResult> Update(string id, [FromBody] UserDTO updateUserDto)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
                 return BadRequest(new { success = false, message = "Invalid id format", data = (object?)null });

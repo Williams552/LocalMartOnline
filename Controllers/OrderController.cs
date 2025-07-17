@@ -59,5 +59,17 @@ namespace LocalMartOnline.Controllers
             var result = await _service.GetOrderListBySellerAsync(userId, page, pageSize);
             return Ok(result);
         }
+
+        // Xác thực đơn hàng thành công
+        [HttpPost("{orderId}/complete")]
+        [Authorize(Roles = "Seller,Admin")]
+        public async Task<ActionResult> CompleteOrder(string orderId)
+        {
+            var result = await _service.CompleteOrderAsync(orderId);
+            if (!result)
+                return BadRequest(new { success = false, message = "Không thể xác thực đơn hàng hoặc đơn hàng đã hoàn thành." });
+            
+            return Ok(new { success = true, message = "Đơn hàng đã được xác thực thành công." });
+        }
     }
 }

@@ -1,9 +1,10 @@
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs;
+using LocalMartOnline.Models.DTOs.Product;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Interface
 {
     public interface IProxyShopperService
     {
@@ -19,5 +20,7 @@ namespace LocalMartOnline.Services
         Task<bool> UploadBoughtItemsAsync(string orderId, List<string> imageUrls, string note);
         Task<bool> ConfirmFinalPriceAsync(string orderId, decimal finalPrice);
         Task<bool> ConfirmDeliveryAsync(string orderId);
+        Task<bool> ReplaceOrRemoveProductAsync(string orderId, string productId, ProductDto? replacementItem);
+        Task<List<ProductDto>> SmartSearchProductsAsync(string query, int limit = 10);
     }
 }

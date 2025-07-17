@@ -49,6 +49,9 @@ namespace LocalMartOnline.Models
         [BsonRepresentation(BsonType.String)]
         public ProductStatus Status { get; set; } = ProductStatus.Active;
 
+        [BsonElement("purchase_count")]
+        public int PurchaseCount { get; set; } = 0; // Số lần được mua thành công
+
         [BsonElement("created_at")]
         [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
