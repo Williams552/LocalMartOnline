@@ -34,7 +34,7 @@ namespace LocalMartOnline.Controllers
             {
                 var loginResult = await _authService.LoginAsync(loginDto);
                 if (loginResult == null)
-                    return Unauthorized(new { success = false, message = "Invalid credentials", data = (object?)null });
+                    return Unauthorized(new { success = false, message = "Tên đăng nhập hoặc mật khẩu không chính xác", data = (object?)null });
 
                 var user = await _authService.GetUserByUsernameOrEmailAsync(loginDto.Username);
                 if (user != null && user.TwoFactorEnabled)
@@ -52,6 +52,10 @@ namespace LocalMartOnline.Controllers
             catch (InvalidOperationException ex) when (ex.Message == "Email chưa xác thực")
             {
                 return BadRequest(new { success = false, message = "Email chưa xác thực. Vui lòng kiểm tra email để xác thực tài khoản.", data = (object?)null });
+            }
+            catch (InvalidOperationException ex) when (ex.Message == "ACCOUNT_DISABLED")
+            {
+                return Unauthorized(new { success = false, message = "Tài khoản đã bị khóa. Vui lòng liên hệ ban quản lý chợ để được hỗ trợ.", data = (object?)null });
             }
         }
 

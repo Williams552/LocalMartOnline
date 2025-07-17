@@ -35,6 +35,11 @@ namespace LocalMartOnline.Services
                 return null;
             if (!user.IsEmailVerified)
                 throw new InvalidOperationException("Email chưa xác thực");
+            
+            // Kiểm tra trạng thái tài khoản
+            if (user.Status == "Disabled")
+                throw new InvalidOperationException("ACCOUNT_DISABLED");
+                
             // Cập nhật userToken nếu có gửi lên và khác với DB
             if (!string.IsNullOrEmpty(loginDto.UserToken) && user.UserToken != loginDto.UserToken)
             {
