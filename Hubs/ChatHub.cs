@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
-using LocalMartOnline.Services;
+using LocalMartOnline.Services.Interface;
+using LocalMartOnline.Services.Implement;
 using LocalMartOnline.Models.DTOs.Chat;
 
 namespace LocalMartOnline.Hubs

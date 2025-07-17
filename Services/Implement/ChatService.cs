@@ -1,8 +1,9 @@
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.Chat;
+using LocalMartOnline.Services.Interface;
 using MongoDB.Driver;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Implement
 {
     public class ChatService : IChatService
     {

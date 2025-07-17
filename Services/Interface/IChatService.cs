@@ -1,6 +1,6 @@
 using LocalMartOnline.Models.DTOs.Chat;
 
-namespace LocalMartOnline.Services
+namespace LocalMartOnline.Services.Interface
 {
     public interface IChatService
     {
