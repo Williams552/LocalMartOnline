@@ -84,6 +84,12 @@ namespace LocalMartOnline.Services
             // CategoryRegistration
             CreateMap<CategoryRegistration, CategoryRegistrationDto>()
                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+            CreateMap<CategoryRegistrationCreateDto, CategoryRegistration>()
+               .ForMember(dest => dest.Id, opt => opt.Ignore())
+               .ForMember(dest => dest.Status, opt => opt.Ignore())
+               .ForMember(dest => dest.RejectionReason, opt => opt.Ignore())
+               .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+               .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
 
             // Store
             CreateMap<Store, StoreDto>();
