@@ -158,7 +158,7 @@ namespace LocalMartOnline.Controllers
 
         // UC122: Search Markets (Admin)
         [HttpGet("admin/search")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead,LocalGovernmentRepresentative")]
+        //[Authorize(Roles = "Admin,MarketManagementBoardHead,LocalGovernmentRepresentative")]
         public async Task<IActionResult> SearchAdmin([FromQuery] string keyword)
         {
             var markets = await _marketService.SearchAsync(keyword);
