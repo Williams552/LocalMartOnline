@@ -26,7 +26,7 @@ namespace LocalMartOnline.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin,MarketStaff")]
-        public async Task<IActionResult> Create([FromBody] MarketFeeDto dto)
+        public async Task<IActionResult> Create([FromBody] MarketFeeCreateDto dto)
         {
             var created = await _service.CreateAsync(dto);
             return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
