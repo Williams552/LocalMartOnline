@@ -9,6 +9,7 @@ using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Models.DTOs.ProxyShopping;
+using LocalMartOnline.Models.DTOs.Seller;
 
 namespace LocalMartOnline.Services.Implement
 {

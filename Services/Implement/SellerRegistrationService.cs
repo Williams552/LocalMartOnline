@@ -35,17 +35,41 @@ namespace LocalMartOnline.Services.Implement
             return true;
         }
 
-        public async Task<SellerRegistrationRequestDTO?> GetMyRegistrationAsync(string userId)
+        public async Task<SellerRegistrationResponseDTO?> GetMyRegistrationAsync(string userId)
         {
             var myReg = await _sellerRepo.FindOneAsync(r => r.UserId == userId);
             if (myReg == null) return null;
-            return _mapper.Map<SellerRegistrationRequestDTO>(myReg);
+            var dto = _mapper.Map<SellerRegistrationResponseDTO>(myReg);
+            // Lấy thông tin user
+            var user = await _userRepo.FindOneAsync(u => u.Id == userId);
+            if (user != null)
+            {
+                dto.Name = user.FullName;
+                dto.Email = user.Email;
+                dto.PhoneNumber = user.PhoneNumber;
+            }
+            return dto;
         }
 
-        public async Task<IEnumerable<SellerRegistrationRequestDTO>> GetAllRegistrationsAsync()
+        public async Task<IEnumerable<SellerRegistrationResponseDTO>> GetAllRegistrationsAsync()
         {
             var regs = await _sellerRepo.GetAllAsync();
-            return regs.Select(r => _mapper.Map<SellerRegistrationRequestDTO>(r));
+            var userIds = regs.Select(r => r.UserId).Distinct().ToList();
+            var users = await _userRepo.FindManyAsync(u => userIds.Contains(u.Id));
+            var userDict = users.ToDictionary(u => u.Id, u => u);
+            var result = new List<SellerRegistrationResponseDTO>();
+            foreach (var reg in regs)
+            {
+                var dto = _mapper.Map<SellerRegistrationResponseDTO>(reg);
+                if (userDict.TryGetValue(reg.UserId, out var user))
+                {
+                    dto.Name = user.FullName;
+                    dto.Email = user.Email;
+                    dto.PhoneNumber = user.PhoneNumber;
+                }
+                result.Add(dto);
+            }
+            return result;
         }
 
         public async Task<bool> ApproveAsync(SellerRegistrationApproveDTO dto)
@@ -55,6 +79,9 @@ namespace LocalMartOnline.Services.Implement
             reg.Status = dto.Approve ? "Approved" : "Rejected";
             reg.RejectionReason = dto.Approve ? null : dto.RejectionReason;
             reg.UpdatedAt = DateTime.UtcNow;
+            // Cập nhật ngày hiệu lực và hết hạn giấy phép khi duyệt
+            reg.LicenseEffectiveDate = dto.LicenseEffectiveDate;
+            reg.LicenseExpiryDate = dto.LicenseExpiryDate;
             await _sellerRepo.UpdateAsync(reg.Id!, reg);
             if (dto.Approve)
             {

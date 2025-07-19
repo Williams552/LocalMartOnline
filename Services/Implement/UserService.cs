@@ -59,7 +59,7 @@ namespace LocalMartOnline.Services
             // Sử dụng AutoMapper để map các trường từ DTO sang user hiện tại (trừ Password)
 
             var tempPassword = updateDto.Password;
-            updateDto.Password = null; // Không map password qua AutoMapper
+            updateDto.Password = ""; // Không map password qua AutoMapper
             _mapper.Map(updateDto, currentUser);
 
             // Nếu có password mới, hash và gán vào user

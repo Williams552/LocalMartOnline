@@ -33,6 +33,14 @@ namespace LocalMartOnline.Models
         [BsonElement("rejection_reason")]
         public string? RejectionReason { get; set; }
 
+        [BsonElement("license_effective_date")]
+        [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+        public DateTime? LicenseEffectiveDate { get; set; }
+
+        [BsonElement("license_expiry_date")]
+        [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+        public DateTime? LicenseExpiryDate { get; set; }
+
         [BsonElement("created_at")]
         [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -5,6 +5,7 @@ using LocalMartOnline.Models.DTOs;
 using LocalMartOnline.Repositories;
 using System.Security.Claims;
 using AutoMapper;
+using LocalMartOnline.Models.DTOs.Seller;
 
 namespace LocalMartOnline.Controllers
 {

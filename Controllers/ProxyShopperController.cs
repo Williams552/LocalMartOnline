@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using LocalMartOnline.Models.DTOs.Product;
 using LocalMartOnline.Services.Interface;
 using LocalMartOnline.Models.DTOs.ProxyShopping;
+using LocalMartOnline.Models.DTOs.Seller;
 
 namespace LocalMartOnline.Controllers
 {

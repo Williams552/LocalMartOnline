@@ -2,6 +2,7 @@ using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs;
 using LocalMartOnline.Models.DTOs.Product;
 using LocalMartOnline.Models.DTOs.ProxyShopping;
+using LocalMartOnline.Models.DTOs.Seller;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 

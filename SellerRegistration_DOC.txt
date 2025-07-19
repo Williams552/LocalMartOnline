@@ -1,0 +1,167 @@
+# SellerRegistration Documentation
+
+## 1. Model: SellerRegistration
+
+```
+public class SellerRegistration
+{
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? Id { get; set; }
+
+    [BsonElement("user_id")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string UserId { get; set; } = string.Empty;
+
+    [BsonElement("store_name")]
+    public string StoreName { get; set; } = string.Empty;
+
+    [BsonElement("store_address")]
+    public string StoreAddress { get; set; } = string.Empty;
+
+    [BsonElement("market_id")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string MarketId { get; set; } = string.Empty;
+
+    [BsonElement("business_license")]
+    public string? BusinessLicense { get; set; }
+
+    [BsonElement("status")]
+    public string Status { get; set; } = "Pending"; // Pending, Approved, Rejected
+
+    [BsonElement("rejection_reason")]
+    public string? RejectionReason { get; set; }
+
+    [BsonElement("license_effective_date")]
+    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+    public DateTime? LicenseEffectiveDate { get; set; }
+
+    [BsonElement("license_expiry_date")]
+    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+    public DateTime? LicenseExpiryDate { get; set; }
+
+    [BsonElement("created_at")]
+    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [BsonElement("updated_at")]
+    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+```
+
+
+## 2. DTOs
+
+- SellerRegistrationCreateDTO: Dùng khi tạo mới đăng ký bán hàng.
+- SellerRegistrationUpdateDTO: Dùng khi cập nhật đăng ký bán hàng.
+- SellerRegistrationResponseDTO: Dùng để trả về dữ liệu đăng ký bán hàng cho client (bao gồm cả ngày hiệu lực và ngày hết hạn giấy phép).
+
+Ví dụ:
+```
+public class SellerRegistrationCreateDTO
+{
+    public string UserId { get; set; }
+    public string StoreName { get; set; }
+    public string StoreAddress { get; set; }
+    public string MarketId { get; set; }
+    public string? BusinessLicense { get; set; }
+    public DateTime? LicenseEffectiveDate { get; set; }
+    public DateTime? LicenseExpiryDate { get; set; }
+}
+
+public class SellerRegistrationUpdateDTO
+{
+    public string? StoreName { get; set; }
+    public string? StoreAddress { get; set; }
+    public string? MarketId { get; set; }
+    public string? BusinessLicense { get; set; }
+    public string? Status { get; set; }
+    public string? RejectionReason { get; set; }
+    public DateTime? LicenseEffectiveDate { get; set; }
+    public DateTime? LicenseExpiryDate { get; set; }
+}
+
+public class SellerRegistrationResponseDTO
+{
+    public string? Id { get; set; }
+    public string UserId { get; set; }
+    public string StoreName { get; set; }
+    public string StoreAddress { get; set; }
+    public string MarketId { get; set; }
+    public string? BusinessLicense { get; set; }
+    public string Status { get; set; }
+    public string? RejectionReason { get; set; }
+    public DateTime? LicenseEffectiveDate { get; set; }
+    public DateTime? LicenseExpiryDate { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+```
+
+## 3. Service
+
+- ISellerRegistrationService: Interface định nghĩa các phương thức CRUD, duyệt, từ chối, cập nhật giấy phép...
+- SellerRegistrationService: Triển khai các logic như tạo mới, cập nhật, kiểm tra trùng lặp, cập nhật ngày hiệu lực/hết hạn giấy phép.
+
+Ví dụ:
+```
+public interface ISellerRegistrationService
+{
+    Task<IEnumerable<SellerRegistration>> GetAllAsync();
+    Task<SellerRegistration?> GetByIdAsync(string id);
+    Task CreateAsync(SellerRegistrationCreateDTO dto);
+    Task UpdateAsync(string id, SellerRegistrationUpdateDTO dto);
+    // ... các phương thức khác
+}
+```
+
+## 4. Controller
+
+- SellerRegistrationController: Xử lý các endpoint liên quan đến đăng ký bán hàng.
+
+Ví dụ:
+```
+[ApiController]
+[Route("api/[controller]")]
+public class SellerRegistrationController : ControllerBase
+{
+    private readonly ISellerRegistrationService _service;
+
+    public SellerRegistrationController(ISellerRegistrationService service)
+    {
+        _service = service;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var result = await _service.GetAllAsync();
+        return Ok(result);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string id)
+    {
+        var result = await _service.GetByIdAsync(id);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] SellerRegistrationCreateDTO dto)
+    {
+        await _service.CreateAsync(dto);
+        return Ok();
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(string id, [FromBody] SellerRegistrationUpdateDTO dto)
+    {
+        await _service.UpdateAsync(id, dto);
+        return Ok();
+    }
+    // ... các endpoint khác
+}
+```
+
