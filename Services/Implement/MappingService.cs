@@ -11,6 +11,7 @@ using LocalMartOnline.Models.DTOs.PlatformPolicy;
 using LocalMartOnline.Models.DTOs.Product;
 using LocalMartOnline.Models.DTOs.ProductUnit;
 using LocalMartOnline.Models.DTOs.Store;
+using LocalMartOnline.Models.DTOs.User;
 
 namespace LocalMartOnline.Services
 {
@@ -132,6 +133,12 @@ namespace LocalMartOnline.Services
             // User <-> UserDTO
             CreateMap<User, UserDTO>();
             CreateMap<UserDTO, User>();
+
+            // UserCreateDTO, UserUpdateDTO -> User
+            CreateMap<UserCreateDTO, User>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore());
+            CreateMap<UserUpdateDTO, User>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore());
         }
     }
 }

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using LocalMartOnline.Models.DTOs.Product;
 
-namespace LocalMartOnline.Models.DTOs
+namespace LocalMartOnline.Models.DTOs.ProxyShopping
 {
     public class ProxyShoppingProposalDTO
     {

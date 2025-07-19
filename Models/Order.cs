@@ -37,9 +37,6 @@ namespace LocalMartOnline.Models
         [BsonElement("total_amount")]
         public decimal TotalAmount { get; set; }
 
-        [BsonElement("delivery_address")]
-        public string DeliveryAddress { get; set; } = string.Empty;
-
         [BsonElement("status")]
         [BsonRepresentation(BsonType.String)]
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
@@ -47,10 +44,6 @@ namespace LocalMartOnline.Models
         [BsonElement("payment_status")]
         [BsonRepresentation(BsonType.String)]
         public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
-
-        [BsonElement("expected_delivery_time")]
-        [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
-        public DateTime? ExpectedDeliveryTime { get; set; }
 
         [BsonElement("notes")]
         public string? Notes { get; set; }

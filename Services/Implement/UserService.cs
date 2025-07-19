@@ -1,5 +1,6 @@
 using LocalMartOnline.Models;
 using LocalMartOnline.Repositories;
+using LocalMartOnline.Models.DTOs.User;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
@@ -10,14 +11,66 @@ namespace LocalMartOnline.Services
     public class UserService : IUserService
     {
         private readonly IRepository<User> _userRepo;
-        public UserService(IRepository<User> userRepo)
+        private readonly AutoMapper.IMapper _mapper;
+        public UserService(IRepository<User> userRepo, AutoMapper.IMapper mapper)
         {
             _userRepo = userRepo;
+            _mapper = mapper;
         }
         public Task<IEnumerable<User>> GetAllAsync() => _userRepo.GetAllAsync();
         public Task<User?> GetByIdAsync(string id) => _userRepo.GetByIdAsync(id);
-        public Task CreateAsync(User user) => _userRepo.CreateAsync(user);
-        public Task UpdateAsync(string id, User user) => _userRepo.UpdateAsync(id, user);
+        public async Task CreateAsync(User user)
+        {
+            // Check duplicate username
+            var existingByUsername = await _userRepo.FindOneAsync(u => u.Username == user.Username);
+            if (existingByUsername != null)
+                throw new System.Exception("Username already exists");
+
+            // Check duplicate email
+            var existingByEmail = await _userRepo.FindOneAsync(u => u.Email == user.Email);
+            if (existingByEmail != null)
+                throw new System.Exception("Email already exists");
+
+            await _userRepo.CreateAsync(user);
+        }
+
+        public async Task UpdateAsync(string id, UserUpdateDTO updateDto)
+        {
+            var currentUser = await _userRepo.GetByIdAsync(id);
+            if (currentUser == null)
+                throw new System.Exception("User not found");
+
+            // Nếu username thay đổi, kiểm tra trùng lặp
+            if (!string.IsNullOrEmpty(updateDto.Username) && updateDto.Username != currentUser.Username)
+            {
+                var existingByUsername = await _userRepo.FindOneAsync(u => u.Username == updateDto.Username && u.Id != id);
+                if (existingByUsername != null)
+                    throw new System.Exception("Username already exists");
+            }
+
+            // Nếu email thay đổi, kiểm tra trùng lặp
+            if (!string.IsNullOrEmpty(updateDto.Email) && updateDto.Email != currentUser.Email)
+            {
+                var existingByEmail = await _userRepo.FindOneAsync(u => u.Email == updateDto.Email && u.Id != id);
+                if (existingByEmail != null)
+                    throw new System.Exception("Email already exists");
+            }
+
+            // Sử dụng AutoMapper để map các trường từ DTO sang user hiện tại (trừ Password)
+
+            var tempPassword = updateDto.Password;
+            updateDto.Password = null; // Không map password qua AutoMapper
+            _mapper.Map(updateDto, currentUser);
+
+            // Nếu có password mới, hash và gán vào user
+            if (!string.IsNullOrEmpty(tempPassword))
+            {
+                currentUser.PasswordHash = PasswordHashService.HashPassword(tempPassword);
+            }
+
+            currentUser.UpdatedAt = DateTime.UtcNow;
+            await _userRepo.UpdateAsync(id, currentUser);
+        }
         public Task DeleteAsync(string id) => _userRepo.DeleteAsync(id);
 
         // Efficient user lookups

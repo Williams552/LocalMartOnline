@@ -1,4 +1,5 @@
 using LocalMartOnline.Models;
+using LocalMartOnline.Models.DTOs.User;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -9,7 +10,7 @@ namespace LocalMartOnline.Services
         Task<IEnumerable<User>> GetAllAsync();
         Task<User?> GetByIdAsync(string id);
         Task CreateAsync(User user);
-        Task UpdateAsync(string id, User user);
+        Task UpdateAsync(string id, UserUpdateDTO updateDto);
         Task DeleteAsync(string id);
         Task<(IEnumerable<User> Users, int Total)> GetUsersPagingAsync(
             int pageNumber = 1,

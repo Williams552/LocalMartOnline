@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using LocalMartOnline.Models.DTOs.Product;
 using LocalMartOnline.Services.Interface;
+using LocalMartOnline.Models.DTOs.ProxyShopping;
 
 namespace LocalMartOnline.Controllers
 {
@@ -103,6 +104,73 @@ namespace LocalMartOnline.Controllers
         {
             var products = await _service.SmartSearchProductsAsync(q, limit);
             return Ok(new { success = true, data = products });
+        }
+
+        // Order management endpoints for ProxyShopper
+        [HttpGet("my-orders")]
+        [Authorize]
+        public async Task<IActionResult> GetMyOrders([FromQuery] string? status = null)
+        {
+            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(proxyShopperId))
+                return Unauthorized(new { success = false, message = "Không xác định được ProxyShopper." });
+
+            var orders = await _service.GetMyOrdersAsync(proxyShopperId, status);
+            return Ok(new { success = true, data = orders });
+        }
+
+        [HttpGet("orders/{orderId}/detail")]
+        [Authorize]
+        public async Task<IActionResult> GetOrderDetail(string orderId)
+        {
+            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(proxyShopperId))
+                return Unauthorized(new { success = false, message = "Không xác định được ProxyShopper." });
+
+            var order = await _service.GetOrderDetailAsync(orderId, proxyShopperId);
+            if (order == null)
+                return NotFound(new { success = false, message = "Không tìm thấy đơn hàng." });
+
+            return Ok(new { success = true, data = order });
+        }
+
+        [HttpGet("order-history")]
+        [Authorize]
+        public async Task<IActionResult> GetOrderHistory([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(proxyShopperId))
+                return Unauthorized(new { success = false, message = "Không xác định được ProxyShopper." });
+
+            var orders = await _service.GetOrderHistoryAsync(proxyShopperId, page, pageSize);
+            return Ok(new { success = true, data = orders, page, pageSize });
+        }
+
+        [HttpPost("orders/{orderId}/cancel")]
+        [Authorize]
+        public async Task<IActionResult> CancelOrder(string orderId, [FromBody] CancelOrderRequestDTO request)
+        {
+            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(proxyShopperId))
+                return Unauthorized(new { success = false, message = "Không xác định được ProxyShopper." });
+
+            var result = await _service.CancelOrderAsync(orderId, proxyShopperId, request.Reason);
+            if (!result)
+                return BadRequest(new { success = false, message = "Không thể hủy đơn hàng hoặc đơn hàng không ở trạng thái phù hợp." });
+
+            return Ok(new { success = true, message = "Đã hủy đơn hàng thành công." });
+        }
+
+        [HttpGet("my-stats")]
+        [Authorize]
+        public async Task<IActionResult> GetMyStats()
+        {
+            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(proxyShopperId))
+                return Unauthorized(new { success = false, message = "Không xác định được ProxyShopper." });
+
+            var stats = await _service.GetMyStatsAsync(proxyShopperId);
+            return Ok(new { success = true, data = stats });
         }
     }
 }

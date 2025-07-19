@@ -8,6 +8,7 @@ using LocalMartOnline.Models.DTOs.Product;
 using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using LocalMartOnline.Models.DTOs.ProxyShopping;
 
 namespace LocalMartOnline.Services.Implement
 {
@@ -226,6 +227,70 @@ namespace LocalMartOnline.Services.Implement
             .ToList();
 
             return result;
+        }
+
+        // Order management for ProxyShopper
+        public async Task<List<ProxyShoppingOrder>> GetMyOrdersAsync(string proxyShopperId, string? status = null)
+        {
+            var orders = string.IsNullOrEmpty(status) 
+                ? await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId)
+                : await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId && o.Status == status);
+            
+            return orders.OrderByDescending(o => o.CreatedAt).ToList();
+        }
+
+        public async Task<ProxyShoppingOrder?> GetOrderDetailAsync(string orderId, string proxyShopperId)
+        {
+            return await _orderRepo.FindOneAsync(o => o.Id == orderId && o.ProxyShopperId == proxyShopperId);
+        }
+
+        public async Task<List<ProxyShoppingOrder>> GetOrderHistoryAsync(string proxyShopperId, int page = 1, int pageSize = 20)
+        {
+            var orders = await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId);
+            return orders.OrderByDescending(o => o.CreatedAt)
+                        .Skip((page - 1) * pageSize)
+                        .Take(pageSize)
+                        .ToList();
+        }
+
+        public async Task<bool> CancelOrderAsync(string orderId, string proxyShopperId, string reason)
+        {
+            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.ProxyShopperId == proxyShopperId);
+            if (order == null || order.Status == "Completed" || order.Status == "Cancelled") return false;
+            
+            order.Status = "Cancelled";
+            order.Notes = $"Hủy bởi ProxyShopper: {reason}";
+            order.UpdatedAt = DateTime.UtcNow;
+            await _orderRepo.UpdateAsync(orderId, order);
+            return true;
+        }
+
+        public async Task<ProxyShopperStatsDTO> GetMyStatsAsync(string proxyShopperId)
+        {
+            var orders = await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId);
+            var orderList = orders.ToList();
+
+            var totalOrders = orderList.Count;
+            var completedOrders = orderList.Count(o => o.Status == "Completed");
+            var cancelledOrders = orderList.Count(o => o.Status == "Cancelled");
+            var pendingOrders = orderList.Count(o => o.Status == "Pending" || o.Status == "Accepted" || o.Status == "Confirmed");
+
+            var totalEarnings = orderList.Where(o => o.Status == "Completed").Sum(o => o.ProxyFee ?? 0);
+            var firstOrderDate = orderList.Any() ? orderList.Min(o => o.CreatedAt) : (DateTime?)null;
+            var lastOrderDate = orderList.Any() ? orderList.Max(o => o.UpdatedAt) : (DateTime?)null;
+
+            return new ProxyShopperStatsDTO
+            {
+                TotalOrders = totalOrders,
+                CompletedOrders = completedOrders,
+                CancelledOrders = cancelledOrders,
+                PendingOrders = pendingOrders,
+                TotalEarnings = totalEarnings,
+                AverageRating = 0, // TODO: Implement rating system
+                TotalReviews = 0, // TODO: Implement review system
+                FirstOrderDate = firstOrderDate,
+                LastOrderDate = lastOrderDate
+            };
         }
     }
 }

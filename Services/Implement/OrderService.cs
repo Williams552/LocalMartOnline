@@ -37,11 +37,9 @@ namespace LocalMartOnline.Services.Implement
             {
                 BuyerId = dto.BuyerId,
                 SellerId = dto.SellerId,
-                DeliveryAddress = dto.DeliveryAddress,
                 Status = OrderStatus.Pending,
                 PaymentStatus = PaymentStatus.Pending,
                 Notes = dto.Notes,
-                ExpectedDeliveryTime = dto.ExpectedDeliveryTime,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

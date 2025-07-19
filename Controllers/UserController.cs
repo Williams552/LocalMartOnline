@@ -66,33 +66,35 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(UserDTO userDto)
+        public async Task<IActionResult> Create(UserCreateDTO userDto)
         {
             var user = _mapper.Map<User>(userDto);
-            await _userRepo.CreateAsync(user);
+            await _userService.CreateAsync(user);
             return CreatedAtAction(nameof(GetById), new { id = user.Id }, new { success = true, message = "Tạo người dùng thành công", data = userDto });
         }
 
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> Update(string id, [FromBody] UserDTO updateUserDto)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(string id, [FromBody] UserUpdateDTO updateUserDto)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
                 return BadRequest(new { success = false, message = "Invalid id format", data = (object?)null });
 
-            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var isAdmin = User.IsInRole("Admin");
-            if (currentUserId != id && !isAdmin)
-                return StatusCode(403, new { success = false, message = "Bạn không có quyền cập nhật user này", data = (object?)null });
+            try
+            {
+                await _userService.UpdateAsync(id, updateUserDto);
+            }
+            catch (System.Exception ex)
+            {
+                // Nếu là lỗi trùng lặp
+                if (ex.Message.Contains("Username already exists") || ex.Message.Contains("Email already exists"))
+                {
+                    return Conflict(new { success = false, message = ex.Message, data = (object?)null });
+                }
+                return BadRequest(new { success = false, message = ex.Message, data = (object?)null });
+            }
 
-            var existing = await _userRepo.GetByIdAsync(id);
-            if (existing == null)
-                return NotFound(new { success = false, message = "User not found", data = (object?)null });
-
-            _mapper.Map(updateUserDto, existing);
-            existing.UpdatedAt = DateTime.UtcNow;
-
-            await _userRepo.UpdateAsync(id, existing);
             return Ok(new { success = true, message = "Cập nhật người dùng thành công", data = (object?)null });
         }
 
