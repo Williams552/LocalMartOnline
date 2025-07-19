@@ -9,7 +9,7 @@ namespace LocalMartOnline.Services.Interface
     {
         Task<IEnumerable<MarketFeeDto>> GetAllAsync(string marketId);
         Task<MarketFeeDto?> GetByIdAsync(string id);
-        Task<MarketFeeDto> CreateAsync(MarketFeeDto dto);
+        Task<MarketFeeDto> CreateAsync(MarketFeeCreateDto dto);
         Task<bool> UpdateAsync(string id, MarketFeeUpdateDto dto);
         Task<bool> DeleteAsync(string id);
         Task<bool> PayFeeAsync(MarketFeePaymentDto dto);
