@@ -11,6 +11,7 @@ namespace LocalMartOnline.Services.Interface
         Task<PagedResultDto<OrderDto>> GetOrderListAsync(string buyerId, int page, int pageSize); // UC071
         Task<PagedResultDto<OrderDto>> FilterOrderListAsync(OrderFilterDto filter); // UC072
         Task<PagedResultDto<OrderDto>> GetOrderListBySellerAsync(string sellerId, int page, int pageSize);
+        Task<PagedResultDto<OrderDto>> GetAllOrdersAsync(int page, int pageSize);
         Task<bool> CompleteOrderAsync(string orderId); // Xác thực đơn hàng thành công và tăng PurchaseCount
     }
 }

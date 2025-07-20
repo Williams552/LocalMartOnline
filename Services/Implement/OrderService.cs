@@ -256,5 +256,64 @@ namespace LocalMartOnline.Services.Implement
 
             return true;
         }
+
+        public async Task<PagedResultDto<OrderDto>> GetAllOrdersAsync(int page, int pageSize)
+        {
+            var orders = await _orderRepo.GetAllAsync();
+            var total = orders.Count();
+            var paged = orders.OrderByDescending(o => o.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize);
+
+            var result = new List<OrderDto>();
+            foreach (var order in paged)
+            {
+                var dto = _mapper.Map<OrderDto>(order);
+
+                // Lấy thông tin người mua
+                var buyer = await _userCollection.Find(u => u.Id == order.BuyerId).FirstOrDefaultAsync();
+                dto.BuyerName = buyer?.FullName ?? "Unknown";
+                dto.BuyerPhone = buyer?.PhoneNumber ?? "Unknown";
+
+                var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
+                var itemDtos = new List<OrderItemDto>();
+
+                foreach (var item in items)
+                {
+                    var product = await _productCollection
+                        .Find(p => p.Id == item.ProductId)
+                        .FirstOrDefaultAsync();
+
+                    if (product == null) continue;
+
+                    var unit = await _productUnitCollection
+                        .Find(u => u.Id == product.UnitId)
+                        .FirstOrDefaultAsync();
+
+                    var image = await _productImageCollection
+                        .Find(img => img.ProductId == product.Id)
+                        .FirstOrDefaultAsync();
+
+                    itemDtos.Add(new OrderItemDto
+                    {
+                        ProductId = product.Id ?? string.Empty,
+                        ProductName = product.Name,
+                        ProductImageUrl = image?.ImageUrl ?? string.Empty,
+                        ProductUnitName = unit?.DisplayName ?? "kg",
+                        Quantity = item.Quantity,
+                        PriceAtPurchase = item.PriceAtPurchase
+                    });
+                }
+
+                dto.Items = itemDtos;
+                result.Add(dto);
+            }
+
+            return new PagedResultDto<OrderDto>
+            {
+                Items = result,
+                TotalCount = total,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
     }
 }

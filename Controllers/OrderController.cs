@@ -60,6 +60,17 @@ namespace LocalMartOnline.Controllers
             return Ok(result);
         }
 
+        [HttpGet("admin/orders")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<PagedResultDto<OrderDto>>> GetAllOrderList([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { success = false, message = "Không xác định được admin." });
+            var result = await _service.GetAllOrdersAsync(page, pageSize);
+            return Ok(result);
+        }
+
         // Xác thực đơn hàng thành công
         [HttpPost("{orderId}/complete")]
         [Authorize(Roles = "Seller,Admin")]
