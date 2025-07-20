@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MongoDB.Driver;
 
 namespace LocalMartOnline.Services.Implement
 {
@@ -17,8 +18,12 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<OrderItem> _orderItemRepo;
         private readonly IRepository<Product> _productRepo;
         private readonly IMapper _mapper;
+        private readonly IMongoCollection<Product> _productCollection;
+        private readonly IMongoCollection<ProductUnit> _productUnitCollection;
+        private readonly IMongoCollection<ProductImage> _productImageCollection;
 
         public OrderService(
+            IMongoDatabase database,
             IRepository<Order> orderRepo,
             IRepository<OrderItem> orderItemRepo,
             IRepository<Product> productRepo,
@@ -28,6 +33,9 @@ namespace LocalMartOnline.Services.Implement
             _orderItemRepo = orderItemRepo;
             _productRepo = productRepo;
             _mapper = mapper;
+            _productCollection = database.GetCollection<Product>("Products");
+            _productUnitCollection = database.GetCollection<ProductUnit>("ProductUnits");
+            _productImageCollection = database.GetCollection<ProductImage>("ProductImages");
         }
 
         // UC070: Place Order
@@ -73,19 +81,46 @@ namespace LocalMartOnline.Services.Implement
         {
             var orders = await _orderRepo.FindManyAsync(o => o.BuyerId == buyerId);
             var total = orders.Count();
-            var paged = orders.OrderByDescending(o => o.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize);
+            var paged = orders
+                .OrderByDescending(o => o.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
 
             var result = new List<OrderDto>();
+
             foreach (var order in paged)
             {
                 var dto = _mapper.Map<OrderDto>(order);
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
-                dto.Items = items.Select(i => new OrderItemDto
+                var itemDtos = new List<OrderItemDto>();
+                foreach (var item in items)
                 {
-                    ProductId = i.ProductId,
-                    Quantity = i.Quantity,
-                    PriceAtPurchase = i.PriceAtPurchase
-                }).ToList();
+                    var product = await _productCollection
+                        .Find(p => p.Id == item.ProductId)
+                        .FirstOrDefaultAsync();
+
+                    if (product == null) continue;
+
+                    var unit = await _productUnitCollection
+                        .Find(u => u.Id == product.UnitId)
+                        .FirstOrDefaultAsync();
+
+                    var image = await _productImageCollection
+                        .Find(img => img.ProductId == product.Id)
+                        .FirstOrDefaultAsync();
+
+                    itemDtos.Add(new OrderItemDto
+                    {
+                        ProductId = product.Id ?? string.Empty,
+                        ProductName = product.Name,
+                        ProductImageUrl = image?.ImageUrl ?? string.Empty,
+                        ProductUnitName = unit?.DisplayName ?? "kg",
+                        Quantity = item.Quantity,
+                        PriceAtPurchase = item.PriceAtPurchase
+                    });
+                }
+
+                dto.Items = itemDtos;
                 result.Add(dto);
             }
 
@@ -97,6 +132,7 @@ namespace LocalMartOnline.Services.Implement
                 PageSize = pageSize
             };
         }
+
 
         // UC072: Filter Order List
         public async Task<PagedResultDto<OrderDto>> FilterOrderListAsync(OrderFilterDto filter)
@@ -147,12 +183,35 @@ namespace LocalMartOnline.Services.Implement
             {
                 var dto = _mapper.Map<OrderDto>(order);
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
-                dto.Items = items.Select(i => new OrderItemDto
+                var itemDtos = new List<OrderItemDto>();
+                foreach (var item in items)
                 {
-                    ProductId = i.ProductId,
-                    Quantity = i.Quantity,
-                    PriceAtPurchase = i.PriceAtPurchase
-                }).ToList();
+                    var product = await _productCollection
+                        .Find(p => p.Id == item.ProductId)
+                        .FirstOrDefaultAsync();
+
+                    if (product == null) continue;
+
+                    var unit = await _productUnitCollection
+                        .Find(u => u.Id == product.UnitId)
+                        .FirstOrDefaultAsync();
+
+                    var image = await _productImageCollection
+                        .Find(img => img.ProductId == product.Id)
+                        .FirstOrDefaultAsync();
+
+                    itemDtos.Add(new OrderItemDto
+                    {
+                        ProductId = product.Id ?? string.Empty,
+                        ProductName = product.Name,
+                        ProductImageUrl = image?.ImageUrl ?? string.Empty,
+                        ProductUnitName = unit?.DisplayName ?? "kg",
+                        Quantity = item.Quantity,
+                        PriceAtPurchase = item.PriceAtPurchase
+                    });
+                }
+
+                dto.Items = itemDtos;
                 result.Add(dto);
             }
 
