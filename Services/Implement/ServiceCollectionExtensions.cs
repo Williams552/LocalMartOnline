@@ -40,6 +40,10 @@ namespace LocalMartOnline.Services
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<ProxyShopperRegistration>(mongoService, "ProxyShopperRegistrations");
             });
+            services.AddScoped<IRepository<ProxyShoppingOrder>>(sp => {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<ProxyShoppingOrder>(mongoService, "ProxyShoppingOrders");
+            });
             services.AddScoped<IRepository<MarketFee>>(sp => {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<MarketFee>(mongoService, "MarketFees");
@@ -141,6 +145,7 @@ namespace LocalMartOnline.Services
             services.AddScoped<ICustomerService, CustomerService>();
             services.AddScoped<ISellerRegistrationervice, Implement.SellerRegistrationervice>();
             services.AddScoped<ISellerAnalyticsService, SellerAnalyticsService>();
+            services.AddScoped<IProxyShopperService, ProxyShopperService>();
             return services;
         }
 
