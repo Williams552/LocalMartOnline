@@ -18,6 +18,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<OrderItem> _orderItemRepo;
         private readonly IRepository<Product> _productRepo;
         private readonly IMapper _mapper;
+        private readonly IMongoCollection<User> _userCollection;
         private readonly IMongoCollection<Product> _productCollection;
         private readonly IMongoCollection<ProductUnit> _productUnitCollection;
         private readonly IMongoCollection<ProductImage> _productImageCollection;
@@ -33,6 +34,7 @@ namespace LocalMartOnline.Services.Implement
             _orderItemRepo = orderItemRepo;
             _productRepo = productRepo;
             _mapper = mapper;
+            _userCollection = database.GetCollection<User>("Users");
             _productCollection = database.GetCollection<Product>("Products");
             _productUnitCollection = database.GetCollection<ProductUnit>("ProductUnits");
             _productImageCollection = database.GetCollection<ProductImage>("ProductImages");
@@ -182,6 +184,9 @@ namespace LocalMartOnline.Services.Implement
             foreach (var order in paged)
             {
                 var dto = _mapper.Map<OrderDto>(order);
+                var buyer = await _userCollection.Find(u => u.Id == order.BuyerId).FirstOrDefaultAsync();
+                dto.BuyerName = buyer?.FullName ?? "Unknown";
+                dto.BuyerPhone = buyer?.PhoneNumber ?? "Unknown";
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
                 var itemDtos = new List<OrderItemDto>();
                 foreach (var item in items)
