@@ -580,13 +580,13 @@ namespace LocalMartOnline.Controllers
         public async Task<IActionResult> FindNearbyStores(
             [FromQuery] decimal latitude,
             [FromQuery] decimal longitude,
-            [FromQuery] decimal maxDistance = 5, 
+            [FromQuery] decimal maxDistance = 5,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
             var result = await _storeService.FindStoresNearbyAsync(
                 latitude, longitude, maxDistance, page, pageSize);
-                
+
             return Ok(new
             {
                 success = true,
@@ -638,6 +638,42 @@ namespace LocalMartOnline.Controllers
                 success = true,
                 message = "Lấy thống kê gian hàng thành công",
                 data = statistics
+            });
+        }
+
+        // Lấy tất cả sản phẩm thuộc về store của bản thân (seller)
+        [HttpGet("my-store/products")]
+        [Authorize(Roles = "Seller")]
+        public async Task<IActionResult> GetMyStoreProducts([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var sellerId = User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(sellerId))
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Không thể xác định người bán",
+                    data = (object?)null
+                });
+            }
+
+            var store = await _storeService.GetStoreBySellerAsync(sellerId);
+            if (store == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Bạn chưa có gian hàng. Vui lòng tạo gian hàng mới.",
+                    data = (object?)null
+                });
+            }
+
+            var result = await _productService.GetAllProductsForSellerAsync(store.Id, page, pageSize);
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy danh sách sản phẩm trong gian hàng của bạn thành công",
+                data = result
             });
         }
     }

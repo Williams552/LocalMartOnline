@@ -96,6 +96,14 @@ namespace LocalMartOnline.Services.Implement
                     Status = "Active"
                 };
                 await _storeRepo.CreateAsync(store);
+
+                // Cập nhật Role của user thành Seller
+                var user = await _userRepo.FindOneAsync(u => u.Id == reg.UserId);
+                if (user != null && user.Role != "Seller")
+                {
+                    user.Role = "Seller";
+                    await _userRepo.UpdateAsync(user.Id!, user);
+                }
             }
             return true;
         }
