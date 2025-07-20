@@ -12,8 +12,8 @@ namespace LocalMartOnline.Services.Interface
     {
         // Registration management
         Task RegisterProxyShopperAsync(ProxyShopperRegistrationRequestDTO dto, string userId);
-        Task<ProxyShopperRegistration?> GetMyRegistrationAsync(string userId);
-        Task<List<ProxyShopperRegistration>> GetAllRegistrationsAsync();
+        Task<ProxyShopperRegistrationResponseDTO?> GetMyRegistrationAsync(string userId);
+        Task<List<ProxyShopperRegistrationResponseDTO>> GetAllRegistrationsAsync();
         Task<bool> ApproveRegistrationAsync(ProxyShopperRegistrationApproveDTO dto);
         
         // Order workflow

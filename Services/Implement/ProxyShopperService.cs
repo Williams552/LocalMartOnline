@@ -10,7 +10,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Models.DTOs.ProxyShopping;
 using LocalMartOnline.Models.DTOs.Seller;
-
 namespace LocalMartOnline.Services.Implement
 {
     public class ProxyShopperService : IProxyShopperService
@@ -48,15 +47,41 @@ namespace LocalMartOnline.Services.Implement
             await _proxyRepo.CreateAsync(registration);
         }
 
-        public async Task<ProxyShopperRegistration?> GetMyRegistrationAsync(string userId)
+        public async Task<ProxyShopperRegistrationResponseDTO?> GetMyRegistrationAsync(string userId)
         {
-            return await _proxyRepo.FindOneAsync(r => r.UserId == userId);
+            var myReg = await _proxyRepo.FindOneAsync(r => r.UserId == userId);
+            if (myReg == null) return null;
+            var dto = _mapper.Map<ProxyShopperRegistrationResponseDTO>(myReg);
+            // Lấy thông tin user
+            var user = await _userRepo.FindOneAsync(u => u.Id == userId);
+            if (user != null)
+            {
+                dto.Name = user.FullName;
+                dto.Email = user.Email;
+                dto.PhoneNumber = user.PhoneNumber;
+            }
+            return dto;
         }
 
-        public async Task<List<ProxyShopperRegistration>> GetAllRegistrationsAsync()
+        public async Task<List<ProxyShopperRegistrationResponseDTO>> GetAllRegistrationsAsync()
         {
             var regs = await _proxyRepo.GetAllAsync();
-            return regs.ToList();
+            var userIds = regs.Select(r => r.UserId).Distinct().ToList();
+            var users = await _userRepo.FindManyAsync(u => userIds.Contains(u.Id));
+            var userDict = users.ToDictionary(u => u.Id, u => u);
+            var result = new List<ProxyShopperRegistrationResponseDTO>();
+            foreach (var reg in regs)
+            {
+                var dto = _mapper.Map<ProxyShopperRegistrationResponseDTO>(reg);
+                if (userDict.TryGetValue(reg.UserId, out var user))
+                {
+                    dto.Name = user.FullName;
+                    dto.Email = user.Email;
+                    dto.PhoneNumber = user.PhoneNumber;
+                }
+                result.Add(dto);
+            }
+            return result;
         }
 
         public async Task<bool> ApproveRegistrationAsync(ProxyShopperRegistrationApproveDTO dto)
@@ -137,7 +162,7 @@ namespace LocalMartOnline.Services.Implement
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
             if (order == null || order.Status != "Confirmed") return false;
-            
+
             // Cập nhật trạng thái đơn hàng
             order.Status = "Completed";
             order.UpdatedAt = DateTime.UtcNow;
@@ -233,10 +258,10 @@ namespace LocalMartOnline.Services.Implement
         // Order management for ProxyShopper
         public async Task<List<ProxyShoppingOrder>> GetMyOrdersAsync(string proxyShopperId, string? status = null)
         {
-            var orders = string.IsNullOrEmpty(status) 
+            var orders = string.IsNullOrEmpty(status)
                 ? await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId)
                 : await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId && o.Status == status);
-            
+
             return orders.OrderByDescending(o => o.CreatedAt).ToList();
         }
 
@@ -258,7 +283,7 @@ namespace LocalMartOnline.Services.Implement
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.ProxyShopperId == proxyShopperId);
             if (order == null || order.Status == "Completed" || order.Status == "Cancelled") return false;
-            
+
             order.Status = "Cancelled";
             order.Notes = $"Hủy bởi ProxyShopper: {reason}";
             order.UpdatedAt = DateTime.UtcNow;

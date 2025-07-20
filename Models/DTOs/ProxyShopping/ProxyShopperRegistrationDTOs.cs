@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace LocalMartOnline.Models.DTOs.Seller
 {
- public class ProxyShopperRegistrationRequestDTO
+    public class ProxyShopperRegistrationRequestDTO
     {
         [Required]
         public string OperatingArea { get; set; } = string.Empty;
@@ -23,5 +23,17 @@ namespace LocalMartOnline.Models.DTOs.Seller
         [Required]
         public bool Approve { get; set; }
         public string? RejectionReason { get; set; }
+    }
+
+    public class ProxyShopperRegistrationResponseDTO
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string OperatingArea { get; set; } = string.Empty;
+        public string TransportMethod { get; set; } = string.Empty;
+        public string PaymentMethod { get; set; } = string.Empty;
+        public string Status { get; set; } = "Pending";
     }
 }
