@@ -19,17 +19,23 @@ namespace LocalMartOnline.Services
         }
         public Task<IEnumerable<User>> GetAllAsync() => _userRepo.GetAllAsync();
         public Task<User?> GetByIdAsync(string id) => _userRepo.GetByIdAsync(id);
-        public async Task CreateAsync(User user)
+        public async Task CreateAsync(UserCreateDTO userDto)
         {
             // Check duplicate username
-            var existingByUsername = await _userRepo.FindOneAsync(u => u.Username == user.Username);
+            var existingByUsername = await _userRepo.FindOneAsync(u => u.Username == userDto.Username);
             if (existingByUsername != null)
                 throw new System.Exception("Username already exists");
 
             // Check duplicate email
-            var existingByEmail = await _userRepo.FindOneAsync(u => u.Email == user.Email);
+            var existingByEmail = await _userRepo.FindOneAsync(u => u.Email == userDto.Email);
             if (existingByEmail != null)
                 throw new System.Exception("Email already exists");
+
+            var user = _mapper.Map<User>(userDto);
+            user.CreatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.UtcNow;
+            user.PasswordHash = PasswordHashService.HashPassword(userDto.Password); // Hash password từ DTO
+            user.IsEmailVerified = true;
 
             await _userRepo.CreateAsync(user);
         }
