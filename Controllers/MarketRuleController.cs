@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Services;
 using LocalMartOnline.Models.DTOs.MarketRule;
+using Microsoft.AspNetCore.Authorization;
 
 namespace LocalMartOnline.Controllers
 {
@@ -78,15 +79,13 @@ namespace LocalMartOnline.Controllers
         /// Buyer, Proxy Shopper, Market Staff, Seller
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> CreateMarketRule([FromBody] CreateMarketRuleDto createMarketRuleDto, [FromHeader] string userId = "")
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateMarketRule([FromBody] CreateMarketRuleDto createMarketRuleDto)
         {
             try
             {
-                if (string.IsNullOrEmpty(userId))
-                    return BadRequest(new { message = "User ID is required" });
+                var marketRule = await _marketRuleService.CreateMarketRuleAsync(createMarketRuleDto);
 
-                var marketRule = await _marketRuleService.CreateMarketRuleAsync(userId, createMarketRuleDto);
-                
                 if (marketRule == null)
                     return BadRequest(new { message = "Failed to create market rule. Please check market ID." });
 
@@ -104,15 +103,13 @@ namespace LocalMartOnline.Controllers
         /// Buyer, Proxy Shopper, Market Staff, Seller
         /// </summary>
         [HttpPut("{ruleId}")]
-        public async Task<IActionResult> UpdateMarketRule(string ruleId, [FromBody] UpdateMarketRuleDto updateMarketRuleDto, [FromHeader] string userId = "")
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateMarketRule(string ruleId, [FromBody] UpdateMarketRuleDto updateMarketRuleDto)
         {
             try
             {
-                if (string.IsNullOrEmpty(userId))
-                    return BadRequest(new { message = "User ID is required" });
+                var marketRule = await _marketRuleService.UpdateMarketRuleAsync(ruleId, updateMarketRuleDto);
 
-                var marketRule = await _marketRuleService.UpdateMarketRuleAsync(userId, ruleId, updateMarketRuleDto);
-                
                 if (marketRule == null)
                     return NotFound(new { message = "Market rule not found or update failed" });
 
@@ -130,15 +127,13 @@ namespace LocalMartOnline.Controllers
         /// Buyer, Proxy Shopper, Market Staff, Seller
         /// </summary>
         [HttpDelete("{ruleId}")]
-        public async Task<IActionResult> DeleteMarketRule(string ruleId, [FromHeader] string userId = "")
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteMarketRule(string ruleId)
         {
             try
             {
-                if (string.IsNullOrEmpty(userId))
-                    return BadRequest(new { message = "User ID is required" });
+                var success = await _marketRuleService.DeleteMarketRuleAsync(ruleId);
 
-                var success = await _marketRuleService.DeleteMarketRuleAsync(userId, ruleId);
-                
                 if (!success)
                     return NotFound(new { message = "Market rule not found or delete failed" });
 

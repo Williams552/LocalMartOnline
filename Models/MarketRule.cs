@@ -14,6 +14,9 @@ namespace LocalMartOnline.Models
         [BsonRepresentation(BsonType.ObjectId)]
         public string MarketId { get; set; } = string.Empty;
 
+        [BsonElement("rule_name")]
+        public string RuleName { get; set; } = string.Empty;
+
         [BsonElement("description")]
         public string Description { get; set; } = string.Empty;
 

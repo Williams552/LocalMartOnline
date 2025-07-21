@@ -5,6 +5,7 @@ namespace LocalMartOnline.Models.DTOs.MarketRule
         public string Id { get; set; } = string.Empty;
         public string MarketId { get; set; } = string.Empty;
         public string MarketName { get; set; } = string.Empty;
+        public string RuleName { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
@@ -13,11 +14,13 @@ namespace LocalMartOnline.Models.DTOs.MarketRule
     public class CreateMarketRuleDto
     {
         public string MarketId { get; set; } = string.Empty;
+        public string RuleName { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
     }
 
     public class UpdateMarketRuleDto
     {
+        public string RuleName { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
     }
 
