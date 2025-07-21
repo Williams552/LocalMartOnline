@@ -19,10 +19,13 @@ namespace LocalMartOnline.Models.DTOs.Product
         public List<string> ImageUrls { get; set; } = new();
 
         // Smart search properties
-        public string Unit { get; set; } = string.Empty;
         public int PurchaseCount { get; set; } = 0; // Số lần được mua thành công
         public decimal Score { get; set; } = 0;
         public SellerDto? Seller { get; set; }
+
+        // Bổ sung cho FE
+        public string StoreName { get; set; } = string.Empty;
+        public string UnitName { get; set; } = string.Empty;
 
         // Display properties
         public string StatusDisplay => Status switch

@@ -237,7 +237,6 @@ namespace LocalMartOnline.Services.Implement
                     Id = p.Id,
                     Name = p.Name,
                     Price = p.Price,
-                    Unit = p.UnitId,
                     PurchaseCount = p.PurchaseCount,
                     Score = Math.Round(score, 2),
                     Seller = new SellerDto
