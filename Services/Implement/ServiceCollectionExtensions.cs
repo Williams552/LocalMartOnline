@@ -134,6 +134,7 @@ namespace LocalMartOnline.Services
             services.AddScoped<IMarketFeePaymentService, MarketFeePaymentService>();
             services.AddScoped<IReportService, ReportService>();
             services.AddScoped<IMarketService, MarketService>();
+            services.AddScoped<IMarketRuleService, MarketRuleService>();
             services.AddScoped<IFaqService, FaqService>();
             services.AddScoped<IPlatformPolicyService, PlatformPolicyService>();
             services.AddScoped<IProductUnitService, ProductUnitService>();

@@ -10,16 +10,16 @@ namespace LocalMartOnline.Services
         Task<GetMarketRulesResponseDto> GetMarketRulesByMarketIdAsync(string marketId, int page = 1, int pageSize = 10);
 
         // Add Market Rules - All roles can add
-        Task<MarketRuleDto?> CreateMarketRuleAsync(string userId, CreateMarketRuleDto createMarketRuleDto);
+        Task<MarketRuleDto?> CreateMarketRuleAsync(CreateMarketRuleDto createMarketRuleDto);
 
         // Update Market Rules - All roles can update
-        Task<MarketRuleDto?> UpdateMarketRuleAsync(string userId, string ruleId, UpdateMarketRuleDto updateMarketRuleDto);
+        Task<MarketRuleDto?> UpdateMarketRuleAsync(string ruleId, UpdateMarketRuleDto updateMarketRuleDto);
 
         // Delete Market Rules - All roles can delete
-        Task<bool> DeleteMarketRuleAsync(string userId, string ruleId);
+        Task<bool> DeleteMarketRuleAsync(string ruleId);
 
         // Helper methods
         Task<bool> IsValidMarketIdAsync(string marketId);
-        Task<bool> CanUserManageMarketRuleAsync(string userId, string userRole);
+        Task<bool> CanUserManageMarketRuleAsync(string userRole);
     }
 }
