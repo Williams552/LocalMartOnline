@@ -56,7 +56,7 @@ namespace LocalMartOnline.Controllers
 
         // UC043: Toggle Product
         [HttpPatch("{id}/toggle")]
-        [Authorize(Roles = "Seller")]
+        [Authorize(Roles = "Seller,Admin")]
         public async Task<IActionResult> ToggleProduct(string id, [FromQuery] bool enable)
         {
             var result = await _service.ToggleProductAsync(id, enable);

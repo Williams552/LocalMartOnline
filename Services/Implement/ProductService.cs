@@ -18,6 +18,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<Product> _productRepo;
         private readonly IRepository<ProductImage> _imageRepo;
         private readonly IRepository<Store> _storeRepo;
+        private readonly IRepository<ProductUnit> _unitRepo;
         private readonly IMapper _mapper;
         private readonly IMongoCollection<BsonDocument> _productCollection;
 
@@ -25,12 +26,14 @@ namespace LocalMartOnline.Services.Implement
             IRepository<Product> productRepo,
             IRepository<ProductImage> imageRepo,
             IRepository<Store> storeRepo,
+            IRepository<ProductUnit> unitRepo,
             IMapper mapper,
             IMongoDatabase database)
         {
             _productRepo = productRepo;
             _imageRepo = imageRepo;
             _storeRepo = storeRepo;
+            _unitRepo = unitRepo;
             _mapper = mapper;
             _productCollection = database.GetCollection<BsonDocument>("products");
         }
@@ -118,6 +121,7 @@ namespace LocalMartOnline.Services.Implement
         {
             var products = await _productRepo.GetAllAsync();
             var stores = await _storeRepo.GetAllAsync();
+            var units = await _unitRepo.GetAllAsync();
             var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id!).Where(id => id != null));
 
             var productList = products
@@ -127,6 +131,20 @@ namespace LocalMartOnline.Services.Implement
             var total = productList.Count();
             var paged = productList.Skip((page - 1) * pageSize).Take(pageSize);
             var items = await MapProductDtosWithImages(paged);
+
+            // Set StoreName và UnitName cho từng ProductDto
+            var storeDict = stores.ToDictionary(s => s.Id!, s => s.Name);
+            var unitDict = units.ToDictionary(u => u.Id!, u => u.Name);
+            foreach (var dto in items)
+            {
+                dto.StoreName = (!string.IsNullOrEmpty(dto.StoreId) && storeDict.TryGetValue(dto.StoreId, out var storeName)) ? storeName : string.Empty;
+                dto.UnitName = (!string.IsNullOrEmpty(dto.UnitId) && unitDict.TryGetValue(dto.UnitId, out var unitName)) ? unitName : string.Empty;
+                // Ensure Status is set
+                var product = products.FirstOrDefault(p => p.Id == dto.Id);
+                if (product != null)
+                    dto.Status = product.Status;
+            }
+
             return new PagedResultDto<ProductDto>
             {
                 Items = items,
@@ -140,11 +158,29 @@ namespace LocalMartOnline.Services.Implement
         public async Task<ProductDto?> GetProductDetailsAsync(string id)
         {
             var product = await _productRepo.GetByIdAsync(id);
-            if (product == null || product.Status != ProductStatus.Active) return null;
-
             var dto = _mapper.Map<ProductDto>(product);
             var images = await _imageRepo.FindManyAsync(i => i.ProductId == id);
             dto.ImageUrls = images.Select(i => i.ImageUrl).ToList();
+
+            // Enrich StoreName and UnitName
+            string storeName = string.Empty;
+            string unitName = string.Empty;
+            if (!string.IsNullOrEmpty(dto.StoreId))
+            {
+                var store = await _storeRepo.GetByIdAsync(dto.StoreId);
+                if (store != null)
+                    storeName = store.Name;
+            }
+            if (!string.IsNullOrEmpty(dto.UnitId))
+            {
+                var unit = await _unitRepo.GetByIdAsync(dto.UnitId);
+                if (unit != null)
+                    unitName = unit.Name;
+            }
+            dto.StoreName = storeName;
+            dto.UnitName = unitName;
+            // Ensure Status is set
+            dto.Status = product.Status;
             return dto;
         }
 
