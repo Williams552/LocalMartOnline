@@ -9,7 +9,7 @@ namespace LocalMartOnline.Services
     {
         Task<IEnumerable<User>> GetAllAsync();
         Task<User?> GetByIdAsync(string id);
-        Task CreateAsync(User user);
+        Task CreateAsync(UserCreateDTO user);
         Task UpdateAsync(string id, UserUpdateDTO updateDto);
         Task DeleteAsync(string id);
         Task<(IEnumerable<User> Users, int Total)> GetUsersPagingAsync(

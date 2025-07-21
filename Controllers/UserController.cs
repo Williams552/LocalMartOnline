@@ -41,10 +41,12 @@ namespace LocalMartOnline.Controllers
             }
             var (users, total) = await _userService.GetUsersPagingAsync(pageNumber, pageSize, search, role, sortField, sortOrder);
             var userDtos = users.Select(u => _mapper.Map<UserDTO>(u));
-            return Ok(new {
+            return Ok(new
+            {
                 success = true,
                 message = "Lấy danh sách người dùng thành công",
-                data = new {
+                data = new
+                {
                     Total = total,
                     PageNumber = pageNumber,
                     PageSize = pageSize,
@@ -68,9 +70,8 @@ namespace LocalMartOnline.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(UserCreateDTO userDto)
         {
-            var user = _mapper.Map<User>(userDto);
-            await _userService.CreateAsync(user);
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, new { success = true, message = "Tạo người dùng thành công", data = userDto });
+            await _userService.CreateAsync(userDto);
+            return Ok(new { success = true, message = "Tạo người dùng thành công", data = userDto });
         }
 
         [HttpPut("{id}")]

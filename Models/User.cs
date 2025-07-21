@@ -3,7 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace LocalMartOnline.Models
 {
-    public class User
+    public class        User
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
