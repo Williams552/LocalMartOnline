@@ -146,6 +146,7 @@ namespace LocalMartOnline.Services
             services.AddScoped<ISellerRegistrationervice, Implement.SellerRegistrationervice>();
             services.AddScoped<ISellerAnalyticsService, SellerAnalyticsService>();
             services.AddScoped<IProxyShopperService, ProxyShopperService>();
+            services.AddScoped<ISupportRequestService, SupportRequestService>();
             return services;
         }
 
@@ -178,6 +179,7 @@ namespace LocalMartOnline.Services
             AddRepository<ProductUnit>("ProductUnits");
             AddRepository<Favorite>("Favorites");
             AddRepository<Notification>("Notifications");
+            AddRepository<SupportRequest>("SupportRequests");
             return services;
         }
     }
