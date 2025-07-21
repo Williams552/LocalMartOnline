@@ -139,6 +139,10 @@ namespace LocalMartOnline.Services.Implement
             {
                 dto.StoreName = (!string.IsNullOrEmpty(dto.StoreId) && storeDict.TryGetValue(dto.StoreId, out var storeName)) ? storeName : string.Empty;
                 dto.UnitName = (!string.IsNullOrEmpty(dto.UnitId) && unitDict.TryGetValue(dto.UnitId, out var unitName)) ? unitName : string.Empty;
+                // Ensure Status is set
+                var product = products.FirstOrDefault(p => p.Id == dto.Id);
+                if (product != null)
+                    dto.Status = product.Status;
             }
 
             return new PagedResultDto<ProductDto>
@@ -154,8 +158,6 @@ namespace LocalMartOnline.Services.Implement
         public async Task<ProductDto?> GetProductDetailsAsync(string id)
         {
             var product = await _productRepo.GetByIdAsync(id);
-            if (product == null || product.Status != ProductStatus.Active) return null;
-
             var dto = _mapper.Map<ProductDto>(product);
             var images = await _imageRepo.FindManyAsync(i => i.ProductId == id);
             dto.ImageUrls = images.Select(i => i.ImageUrl).ToList();
@@ -177,6 +179,8 @@ namespace LocalMartOnline.Services.Implement
             }
             dto.StoreName = storeName;
             dto.UnitName = unitName;
+            // Ensure Status is set
+            dto.Status = product.Status;
             return dto;
         }
 

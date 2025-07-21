@@ -26,14 +26,5 @@ namespace LocalMartOnline.Models.DTOs.Product
         // Bổ sung cho FE
         public string StoreName { get; set; } = string.Empty;
         public string UnitName { get; set; } = string.Empty;
-
-        // Display properties
-        public string StatusDisplay => Status switch
-        {
-            ProductStatus.Active => "Còn hàng",
-            ProductStatus.OutOfStock => "Hết hàng",
-            ProductStatus.Inactive => "Đã xóa",
-            _ => "Không xác định"
-        };
     }
 }
