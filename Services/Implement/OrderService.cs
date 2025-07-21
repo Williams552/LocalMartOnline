@@ -22,6 +22,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IMongoCollection<Product> _productCollection;
         private readonly IMongoCollection<ProductUnit> _productUnitCollection;
         private readonly IMongoCollection<ProductImage> _productImageCollection;
+        private readonly IMongoCollection<Store> _storeCollection;
 
         public OrderService(
             IMongoDatabase database,
@@ -38,6 +39,7 @@ namespace LocalMartOnline.Services.Implement
             _productCollection = database.GetCollection<Product>("Products");
             _productUnitCollection = database.GetCollection<ProductUnit>("ProductUnits");
             _productImageCollection = database.GetCollection<ProductImage>("ProductImages");
+            _storeCollection = database.GetCollection<Store>("Stores");
         }
 
         // UC070: Place Order
@@ -93,6 +95,13 @@ namespace LocalMartOnline.Services.Implement
             foreach (var order in paged)
             {
                 var dto = _mapper.Map<OrderDto>(order);
+                
+                // Lấy thông tin cửa hàng
+                var store = await _storeCollection
+                    .Find(s => s.SellerId == order.SellerId)
+                    .FirstOrDefaultAsync();
+                dto.StoreName = store?.Name ?? "Unknown Store";
+                
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
                 var itemDtos = new List<OrderItemDto>();
                 foreach (var item in items)
@@ -155,6 +164,13 @@ namespace LocalMartOnline.Services.Implement
             foreach (var order in paged)
             {
                 var dto = _mapper.Map<OrderDto>(order);
+                
+                // Lấy thông tin cửa hàng
+                var store = await _storeCollection
+                    .Find(s => s.SellerId == order.SellerId)
+                    .FirstOrDefaultAsync();
+                dto.StoreName = store?.Name ?? "Unknown Store";
+                
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
                 dto.Items = items.Select(i => new OrderItemDto
                 {
@@ -184,9 +200,18 @@ namespace LocalMartOnline.Services.Implement
             foreach (var order in paged)
             {
                 var dto = _mapper.Map<OrderDto>(order);
+                
+                // Lấy thông tin người mua
                 var buyer = await _userCollection.Find(u => u.Id == order.BuyerId).FirstOrDefaultAsync();
                 dto.BuyerName = buyer?.FullName ?? "Unknown";
                 dto.BuyerPhone = buyer?.PhoneNumber ?? "Unknown";
+                
+                // Lấy thông tin cửa hàng
+                var store = await _storeCollection
+                    .Find(s => s.SellerId == order.SellerId)
+                    .FirstOrDefaultAsync();
+                dto.StoreName = store?.Name ?? "Unknown Store";
+                
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
                 var itemDtos = new List<OrderItemDto>();
                 foreach (var item in items)
@@ -272,6 +297,12 @@ namespace LocalMartOnline.Services.Implement
                 var buyer = await _userCollection.Find(u => u.Id == order.BuyerId).FirstOrDefaultAsync();
                 dto.BuyerName = buyer?.FullName ?? "Unknown";
                 dto.BuyerPhone = buyer?.PhoneNumber ?? "Unknown";
+
+                // Lấy thông tin cửa hàng
+                var store = await _storeCollection
+                    .Find(s => s.SellerId == order.SellerId)
+                    .FirstOrDefaultAsync();
+                dto.StoreName = store?.Name ?? "Unknown Store";
 
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
                 var itemDtos = new List<OrderItemDto>();
