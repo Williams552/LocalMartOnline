@@ -18,9 +18,9 @@ namespace LocalMartOnline.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin,MarketStaff")]
-        public async Task<IActionResult> GetAll([FromQuery] string marketId)
+        public async Task<IActionResult> GetAll()
         {
-            var result = await _service.GetAllAsync(marketId);
+            var result = await _service.GetAllAsync();
             return Ok(result);
         }
 

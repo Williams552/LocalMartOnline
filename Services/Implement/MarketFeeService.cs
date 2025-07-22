@@ -20,9 +20,9 @@ namespace LocalMartOnline.Services.Implement
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<MarketFeeDto>> GetAllAsync(string marketId)
+        public async Task<IEnumerable<MarketFeeDto>> GetAllAsync()
         {
-            var fees = await _repo.FindManyAsync(f => f.MarketId == marketId);
+            var fees = await _repo.GetAllAsync();
             return _mapper.Map<IEnumerable<MarketFeeDto>>(fees);
         }
 
@@ -58,6 +58,7 @@ namespace LocalMartOnline.Services.Implement
             if (dto.Name != null) fee.Name = dto.Name;
             if (dto.Amount != null) fee.Amount = dto.Amount.Value;
             if (dto.Description != null) fee.Description = dto.Description;
+            if (dto.PaymentDay != null) fee.PaymentDay = dto.PaymentDay.Value;
             fee.UpdatedAt = DateTime.UtcNow;
             await _repo.UpdateAsync(id, fee);
             return true;
