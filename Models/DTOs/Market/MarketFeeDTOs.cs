@@ -7,6 +7,7 @@ namespace LocalMartOnline.Models.DTOs
         public string Name { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public string Description { get; set; } = string.Empty;
+        public DateTime PaymentDay { get; set; }
     }
 
     public class MarketFeeCreateDto
@@ -15,6 +16,7 @@ namespace LocalMartOnline.Models.DTOs
         public string Name { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public string Description { get; set; } = string.Empty;
+        public DateTime PaymentDay { get; set; }
     }
 
     public class MarketFeeUpdateDto
@@ -22,5 +24,6 @@ namespace LocalMartOnline.Models.DTOs
         public string? Name { get; set; }
         public decimal? Amount { get; set; }
         public string? Description { get; set; }
+        public DateTime? PaymentDay { get; set; }
     }
 }
