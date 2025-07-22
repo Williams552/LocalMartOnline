@@ -19,6 +19,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<ProductImage> _imageRepo;
         private readonly IRepository<Store> _storeRepo;
         private readonly IRepository<ProductUnit> _unitRepo;
+        private readonly IRepository<Market> _marketRepo;
         private readonly IMapper _mapper;
         private readonly IMongoCollection<BsonDocument> _productCollection;
 
@@ -27,6 +28,7 @@ namespace LocalMartOnline.Services.Implement
             IRepository<ProductImage> imageRepo,
             IRepository<Store> storeRepo,
             IRepository<ProductUnit> unitRepo,
+            IRepository<Market> marketRepo,
             IMapper mapper,
             IMongoDatabase database)
         {
@@ -34,6 +36,7 @@ namespace LocalMartOnline.Services.Implement
             _imageRepo = imageRepo;
             _storeRepo = storeRepo;
             _unitRepo = unitRepo;
+            _marketRepo = marketRepo;
             _mapper = mapper;
             _productCollection = database.GetCollection<BsonDocument>("products");
         }
@@ -162,14 +165,25 @@ namespace LocalMartOnline.Services.Implement
             var images = await _imageRepo.FindManyAsync(i => i.ProductId == id);
             dto.ImageUrls = images.Select(i => i.ImageUrl).ToList();
 
-            // Enrich StoreName and UnitName
+            // Enrich StoreName, UnitName, and MarketName
             string storeName = string.Empty;
             string unitName = string.Empty;
+            string marketName = string.Empty;
+            
             if (!string.IsNullOrEmpty(dto.StoreId))
             {
                 var store = await _storeRepo.GetByIdAsync(dto.StoreId);
                 if (store != null)
+                {
                     storeName = store.Name;
+                    // Get market name through store's MarketId
+                    if (!string.IsNullOrEmpty(store.MarketId))
+                    {
+                        var market = await _marketRepo.GetByIdAsync(store.MarketId);
+                        if (market != null)
+                            marketName = market.Name;
+                    }
+                }
             }
             if (!string.IsNullOrEmpty(dto.UnitId))
             {
@@ -179,6 +193,7 @@ namespace LocalMartOnline.Services.Implement
             }
             dto.StoreName = storeName;
             dto.UnitName = unitName;
+            dto.MarketName = marketName;
             // Ensure Status is set
             dto.Status = product.Status;
             return dto;
@@ -245,16 +260,41 @@ namespace LocalMartOnline.Services.Implement
         {
             var products = await _productRepo.GetAllAsync();
             var stores = await _storeRepo.GetAllAsync();
-            var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id!).Where(id => id != null));
+            
+            Console.WriteLine($"FilterProductsAsync called with MarketId: {filter.MarketId}, StoreId: {filter.StoreId}, CategoryId: {filter.CategoryId}, Keyword: {filter.Keyword}");
+            Console.WriteLine($"Total products: {products.Count()}, Total stores: {stores.Count()}");
+            
+            // Start with all open stores
+            var validStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id!).Where(id => id != null));
+            Console.WriteLine($"Open stores count: {validStoreIds.Count}");
+
+            // Filter by market if specified
+            if (!string.IsNullOrEmpty(filter.MarketId))
+            {
+                validStoreIds = new HashSet<string>(stores
+                    .Where(s => s.MarketId == filter.MarketId && s.Status == "Open")
+                    .Select(s => s.Id!)
+                    .Where(id => id != null));
+                Console.WriteLine($"Stores in market {filter.MarketId}: {validStoreIds.Count}");
+            }
+
+            // Further filter by specific store if specified
+            if (!string.IsNullOrEmpty(filter.StoreId))
+            {
+                validStoreIds = validStoreIds.Where(id => id == filter.StoreId).ToHashSet();
+                Console.WriteLine($"After store filter: {validStoreIds.Count}");
+            }
 
             var filtered = products.Where(p =>
                 p.Status == ProductStatus.Active &&
-                activeStoreIds.Contains(p.StoreId) &&
+                validStoreIds.Contains(p.StoreId) &&
                 (string.IsNullOrEmpty(filter.CategoryId) || p.CategoryId == filter.CategoryId) &&
                 (!filter.MinPrice.HasValue || p.Price >= filter.MinPrice.Value) &&
                 (!filter.MaxPrice.HasValue || p.Price <= filter.MaxPrice.Value) &&
                 (string.IsNullOrEmpty(filter.Keyword) || p.Name.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase) || p.Description.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase))
             ).ToList();
+            
+            Console.WriteLine($"Filtered products count: {filtered.Count}");
 
             // Lọc theo vị trí nếu có
             if (filter.Latitude.HasValue && filter.Longitude.HasValue && filter.MaxDistanceKm != null)

@@ -81,8 +81,35 @@ namespace LocalMartOnline.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetAllProducts(
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? search = null,
+            [FromQuery] string? categoryId = null,
+            [FromQuery] string? storeId = null,
+            [FromQuery] string? marketId = null)
         {
+            // If we have any filter parameters, use the filter method
+            if (!string.IsNullOrEmpty(search) || !string.IsNullOrEmpty(categoryId) || 
+                !string.IsNullOrEmpty(storeId) || !string.IsNullOrEmpty(marketId))
+            {
+                var filter = new ProductFilterDto
+                {
+                    Page = page,
+                    PageSize = pageSize,
+                    Keyword = search,
+                    CategoryId = categoryId,
+                    StoreId = storeId,
+                    MarketId = marketId
+                };
+                
+                var filteredProducts = await _service.FilterProductsAsync(filter);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lọc danh sách sản phẩm thành công",
+                    data = filteredProducts
+                });
+            }
+            
             var products = await _service.GetAllProductsAsync(page, pageSize);
             return Ok(new
             {
