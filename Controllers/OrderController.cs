@@ -79,8 +79,52 @@ namespace LocalMartOnline.Controllers
             var result = await _service.CompleteOrderAsync(orderId);
             if (!result)
                 return BadRequest(new { success = false, message = "Không thể xác thực đơn hàng hoặc đơn hàng đã hoàn thành." });
-            
+
             return Ok(new { success = true, message = "Đơn hàng đã được xác thực thành công." });
         }
+
+        // ...existing code...
+
+        [HttpPost("place-orders-from-cart")]
+        public async Task<IActionResult> PlaceOrdersFromCart([FromBody] CartOrderCreateDto dto)
+        {
+            try
+            {
+                if (dto.CartItems == null || !dto.CartItems.Any())
+                {
+                    return BadRequest(new
+                    {
+                        Success = false,
+                        Message = "Giỏ hàng trống"
+                    });
+                }
+
+                var orders = await _service.PlaceOrdersFromCartAsync(dto);
+
+                return Ok(new
+                {
+                    Success = true,
+                    Message = $"Đã tạo thành công {orders.Count} đơn hàng từ {orders.Count} cửa hàng khác nhau. Thông báo đã được gửi đến các người bán.",
+                    Data = new
+                    {
+                        OrderCount = orders.Count,
+                        TotalAmount = orders.Sum(o => o.TotalAmount),
+                        Orders = orders,
+                        NotificationsSent = orders.Count // Số thông báo đã gửi
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    Success = false,
+                    Message = "Có lỗi xảy ra khi tạo đơn hàng",
+                    Error = ex.Message
+                });
+            }
+        }
+
+        // ...existing code...
     }
 }

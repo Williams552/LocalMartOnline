@@ -23,17 +23,20 @@ namespace LocalMartOnline.Services.Implement
         private readonly IMongoCollection<ProductUnit> _productUnitCollection;
         private readonly IMongoCollection<ProductImage> _productImageCollection;
         private readonly IMongoCollection<Store> _storeCollection;
+        private readonly IRepository<Notification> _notificationRepo;
 
         public OrderService(
             IMongoDatabase database,
             IRepository<Order> orderRepo,
             IRepository<OrderItem> orderItemRepo,
             IRepository<Product> productRepo,
+            IRepository<Notification> notificationRepo,
             IMapper mapper)
         {
             _orderRepo = orderRepo;
             _orderItemRepo = orderItemRepo;
             _productRepo = productRepo;
+            _notificationRepo = notificationRepo;
             _mapper = mapper;
             _userCollection = database.GetCollection<User>("Users");
             _productCollection = database.GetCollection<Product>("Products");
@@ -95,13 +98,13 @@ namespace LocalMartOnline.Services.Implement
             foreach (var order in paged)
             {
                 var dto = _mapper.Map<OrderDto>(order);
-                
+
                 // Lấy thông tin cửa hàng
                 var store = await _storeCollection
                     .Find(s => s.SellerId == order.SellerId)
                     .FirstOrDefaultAsync();
                 dto.StoreName = store?.Name ?? "Unknown Store";
-                
+
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
                 var itemDtos = new List<OrderItemDto>();
                 foreach (var item in items)
@@ -164,13 +167,13 @@ namespace LocalMartOnline.Services.Implement
             foreach (var order in paged)
             {
                 var dto = _mapper.Map<OrderDto>(order);
-                
+
                 // Lấy thông tin cửa hàng
                 var store = await _storeCollection
                     .Find(s => s.SellerId == order.SellerId)
                     .FirstOrDefaultAsync();
                 dto.StoreName = store?.Name ?? "Unknown Store";
-                
+
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
                 dto.Items = items.Select(i => new OrderItemDto
                 {
@@ -200,18 +203,18 @@ namespace LocalMartOnline.Services.Implement
             foreach (var order in paged)
             {
                 var dto = _mapper.Map<OrderDto>(order);
-                
+
                 // Lấy thông tin người mua
                 var buyer = await _userCollection.Find(u => u.Id == order.BuyerId).FirstOrDefaultAsync();
                 dto.BuyerName = buyer?.FullName ?? "Unknown";
                 dto.BuyerPhone = buyer?.PhoneNumber ?? "Unknown";
-                
+
                 // Lấy thông tin cửa hàng
                 var store = await _storeCollection
                     .Find(s => s.SellerId == order.SellerId)
                     .FirstOrDefaultAsync();
                 dto.StoreName = store?.Name ?? "Unknown Store";
-                
+
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
                 var itemDtos = new List<OrderItemDto>();
                 foreach (var item in items)
@@ -345,6 +348,108 @@ namespace LocalMartOnline.Services.Implement
                 Page = page,
                 PageSize = pageSize
             };
+        }
+
+        public async Task<List<OrderDto>> PlaceOrdersFromCartAsync(CartOrderCreateDto dto)
+        {
+            var orders = new List<OrderDto>();
+
+            // Lấy thông tin buyer một lần
+            var buyer = await _userCollection.Find(u => u.Id == dto.BuyerId).FirstOrDefaultAsync();
+            var buyerName = buyer?.FullName ?? "Khách hàng";
+
+            // Nhóm các sản phẩm theo StoreId (SellerId)
+            var groupedByStore = dto.CartItems.GroupBy(item => item.Product.StoreId);
+
+            foreach (var storeGroup in groupedByStore)
+            {
+                var storeId = storeGroup.Key;
+                var storeItems = storeGroup.ToList();
+
+                // Lấy thông tin seller từ store
+                var store = await _storeCollection
+                    .Find(s => s.Id == storeId)
+                    .FirstOrDefaultAsync();
+
+                if (store == null) continue;
+
+                // Tạo đơn hàng cho store này
+                var order = new Order
+                {
+                    BuyerId = dto.BuyerId,
+                    SellerId = store.SellerId,
+                    Status = OrderStatus.Pending,
+                    PaymentStatus = PaymentStatus.Pending,
+                    Notes = dto.Notes,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                // Tính tổng tiền cho đơn hàng này
+                order.TotalAmount = storeItems.Sum(i => i.Product.Price * (decimal)i.Quantity);
+
+                await _orderRepo.CreateAsync(order);
+
+                // Lưu các order item cho store này
+                var orderItemDtos = new List<OrderItemDto>();
+                foreach (var cartItem in storeItems)
+                {
+                    var orderItem = new OrderItem
+                    {
+                        OrderId = order.Id!,
+                        ProductId = cartItem.ProductId,
+                        Quantity = (int)cartItem.Quantity,
+                        PriceAtPurchase = cartItem.Product.Price
+                    };
+                    await _orderItemRepo.CreateAsync(orderItem);
+
+                    // Tạo OrderItemDto
+                    orderItemDtos.Add(new OrderItemDto
+                    {
+                        ProductId = cartItem.ProductId,
+                        ProductName = cartItem.Product.Name,
+                        ProductImageUrl = cartItem.Product.Images,
+                        ProductUnitName = cartItem.Product.Unit,
+                        Quantity = (int)cartItem.Quantity,
+                        PriceAtPurchase = cartItem.Product.Price
+                    });
+                }
+
+                // Map sang DTO
+                var orderDto = _mapper.Map<OrderDto>(order);
+                orderDto.Items = orderItemDtos;
+                orderDto.StoreName = store.Name;
+                orderDto.BuyerName = buyerName;
+
+                orders.Add(orderDto);
+
+                // Tạo notification nội bộ cho seller
+                await CreateNewOrderNotification(store.SellerId, order, buyerName, store.Name);
+            }
+            return orders;
+        }
+
+        private async Task CreateNewOrderNotification(string sellerId, Order order, string buyerName, string storeName)
+        {
+            try
+            {
+                var notification = new Notification
+                {
+                    UserId = sellerId,
+                    Title = "Đơn hàng mới",
+                    Message = $"Bạn có đơn hàng mới từ {buyerName} tại cửa hàng {storeName}. Giá trị: {order.TotalAmount:N0}đ. Mã đơn: #{order.Id}",
+                    Type = "NEW_ORDER",
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _notificationRepo.CreateAsync(notification);
+            }
+            catch (Exception ex)
+            {
+                // Log error nhưng không throw để không ảnh hưởng đến việc tạo đơn hàng
+                Console.Error.WriteLine($"Failed to create notification for seller {sellerId}: {ex.Message}");
+            }
         }
     }
 }

@@ -33,7 +33,6 @@ namespace LocalMartOnline.Services
             var user = await _userRepo.FindOneAsync(u => u.Username == loginDto.Username);
             if (user == null || !PasswordHashService.VerifyPassword(loginDto.Password, user.PasswordHash))
                 return null;
-            Console.WriteLine($"[Login] PasswordHash: {user.PasswordHash}");
             if (!user.IsEmailVerified)
                 throw new InvalidOperationException("Email chưa xác thực");
             
