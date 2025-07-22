@@ -54,7 +54,12 @@ namespace LocalMartOnline.Services
             CreateMap<ProductUpdateDto, Product>();
 
             // MarketFee
-            CreateMap<MarketFee, MarketFeeDto>().ReverseMap();
+            CreateMap<MarketFee, MarketFeeDto>()
+                .ForMember(dest => dest.MarketName, opt => opt.Ignore());
+            CreateMap<MarketFeeDto, MarketFee>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
             CreateMap<MarketFeeCreateDto, MarketFee>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
