@@ -26,5 +26,6 @@ namespace LocalMartOnline.Models.DTOs.Product
         // Bổ sung cho FE
         public string StoreName { get; set; } = string.Empty;
         public string UnitName { get; set; } = string.Empty;
+        public string MarketName { get; set; } = string.Empty;
     }
 }

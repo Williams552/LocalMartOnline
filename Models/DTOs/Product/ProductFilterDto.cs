@@ -5,6 +5,7 @@ namespace LocalMartOnline.Models.DTOs.Product
     public class ProductFilterDto : PagedRequestDto
     {
         public string? StoreId { get; set; }
+        public string? MarketId { get; set; }
         public string? CategoryId { get; set; }
         public string? Name { get; set; }
         public string? Keyword { get; set; }
