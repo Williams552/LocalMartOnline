@@ -76,12 +76,31 @@ namespace LocalMartOnline.Services.Implement
         {
             var reg = await _sellerRepo.FindOneAsync(r => r.Id == dto.RegistrationId);
             if (reg == null) return false;
+
+            // Validation: Khi approve = true thì phải có license dates
+            if (dto.Approve)
+            {
+                if (!dto.LicenseEffectiveDate.HasValue || !dto.LicenseExpiryDate.HasValue)
+                {
+                    throw new ArgumentException("License dates are required when approving registration.");
+                }
+                if (dto.LicenseExpiryDate <= dto.LicenseEffectiveDate)
+                {
+                    throw new ArgumentException("License expiry date must be after effective date.");
+                }
+            }
+
             reg.Status = dto.Approve ? "Approved" : "Rejected";
             reg.RejectionReason = dto.Approve ? null : dto.RejectionReason;
             reg.UpdatedAt = DateTime.UtcNow;
-            // Cập nhật ngày hiệu lực và hết hạn giấy phép khi duyệt
-            reg.LicenseEffectiveDate = dto.LicenseEffectiveDate;
-            reg.LicenseExpiryDate = dto.LicenseExpiryDate;
+            
+            // Chỉ cập nhật license dates khi approve
+            if (dto.Approve)
+            {
+                reg.LicenseEffectiveDate = dto.LicenseEffectiveDate;
+                reg.LicenseExpiryDate = dto.LicenseExpiryDate;
+            }
+            
             await _sellerRepo.UpdateAsync(reg.Id!, reg);
             if (dto.Approve)
             {

@@ -50,10 +50,37 @@ namespace LocalMartOnline.Controllers
         [Authorize(Roles = "Admin,MarketStaff")]
         public async Task<IActionResult> Approve([FromBody] SellerRegistrationApproveDTO dto)
         {
-            var result = await _service.ApproveAsync(dto);
-            if (!result)
-                return NotFound(new { success = false, message = "Không tìm thấy đăng ký seller.", data = (object?)null });
-            return Ok(new { success = true, message = "Cập nhật trạng thái đăng ký seller thành công.", data = (object?)null });
+            try
+            {
+                // Validation khi approve = true
+                if (dto.Approve)
+                {
+                    if (!dto.LicenseEffectiveDate.HasValue || !dto.LicenseExpiryDate.HasValue)
+                    {
+                        return BadRequest(new 
+                        { 
+                            success = false, 
+                            message = "Ngày hiệu lực và ngày hết hạn giấy phép là bắt buộc khi phê duyệt.",
+                            data = (object?)null 
+                        });
+                    }
+                }
+
+                var result = await _service.ApproveAsync(dto);
+                if (!result)
+                    return NotFound(new { success = false, message = "Không tìm thấy đăng ký seller.", data = (object?)null });
+                
+                var message = dto.Approve ? "Phê duyệt đăng ký seller thành công." : "Từ chối đăng ký seller thành công.";
+                return Ok(new { success = true, message = message, data = (object?)null });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message, data = (object?)null });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Có lỗi xảy ra khi xử lý đăng ký.", error = ex.Message });
+            }
         }
 
         [HttpGet("profile/{userId}")]

@@ -1,0 +1,281 @@
+# Tài liệu Kỹ thuật - Đặt hàng từ Giỏ hàng
+
+## Tổng quan
+Tính năng cho phép người dùng đặt hàng từ giỏ hàng, tự động chia thành nhiều đơn hàng riêng biệt theo từng cửa hàng.
+
+## API Endpoint
+
+### POST /api/order/place-orders-from-cart
+
+**Request Body:**
+{
+  "buyerId": "string",
+  "notes": "string (optional)",
+  "cartItems": [
+    {
+      "id": "string",
+      "cartId": "string",
+      "productId": "string",
+      "quantity": number,
+      "product": {
+        "id": "string",
+        "name": "string",
+        "price": number,
+        "images": "string",
+        "unit": "string",
+        "storeId": "string",
+        "storeName": "string"
+      }
+    }
+  ]
+}
+
+**Response Success (200):**
+{
+  "success": true,
+  "message": "Đã tạo thành công 3 đơn hàng từ 3 cửa hàng khác nhau",
+  "data": {
+    "orderCount": 3,
+    "totalAmount": 250000,
+    "orders": [
+      {
+        "id": "order_id_1",
+        "buyerId": "buyer_id",
+        "sellerId": "seller_id_1", 
+        "storeName": "Cửa hàng A",
+        "totalAmount": 100000,
+        "status": "Pending",
+        "paymentStatus": "Pending",
+        "notes": "Ghi chú",
+        "createdAt": "2025-07-22T10:30:00Z",
+        "items": [
+          {
+            "productId": "product_1",
+            "productName": "Táo Fuji",
+            "productImageUrl": "image1.jpg",
+            "productUnitName": "kg",
+            "quantity": 2,
+            "priceAtPurchase": 50000
+          }
+        ]
+      }
+    ]
+  }
+}
+
+**Response Error (400/500):**
+{
+  "success": false,
+  "message": "Lỗi message",
+  "error": "Chi tiết lỗi"
+}
+
+## Luồng xử lý Frontend
+
+### 1. Thu thập dữ liệu
+// Lấy cart items từ state/store
+const cartItems = getCartItems();
+const buyerId = getCurrentUserId();
+
+### 2. Gọi API
+const placeOrdersFromCart = async (orderData) => {
+  try {
+    const response = await fetch('/api/order/place-orders-from-cart', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(orderData)
+    });
+    
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+### 3. Xử lý kết quả
+const handlePlaceOrder = async () => {
+  try {
+    const result = await placeOrdersFromCart({
+      buyerId,
+      notes,
+      cartItems
+    });
+    
+    if (result.success) {
+      // Hiển thị thông báo thành công
+      showSuccess(`Đã tạo ${result.data.orderCount} đơn hàng`);
+      
+      // Xóa cart
+      clearCart();
+      
+      // Chuyển đến trang order history
+      navigateToOrderHistory();
+    }
+  } catch (error) {
+    showError('Có lỗi xảy ra khi đặt hàng');
+  }
+};
+
+## UI/UX Recommendations
+
+### 1. Hiển thị Preview trước khi đặt hàng
+┌─ Xác nhận đặt hàng ─────────────────────┐
+│ 📦 Cửa hàng A (2 sản phẩm) - 100,000đ   │
+│ 📦 Cửa hàng B (1 sản phẩm) - 50,000đ    │  
+│ 📦 Cửa hàng C (3 sản phẩm) - 150,000đ   │
+│                                         │
+│ Tổng cộng: 300,000đ                     │
+│ Số đơn hàng sẽ tạo: 3                   │
+│                                         │
+│ Ghi chú: [_________________________]    │
+│                                         │
+│ [Hủy]  [Xác nhận đặt hàng]              │
+└─────────────────────────────────────────┘
+
+### 2. Hiển thị kết quả
+┌─ Đặt hàng thành công ──────────────────┐
+│ ✅ Đã tạo thành công 3 đơn hàng         │
+│                                        │
+│ 📋 Đơn hàng #001 - Cửa hàng A          │
+│ 📋 Đơn hàng #002 - Cửa hàng B          │
+│ 📋 Đơn hàng #003 - Cửa hàng C          │
+│                                        │
+│ [Xem đơn hàng] [Tiếp tục mua sắm]      │
+└────────────────────────────────────────┘
+
+## Validation Rules
+
+### Frontend Validation
+- buyerId: Required, không được rỗng
+- cartItems: Required, phải có ít nhất 1 item
+- quantity: Phải > 0
+- price: Phải > 0
+
+### Business Rules
+- Kiểm tra stock quantity trước khi đặt hàng
+- Validate sản phẩm còn available
+- Kiểm tra minimum order quantity
+
+## Error Handling
+
+| Error Code | Message | Xử lý |
+|------------|---------|-------|
+| 400 | Giỏ hàng trống | Hiển thị thông báo, redirect về cart |
+| 400 | Sản phẩm không khả dụng | Highlight sản phẩm lỗi, cho phép remove |
+| 500 | Lỗi server | Retry mechanism, fallback message |
+
+## Test Cases
+
+1. **Happy Path**: Cart có sản phẩm từ 3 cửa hàng → Tạo 3 đơn hàng
+2. **Single Store**: Cart chỉ có sản phẩm từ 1 cửa hàng → Tạo 1 đơn hàng  
+3. **Empty Cart**: Giỏ hàng trống → Show error
+4. **Invalid Product**: Sản phẩm không tồn tại → Skip product, tạo đơn với các sản phẩm valid
+
+## Backend Implementation Notes
+
+### DTO cần tạo:
+- CartOrderCreateDto: Chứa thông tin đặt hàng từ cart (đã tạo)
+- OrderItemDto: Cập nhật để phù hợp với response
+
+### Service Method:
+- PlaceOrdersFromCartAsync(): Nhóm cart items theo storeId và tạo nhiều orders
+- CreateNewOrderNotification(): Tạo notification nội bộ cho seller
+
+### Database Structure:
+- Mỗi Order thuộc về 1 Seller duy nhất (1:1)
+- OrderItems thuộc về 1 Order (1:N)
+- Cart được chia thành nhiều Orders theo StoreId
+- Notification được tạo cho mỗi seller khi có đơn hàng mới
+
+### Logic Flow:
+1. Nhận cart items từ frontend
+2. Lấy thông tin buyer một lần
+3. Group theo product.storeId
+4. Tạo Order riêng cho mỗi store
+5. Tạo OrderItems cho mỗi Order
+6. Tạo Notification cho mỗi seller
+7. Return danh sách Orders đã tạo
+
+### Notification Features:
+- Tự động tạo notification cho seller khi có đơn hàng mới
+- Notification được lưu trong database collection "Notifications"
+- Seller có thể sử dụng API có sẵn để lấy notifications:
+  - GET /api/notification - Lấy notifications phân trang (cần userId trong token)
+  - GET /api/notification/user/my/paged - Lấy notifications phân trang của bản thân
+  - GET /api/notification/unread-count - Đếm số notification chưa đọc
+
+### GET /api/notification/user/my/paged
+**Description:** Lấy danh sách notifications phân trang của user hiện tại (lấy userId từ token)
+
+**Headers:**
+```
+Authorization: Bearer {token}
+```
+
+**Query Parameters:**
+- page: int (default: 1) - Trang hiện tại
+- limit: int (default: 10, max: 50) - Số items per page
+
+**Response Success (200):**
+```json
+{
+  "success": true,
+  "message": "Lấy danh sách thông báo thành công.",
+  "data": {
+    "notifications": [
+      {
+        "id": "notification_id",
+        "userId": "user_id",
+        "title": "Đơn hàng mới",
+        "message": "Bạn có đơn hàng mới từ Khách hàng A...",
+        "type": "NEW_ORDER",
+        "isRead": false,
+        "createdAt": "2025-07-22T10:30:00Z"
+      }
+    ],
+    "pagination": {
+      "currentPage": 1,
+      "pageSize": 10,
+      "totalItems": 25,
+      "totalPages": 3,
+      "hasNextPage": true,
+      "hasPreviousPage": false
+    }
+  }
+}
+```
+
+**Response Error (401):**
+```json
+{
+  "success": false,
+  "message": "Không xác định được user từ token."
+}
+```
+
+### Frontend Usage Example:
+```javascript
+const getMyNotifications = async (page = 1, limit = 10) => {
+  try {
+    const response = await fetch(`/api/notification/user/my/paged?page=${page}&limit=${limit}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error getting notifications:', error);
+  }
+};
+```
+
+### Notification Content:
+- Title: "Đơn hàng mới"
+- Message: "Bạn có đơn hàng mới từ [Tên khách hàng] tại cửa hàng [Tên cửa hàng]. Giá trị: [Số tiền]đ. Mã đơn: #[Order ID]"
+- Type: "NEW_ORDER"
+- IsRead: false (mặc định)

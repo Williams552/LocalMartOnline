@@ -23,11 +23,9 @@ namespace LocalMartOnline.Models.DTOs
         public bool Approve { get; set; }
         public string? RejectionReason { get; set; }
 
-        [Required]
+        // Chỉ required khi Approve = true
         public DateTime? LicenseEffectiveDate { get; set; }
-        [Required]
         public DateTime? LicenseExpiryDate { get; set; }
-
     }
 
     public class SellerRegistrationResponseDTO

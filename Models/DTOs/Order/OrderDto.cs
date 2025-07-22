@@ -12,7 +12,6 @@ namespace LocalMartOnline.Models.DTOs.Order
         public string BuyerPhone { get; set; } = string.Empty;
         public string StoreName { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
-        public string DeliveryAddress { get; set; } = string.Empty;
         public string Status { get; set; } = "Pending";
         public string PaymentStatus { get; set; } = "Pending";
         public DateTime? ExpectedDeliveryTime { get; set; }
