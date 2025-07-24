@@ -15,14 +15,18 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<Product> _productRepository;
         private readonly IRepository<ProductImage> _productImageRepository;
         private readonly IRepository<ProductUnit> _productUnitRepository;
+        private readonly IRepository<User> _userRepository;
+        private readonly IRepository<Store> _storeRepository;
         
 
-        public FastBargainService(IRepository<FastBargain> repository, IRepository<Product> productRepository, IRepository<ProductImage> productImageRepository, IRepository<ProductUnit> productUnitRepository)
+        public FastBargainService(IRepository<FastBargain> repository, IRepository<Product> productRepository, IRepository<ProductImage> productImageRepository, IRepository<ProductUnit> productUnitRepository, IRepository<User> userRepository, IRepository<Store> storeRepository)
         {
             _repository = repository;
             _productRepository = productRepository;
             _productImageRepository = productImageRepository;
             _productUnitRepository = productUnitRepository;
+            _userRepository = userRepository;
+            _storeRepository = storeRepository;
         }
 
         public async Task<FastBargainResponseDTO> StartBargainAsync(FastBargainCreateRequestDTO request)
@@ -31,11 +35,16 @@ namespace LocalMartOnline.Services.Implement
             if (product == null)
                 throw new Exception("Product not found");
                 
+            // Get store to get the actual seller ID
+            var store = await _storeRepository.GetByIdAsync(product.StoreId);
+            if (store == null)
+                throw new Exception("Store not found");
+                
             var bargain = new FastBargain
             {
                 ProductId = request.ProductId,
                 BuyerId = request.BuyerId,
-                SellerId = product.StoreId, // Get sellerId from product's StoreId
+                SellerId = store.SellerId, // Get sellerId from store's SellerId
                 Quantity = request.Quantity,
                 Status = FastBargainStatus.Pending,
                 CreatedAt = DateTime.Now,
@@ -138,6 +147,15 @@ namespace LocalMartOnline.Services.Implement
                 _productUnitRepository.GetByIdAsync(product.UnitId).GetAwaiter().GetResult() : 
                 null;
             
+            // Get buyer information
+            var buyer = _userRepository.GetByIdAsync(bargain.BuyerId).GetAwaiter().GetResult();
+            
+            // Get seller information
+            var seller = _userRepository.GetByIdAsync(bargain.SellerId).GetAwaiter().GetResult();
+            
+            // Get store information
+            var store = _storeRepository.GetByIdAsync(product?.StoreId ?? string.Empty).GetAwaiter().GetResult();
+            
             return new FastBargainResponseDTO
             {
                 BargainId = bargain.Id ?? string.Empty,
@@ -147,6 +165,9 @@ namespace LocalMartOnline.Services.Implement
                 OriginalPrice = product?.Price,
                 Quantity = bargain.Quantity,
                 ProductUnitName = productUnit?.Name ?? string.Empty,
+                BuyerName = buyer?.FullName ?? string.Empty,
+                SellerName = seller?.FullName ?? string.Empty,
+                StoreName = store?.Name ?? string.Empty,
                 ProductImages = imageUrls,
                 Proposals = bargain.Proposals.Select(p => new FastBargainProposalDTO
                 {
