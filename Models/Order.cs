@@ -49,14 +49,14 @@ namespace LocalMartOnline.Models
         public string? Notes { get; set; }
 
         [BsonElement("cancel_reason")]
-        public string? CancelReason { get; set; }
+        public string? CancelReason { get; set; } = string.Empty;
 
         [BsonElement("created_at")]
         [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         [BsonElement("updated_at")]
         [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
     }
 }

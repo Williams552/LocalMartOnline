@@ -50,8 +50,8 @@ namespace LocalMartOnline.Services.Implement
         public async Task<ProductUnitDto> CreateAsync(ProductUnitCreateDto dto)
         {
             var unit = _mapper.Map<ProductUnit>(dto);
-            unit.CreatedAt = DateTime.UtcNow;
-            unit.UpdatedAt = DateTime.UtcNow;
+            unit.CreatedAt = DateTime.Now;
+            unit.UpdatedAt = DateTime.Now;
             unit.IsActive = true;
             
             await _unitRepo.CreateAsync(unit);
@@ -64,7 +64,7 @@ namespace LocalMartOnline.Services.Implement
             if (unit == null) return false;
             
             _mapper.Map(dto, unit);
-            unit.UpdatedAt = DateTime.UtcNow;
+            unit.UpdatedAt = DateTime.Now;
             
             await _unitRepo.UpdateAsync(id, unit);
             return true;
@@ -76,7 +76,7 @@ namespace LocalMartOnline.Services.Implement
             if (unit == null) return false;
             
             unit.IsActive = !unit.IsActive;
-            unit.UpdatedAt = DateTime.UtcNow;
+            unit.UpdatedAt = DateTime.Now;
             
             await _unitRepo.UpdateAsync(id, unit);
             return true;
@@ -89,7 +89,7 @@ namespace LocalMartOnline.Services.Implement
             
             // Soft delete - set to inactive
             unit.IsActive = false;
-            unit.UpdatedAt = DateTime.UtcNow;
+            unit.UpdatedAt = DateTime.Now;
             
             await _unitRepo.UpdateAsync(id, unit);
             return true;
@@ -144,7 +144,7 @@ namespace LocalMartOnline.Services.Implement
                 if (unit != null)
                 {
                     unit.SortOrder = item.SortOrder;
-                    unit.UpdatedAt = DateTime.UtcNow;
+                    unit.UpdatedAt = DateTime.Now;
                     await _unitRepo.UpdateAsync(item.Id, unit);
                 }
             }

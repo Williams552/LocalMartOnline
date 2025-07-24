@@ -14,7 +14,7 @@ namespace LocalMartOnline.Services
         {
             var timeZoneId = _configuration["TimeZoneId"] ?? "UTC";
             var timeZoneById = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            var timeNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneById);
+            var timeNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.Now, timeZoneById);
             var tick = DateTime.Now.Ticks.ToString();
             var pay = new VnPayLibrary();
             var request = context.Request;

@@ -17,8 +17,8 @@ namespace LocalMartOnline.Models.DTOs.License
         public string? RejectionReason { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-        public bool IsExpired => ExpiryDate.HasValue && DateTime.UtcNow > ExpiryDate.Value;
-        public int? DaysUntilExpiry => ExpiryDate?.Subtract(DateTime.UtcNow).Days;
+        public bool IsExpired => ExpiryDate.HasValue && DateTime.Now > ExpiryDate.Value;
+        public int? DaysUntilExpiry => ExpiryDate?.Subtract(DateTime.Now).Days;
     }
 
     public class CreateSellerLicenseDto

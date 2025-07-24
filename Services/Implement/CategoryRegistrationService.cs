@@ -47,7 +47,7 @@ namespace LocalMartOnline.Services.Implement
             if (reg == null || reg.Status != CategoryRegistrationStatus.Pending) return false;
 
             reg.Status = CategoryRegistrationStatus.Approved;
-            reg.UpdatedAt = DateTime.UtcNow;
+            reg.UpdatedAt = DateTime.Now;
             await _repo.UpdateAsync(id, reg);
 
             // Thêm category mới vào bảng Category
@@ -55,8 +55,8 @@ namespace LocalMartOnline.Services.Implement
             {
                 Name = reg.CategoryName,
                 Description = reg.Description,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
                 IsActive = true
             };
             await _categoryRepo.CreateAsync(newCategory);
@@ -70,7 +70,7 @@ namespace LocalMartOnline.Services.Implement
             if (reg == null || reg.Status != CategoryRegistrationStatus.Pending) return false;
             reg.Status = CategoryRegistrationStatus.Rejected;
             reg.RejectionReason = rejectionReason;
-            reg.UpdatedAt = DateTime.UtcNow;
+            reg.UpdatedAt = DateTime.Now;
             await _repo.UpdateAsync(id, reg);
             return true;
         }
@@ -79,8 +79,8 @@ namespace LocalMartOnline.Services.Implement
         {
             var entity = _mapper.Map<CategoryRegistration>(dto);
             entity.Status = CategoryRegistrationStatus.Pending;
-            entity.CreatedAt = DateTime.UtcNow;
-            entity.UpdatedAt = DateTime.UtcNow;
+            entity.CreatedAt = DateTime.Now;
+            entity.UpdatedAt = DateTime.Now;
             await _repo.CreateAsync(entity);
             return _mapper.Map<CategoryRegistrationDto>(entity);
         }

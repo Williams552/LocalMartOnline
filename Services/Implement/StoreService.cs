@@ -40,8 +40,8 @@ namespace LocalMartOnline.Services.Implement
 
             var store = _mapper.Map<Store>(dto);
             store.Status = "Open";
-            store.CreatedAt = DateTime.UtcNow;
-            store.UpdatedAt = DateTime.UtcNow;
+            store.CreatedAt = DateTime.Now;
+            store.UpdatedAt = DateTime.Now;
             store.Rating = 0.0m;
             await _storeRepo.CreateAsync(store);
             return _mapper.Map<StoreDto>(store);
@@ -54,7 +54,7 @@ namespace LocalMartOnline.Services.Implement
             if (store == null) return false;
             if (store.Status == "Closed") return true;
             store.Status = "Closed";
-            store.UpdatedAt = DateTime.UtcNow;
+            store.UpdatedAt = DateTime.Now;
             await _storeRepo.UpdateAsync(id, store);
             return true;
         }
@@ -65,7 +65,7 @@ namespace LocalMartOnline.Services.Implement
             var store = await _storeRepo.GetByIdAsync(id);
             if (store == null) return false;
             _mapper.Map(dto, store);
-            store.UpdatedAt = DateTime.UtcNow;
+            store.UpdatedAt = DateTime.Now;
             await _storeRepo.UpdateAsync(id, store);
             return true;
         }
@@ -85,7 +85,7 @@ namespace LocalMartOnline.Services.Implement
             {
                 UserId = userId,
                 StoreId = storeId,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
             await _followRepo.CreateAsync(follow);
             return true;
@@ -216,7 +216,7 @@ namespace LocalMartOnline.Services.Implement
             if (store == null) return false;
             if (store.Status == "Suspended") return true;
             store.Status = "Suspended";
-            store.UpdatedAt = DateTime.UtcNow;
+            store.UpdatedAt = DateTime.Now;
             // Optionally, you can add a property to store the reason if your model supports it
             await _storeRepo.UpdateAsync(id, store);
             return true;
@@ -228,7 +228,7 @@ namespace LocalMartOnline.Services.Implement
             if (store == null) return false;
             if (store.Status != "Suspended") return true;
             store.Status = "Open";
-            store.UpdatedAt = DateTime.UtcNow;
+            store.UpdatedAt = DateTime.Now;
             await _storeRepo.UpdateAsync(id, store);
             return true;
         }
@@ -271,7 +271,7 @@ namespace LocalMartOnline.Services.Implement
             else
                 return false; // Nếu store đang Suspended, không toggle trạng thái
                 
-            store.UpdatedAt = DateTime.UtcNow;
+            store.UpdatedAt = DateTime.Now;
             await _storeRepo.UpdateAsync(id, store);
             return true;
         }

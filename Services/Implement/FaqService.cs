@@ -35,8 +35,8 @@ namespace LocalMartOnline.Services.Implement
         public async Task<FaqDto> AddAsync(FaqCreateDto dto)
         {
             var faq = _mapper.Map<Faq>(dto);
-            faq.CreatedAt = DateTime.UtcNow;
-            faq.UpdatedAt = DateTime.UtcNow;
+            faq.CreatedAt = DateTime.Now;
+            faq.UpdatedAt = DateTime.Now;
             await _faqRepo.CreateAsync(faq);
             return _mapper.Map<FaqDto>(faq);
         }
@@ -46,7 +46,7 @@ namespace LocalMartOnline.Services.Implement
             var faq = await _faqRepo.GetByIdAsync(id);
             if (faq == null) return false;
             _mapper.Map(dto, faq);
-            faq.UpdatedAt = DateTime.UtcNow;
+            faq.UpdatedAt = DateTime.Now;
             await _faqRepo.UpdateAsync(id, faq);
             return true;
         }

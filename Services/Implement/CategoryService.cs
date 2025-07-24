@@ -94,8 +94,8 @@ namespace LocalMartOnline.Services.Implement
         public async Task<CategoryDto> CreateAsync(CategoryCreateDto dto)
         {
             var category = _mapper.Map<Category>(dto);
-            category.CreatedAt = DateTime.UtcNow;
-            category.UpdatedAt = DateTime.UtcNow;
+            category.CreatedAt = DateTime.Now;
+            category.UpdatedAt = DateTime.Now;
             await _categoryRepository.CreateAsync(category);
             return _mapper.Map<CategoryDto>(category);
         }
@@ -105,7 +105,7 @@ namespace LocalMartOnline.Services.Implement
             var category = await _categoryRepository.GetByIdAsync(id);
             if (category == null) return false;
             _mapper.Map(dto, category);
-            category.UpdatedAt = DateTime.UtcNow;
+            category.UpdatedAt = DateTime.Now;
             await _categoryRepository.UpdateAsync(id, category);
             return true;
         }
@@ -122,7 +122,7 @@ namespace LocalMartOnline.Services.Implement
             var category = await _categoryRepository.GetByIdAsync(id);
             if (category == null) return false;
             category.IsActive = !category.IsActive;
-            category.UpdatedAt = DateTime.UtcNow;
+            category.UpdatedAt = DateTime.Now;
             await _categoryRepository.UpdateAsync(id, category);
             return true;
         }

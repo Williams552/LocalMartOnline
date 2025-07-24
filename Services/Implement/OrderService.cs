@@ -55,8 +55,8 @@ namespace LocalMartOnline.Services.Implement
                 Status = OrderStatus.Pending,
                 PaymentStatus = PaymentStatus.Pending,
                 Notes = dto.Notes,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
             };
 
             // Tính tổng tiền
@@ -80,6 +80,15 @@ namespace LocalMartOnline.Services.Implement
             // Map lại sang DTO
             var orderDto = _mapper.Map<OrderDto>(order);
             orderDto.Items = dto.Items;
+
+            // Tạo notification cho seller
+            var buyer = await _userCollection.Find(u => u.Id == dto.BuyerId).FirstOrDefaultAsync();
+            var buyerName = buyer?.FullName ?? "Khách hàng";
+            var store = await _storeCollection.Find(s => s.SellerId == dto.SellerId).FirstOrDefaultAsync();
+            var storeName = store?.Name ?? "Cửa hàng";
+            
+            await CreateNewOrderNotification(dto.SellerId, order, buyerName, storeName);
+
             return orderDto;
         }
 
@@ -263,9 +272,15 @@ namespace LocalMartOnline.Services.Implement
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
             if (order == null || order.Status == OrderStatus.Completed) return false;
 
+            // Kiểm tra trạng thái (chỉ có thể complete khi Paid)
+            if (order.Status != OrderStatus.Paid)
+            {
+                throw new Exception($"Không thể hoàn thành đơn hàng ở trạng thái {order.Status}");
+            }
+
             // Cập nhật trạng thái đơn hàng
             order.Status = OrderStatus.Completed;
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
 
             // Tăng PurchaseCount cho các sản phẩm trong đơn hàng
@@ -281,6 +296,10 @@ namespace LocalMartOnline.Services.Implement
                     await _productRepo.UpdateAsync(product.Id!, product);
                 }
             }
+
+            // Tạo notification cho seller
+            await CreateOrderStatusNotification(order, "Đơn hàng đã hoàn thành", 
+                "Khách hàng đã xác nhận nhận hàng thành công. Giao dịch hoàn tất.", "ORDER_COMPLETED", false);
 
             return true;
         }
@@ -381,8 +400,8 @@ namespace LocalMartOnline.Services.Implement
                     Status = OrderStatus.Pending,
                     PaymentStatus = PaymentStatus.Pending,
                     Notes = dto.Notes,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
                 };
 
                 // Tính tổng tiền cho đơn hàng này
@@ -440,7 +459,7 @@ namespace LocalMartOnline.Services.Implement
                     Message = $"Bạn có đơn hàng mới từ {buyerName} tại cửa hàng {storeName}. Giá trị: {order.TotalAmount:N0}đ. Mã đơn: #{order.Id}",
                     Type = "NEW_ORDER",
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 await _notificationRepo.CreateAsync(notification);
@@ -478,7 +497,7 @@ namespace LocalMartOnline.Services.Implement
                 // Cập nhật trạng thái đơn hàng
                 order.Status = OrderStatus.Cancelled;
                 order.CancelReason = cancelDto.CancelReason;
-                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedAt = DateTime.Now;
 
                 await _orderRepo.UpdateAsync(order.Id!, order);
 
@@ -528,7 +547,7 @@ namespace LocalMartOnline.Services.Implement
                     Message = notificationMessage,
                     Type = "ORDER_CANCELLED",
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 await _notificationRepo.CreateAsync(notification);
@@ -564,13 +583,13 @@ namespace LocalMartOnline.Services.Implement
 
                 // Cập nhật trạng thái
                 order.Status = OrderStatus.Confirmed;
-                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedAt = DateTime.Now;
 
                 await _orderRepo.UpdateAsync(order.Id!, order);
 
                 // Tạo notification cho buyer
                 await CreateOrderStatusNotification(order, "Đơn hàng đã được xác nhận", 
-                    "Người bán đã xác nhận còn hàng và sẵn sàng giao dịch.", "ORDER_CONFIRMED");
+                    "Người bán đã xác nhận còn hàng và sẵn sàng giao dịch.", "ORDER_CONFIRMED", true);
 
                 return true;
             }
@@ -604,13 +623,13 @@ namespace LocalMartOnline.Services.Implement
 
                 // Cập nhật trạng thái
                 order.Status = OrderStatus.Paid;
-                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedAt = DateTime.Now;
 
                 await _orderRepo.UpdateAsync(order.Id!, order);
 
                 // Tạo notification cho buyer
                 await CreateOrderStatusNotification(order, "Đã xác nhận thanh toán", 
-                    "Người bán đã xác nhận nhận được tiền. Bạn có thể đến nhận hàng.", "PAYMENT_CONFIRMED");
+                    "Người bán đã xác nhận nhận được tiền. Bạn có thể đến nhận hàng.", "PAYMENT_CONFIRMED", true);
 
                 return true;
             }
@@ -620,18 +639,18 @@ namespace LocalMartOnline.Services.Implement
             }
         }
 
-        private async Task CreateOrderStatusNotification(Order order, string title, string message, string type)
+        private async Task CreateOrderStatusNotification(Order order, string title, string message, string type, bool isBuyer = true)
         {
             try
             {
                 var notification = new Notification
                 {
-                    UserId = order.BuyerId, // Gửi cho buyer
+                    UserId = isBuyer ? order.BuyerId : order.SellerId, // Gửi cho buyer hoặc seller
                     Title = title,
                     Message = $"Đơn hàng #{order.Id}: {message}",
                     Type = type,
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 await _notificationRepo.CreateAsync(notification);

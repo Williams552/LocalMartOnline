@@ -16,6 +16,6 @@ namespace LocalMartOnline.Models
         public string FeeId { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public MarketFeePaymentStatus PaymentStatus { get; set; } = MarketFeePaymentStatus.Pending;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

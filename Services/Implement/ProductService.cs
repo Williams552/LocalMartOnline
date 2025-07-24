@@ -46,8 +46,8 @@ namespace LocalMartOnline.Services.Implement
         {
             var product = _mapper.Map<Product>(dto);
             product.Status = ProductStatus.Active;
-            product.CreatedAt = DateTime.UtcNow;
-            product.UpdatedAt = DateTime.UtcNow;
+            product.CreatedAt = DateTime.Now;
+            product.UpdatedAt = DateTime.Now;
             await _productRepo.CreateAsync(product);
 
             // Store images
@@ -57,7 +57,7 @@ namespace LocalMartOnline.Services.Implement
                 {
                     ProductId = product.Id!,
                     ImageUrl = url,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
                 await _imageRepo.CreateAsync(img);
             }
@@ -74,7 +74,7 @@ namespace LocalMartOnline.Services.Implement
             if (product == null || product.Status == ProductStatus.Inactive) return false;
 
             _mapper.Map(dto, product);
-            product.UpdatedAt = DateTime.UtcNow;
+            product.UpdatedAt = DateTime.Now;
             await _productRepo.UpdateAsync(id, product);
 
             // Update images: remove old, add new
@@ -87,7 +87,7 @@ namespace LocalMartOnline.Services.Implement
                 {
                     ProductId = id,
                     ImageUrl = url,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
                 await _imageRepo.CreateAsync(img);
             }
@@ -102,7 +102,7 @@ namespace LocalMartOnline.Services.Implement
 
             // Chỉ toggle giữa Active và OutOfStock
             product.Status = enable ? ProductStatus.Active : ProductStatus.OutOfStock;
-            product.UpdatedAt = DateTime.UtcNow;
+            product.UpdatedAt = DateTime.Now;
             await _productRepo.UpdateAsync(id, product);
             return true;
         }
@@ -114,7 +114,7 @@ namespace LocalMartOnline.Services.Implement
             if (product == null) return false;
 
             product.Status = ProductStatus.Inactive;
-            product.UpdatedAt = DateTime.UtcNow;
+            product.UpdatedAt = DateTime.Now;
             await _productRepo.UpdateAsync(id, product);
             return true;
         }
@@ -211,7 +211,7 @@ namespace LocalMartOnline.Services.Implement
                 ImageUrl = dto.ImageUrl,
                 IsWatermarked = dto.IsWatermarked,
                 Timestamp = dto.Timestamp,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
             await _imageRepo.CreateAsync(image);
             return true;
