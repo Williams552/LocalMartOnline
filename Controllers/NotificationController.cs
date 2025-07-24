@@ -108,5 +108,35 @@ namespace LocalMartOnline.Controllers
             var count = await _notificationService.GetUnreadCountAsync(userId);
             return Ok(new { success = true, data = count });
         }
+
+        [HttpPatch("{notificationId}/mark-as-read")]
+        [Authorize]
+        public async Task<IActionResult> MarkAsRead(string notificationId)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { success = false, message = "Không xác định được user." });
+
+            if (string.IsNullOrEmpty(notificationId))
+                return BadRequest(new { success = false, message = "NotificationId là bắt buộc." });
+
+            var result = await _notificationService.MarkAsReadAsync(notificationId, userId);
+            if (!result)
+                return NotFound(new { success = false, message = "Không tìm thấy thông báo hoặc bạn không có quyền truy cập." });
+
+            return Ok(new { success = true, message = "Đã đánh dấu thông báo là đã đọc." });
+        }
+
+        [HttpPatch("mark-all-as-read")]
+        [Authorize]
+        public async Task<IActionResult> MarkAllAsRead()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { success = false, message = "Không xác định được user." });
+
+            var markedCount = await _notificationService.MarkAllAsReadAsync(userId);
+            return Ok(new { success = true, message = $"Đã đánh dấu {markedCount} thông báo là đã đọc.", data = markedCount });
+        }
     }
 }

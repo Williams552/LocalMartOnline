@@ -133,5 +133,52 @@ namespace LocalMartOnline.Services
             return unread.Count();
         }
 
+        public async Task<bool> MarkAsReadAsync(string notificationId, string userId)
+        {
+            try
+            {
+                // Tìm notification theo id và userId để đảm bảo user chỉ có thể đánh dấu notification của mình
+                var notification = await _notificationRepo.FindOneAsync(n => n.Id == notificationId && n.UserId == userId);
+                if (notification == null)
+                {
+                    return false; // Không tìm thấy notification hoặc không thuộc về user này
+                }
+
+                // Đánh dấu đã đọc
+                notification.IsRead = true;
+                await _notificationRepo.UpdateAsync(notification.Id, notification);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to mark notification as read: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<int> MarkAllAsReadAsync(string userId)
+        {
+            try
+            {
+                // Lấy tất cả notification chưa đọc của user
+                var unreadNotifications = await _notificationRepo.FindManyAsync(n => n.UserId == userId && !n.IsRead);
+                
+                int count = 0;
+                foreach (var notification in unreadNotifications)
+                {
+                    notification.IsRead = true;
+                    await _notificationRepo.UpdateAsync(notification.Id, notification);
+                    count++;
+                }
+                
+                return count;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to mark all notifications as read: {ex.Message}");
+                return 0;
+            }
+        }
+
     }
 }
