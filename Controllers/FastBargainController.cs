@@ -1,7 +1,9 @@
 using LocalMartOnline.Models.DTOs.FastBargain;
 using LocalMartOnline.Services.Interface;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace LocalMartOnline.Controllers
@@ -50,6 +52,28 @@ namespace LocalMartOnline.Controllers
         {
             var result = await _service.GetByUserIdAsync(userId);
             return Ok(result);
+        }
+
+        [HttpGet("my")]
+        [Authorize]
+        public async Task<IActionResult> GetMyBargains()
+        {
+            // Lấy userId từ JWT token
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { success = false, message = "Không xác định được user." });
+            }
+
+            // Lấy role từ JWT token
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (string.IsNullOrEmpty(userRole))
+            {
+                return Unauthorized(new { success = false, message = "Không xác định được role của user." });
+            }
+
+            var result = await _service.GetMyBargainsAsync(userId, userRole);
+            return Ok(new { success = true, data = result, userRole = userRole });
         }
 
         [HttpGet("admin")]

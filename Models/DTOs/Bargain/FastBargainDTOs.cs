@@ -34,6 +34,9 @@ namespace LocalMartOnline.Models.DTOs.FastBargain
         public string StoreName { get; set; } = string.Empty;
         public List<string> ProductImages { get; set; } = new();
         public List<FastBargainProposalDTO> Proposals { get; set; } = new();
+        public string BuyerId { get; set; } = string.Empty;
+        public string SellerId { get; set; } = string.Empty;
+        public string UserRole { get; set; } = string.Empty; // "Buyer" or "Seller" - role của user hiện tại trong bargain này
     }
 
     public class FastBargainActionRequestDTO

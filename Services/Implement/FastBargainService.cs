@@ -124,6 +124,30 @@ namespace LocalMartOnline.Services.Implement
             return bargains.Select(ToResponseDTO).ToList();
         }
 
+        public async Task<List<FastBargainResponseDTO>> GetMyBargainsAsync(string userId, string userRole)
+        {
+            IEnumerable<FastBargain> bargains;
+            
+            // Phân quyền theo role
+            if (userRole.Equals("Buyer", StringComparison.OrdinalIgnoreCase))
+            {
+                // Buyer chỉ thấy bargains mà họ là người mua
+                bargains = await _repository.FindManyAsync(b => b.BuyerId == userId);
+            }
+            else if (userRole.Equals("Seller", StringComparison.OrdinalIgnoreCase))
+            {
+                // Seller chỉ thấy bargains mà họ là người bán
+                bargains = await _repository.FindManyAsync(b => b.SellerId == userId);
+            }
+            else
+            {
+                // Các role khác (Admin, etc.) có thể thấy tất cả bargains của user
+                bargains = await _repository.FindManyAsync(b => b.BuyerId == userId || b.SellerId == userId);
+            }
+            
+            return bargains.Select(b => ToResponseDTO(b, userId, userRole)).ToList();
+        }
+
         public async Task<List<FastBargainResponseDTO>> GetAllPendingBargainsAsync()
         {
             var bargains = await _repository.GetAllAsync();
@@ -138,9 +162,26 @@ namespace LocalMartOnline.Services.Implement
 
         private FastBargainResponseDTO ToResponseDTO(FastBargain bargain)
         {
+            return ToResponseDTO(bargain, null, null);
+        }
+
+        private FastBargainResponseDTO ToResponseDTO(FastBargain bargain, string? currentUserId, string? currentUserRole)
+        {
             var product = _productRepository.GetByIdAsync(bargain.ProductId).GetAwaiter().GetResult();
             var productImages = _productImageRepository.FindManyAsync(img => img.ProductId == bargain.ProductId).GetAwaiter().GetResult();
             var imageUrls = productImages.Select(img => img.ImageUrl).ToList();
+            
+            // Xác định role của user hiện tại trong bargain này
+            string userRole = string.Empty;
+            if (!string.IsNullOrEmpty(currentUserId))
+            {
+                if (bargain.BuyerId == currentUserId)
+                    userRole = "Buyer";
+                else if (bargain.SellerId == currentUserId)
+                    userRole = "Seller";
+                else
+                    userRole = currentUserRole ?? string.Empty;
+            }
             
             // Get product unit name
             var productUnit = product?.UnitId != null ? 
@@ -169,6 +210,9 @@ namespace LocalMartOnline.Services.Implement
                 SellerName = seller?.FullName ?? string.Empty,
                 StoreName = store?.Name ?? string.Empty,
                 ProductImages = imageUrls,
+                BuyerId = bargain.BuyerId,
+                SellerId = bargain.SellerId,
+                UserRole = userRole,
                 Proposals = bargain.Proposals.Select(p => new FastBargainProposalDTO
                 {
                     BargainId = bargain.Id ?? string.Empty,
