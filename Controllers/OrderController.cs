@@ -83,6 +83,143 @@ namespace LocalMartOnline.Controllers
             return Ok(new { success = true, message = "Đơn hàng đã được xác thực thành công." });
         }
 
+        // Hủy đơn hàng
+        [HttpPost("{orderId}/cancel")]
+        [Authorize]
+        public async Task<IActionResult> CancelOrder(string orderId, [FromBody] OrderCancelDto cancelDto)
+        {
+            try
+            {
+                // Lấy userId từ token
+                var userId = User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new
+                    {
+                        Success = false,
+                        Message = "Không thể xác định người dùng"
+                    });
+                }
+
+                var result = await _service.CancelOrderAsync(orderId, userId, cancelDto);
+
+                if (result)
+                {
+                    return Ok(new
+                    {
+                        Success = true,
+                        Message = "Đơn hàng đã được hủy thành công",
+                        Data = new
+                        {
+                            OrderId = orderId,
+                            CancelReason = cancelDto.CancelReason,
+                            Status = "Cancelled",
+                            UpdatedAt = DateTime.UtcNow
+                        }
+                    });
+                }
+
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = "Không thể hủy đơn hàng"
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, new
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        // Seller xác nhận đơn hàng (Pending -> Confirmed)
+        [HttpPost("{orderId}/confirm")]
+        [Authorize(Roles = "Seller,Admin")]
+        public async Task<IActionResult> ConfirmOrder(string orderId)
+        {
+            try
+            {
+                var sellerId = User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                
+                if (string.IsNullOrEmpty(sellerId))
+                {
+                    return Unauthorized(new { Success = false, Message = "Không thể xác định người dùng" });
+                }
+
+                var result = await _service.ConfirmOrderAsync(orderId, sellerId);
+                
+                if (result)
+                {
+                    return Ok(new 
+                    { 
+                        Success = true, 
+                        Message = "Đã xác nhận đơn hàng thành công",
+                        Data = new { OrderId = orderId, Status = "Confirmed" }
+                    });
+                }
+
+                return BadRequest(new { Success = false, Message = "Không thể xác nhận đơn hàng" });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+        }
+
+        // Seller xác nhận đã nhận tiền (Confirmed -> Paid)
+        [HttpPost("{orderId}/mark-paid")]
+        [Authorize(Roles = "Seller,Admin")]
+        public async Task<IActionResult> MarkAsPaid(string orderId)
+        {
+            try
+            {
+                var sellerId = User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                
+                if (string.IsNullOrEmpty(sellerId))
+                {
+                    return Unauthorized(new { Success = false, Message = "Không thể xác định người dùng" });
+                }
+
+                var result = await _service.MarkAsPaidAsync(orderId, sellerId);
+                
+                if (result)
+                {
+                    return Ok(new 
+                    { 
+                        Success = true, 
+                        Message = "Đã xác nhận nhận tiền thành công",
+                        Data = new { OrderId = orderId, Status = "Paid" }
+                    });
+                }
+
+                return BadRequest(new { Success = false, Message = "Không thể xác nhận thanh toán" });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, new { Success = false, Message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
+        }
+
         // ...existing code...
 
         [HttpPost("place-orders-from-cart")]

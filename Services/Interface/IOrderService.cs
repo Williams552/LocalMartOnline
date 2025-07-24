@@ -14,5 +14,8 @@ namespace LocalMartOnline.Services.Interface
         Task<PagedResultDto<OrderDto>> GetOrderListBySellerAsync(string sellerId, int page, int pageSize);
         Task<PagedResultDto<OrderDto>> GetAllOrdersAsync(int page, int pageSize);
         Task<bool> CompleteOrderAsync(string orderId); // Xác thực đơn hàng thành công và tăng PurchaseCount
+        Task<bool> CancelOrderAsync(string orderId, string userId, OrderCancelDto cancelDto); // Hủy đơn hàng
+        Task<bool> ConfirmOrderAsync(string orderId, string sellerId); // Seller xác nhận còn hàng
+        Task<bool> MarkAsPaidAsync(string orderId, string sellerId); // Seller xác nhận đã nhận tiền
     }
 }

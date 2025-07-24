@@ -451,5 +451,195 @@ namespace LocalMartOnline.Services.Implement
                 Console.Error.WriteLine($"Failed to create notification for seller {sellerId}: {ex.Message}");
             }
         }
+
+        public async Task<bool> CancelOrderAsync(string orderId, string userId, OrderCancelDto cancelDto)
+        {
+            try
+            {
+                // Lấy thông tin đơn hàng
+                var order = await _orderRepo.GetByIdAsync(orderId);
+                if (order == null)
+                {
+                    throw new Exception("Đơn hàng không tồn tại");
+                }
+
+                // Kiểm tra quyền hủy đơn hàng (chỉ buyer hoặc seller)
+                if (order.BuyerId != userId && order.SellerId != userId)
+                {
+                    throw new UnauthorizedAccessException("Bạn không có quyền hủy đơn hàng này");
+                }
+
+                // Kiểm tra trạng thái đơn hàng (chỉ có thể hủy khi Pending hoặc Confirmed)
+                if (order.Status != OrderStatus.Pending && order.Status != OrderStatus.Confirmed)
+                {
+                    throw new Exception($"Không thể hủy đơn hàng ở trạng thái {order.Status}");
+                }
+
+                // Cập nhật trạng thái đơn hàng
+                order.Status = OrderStatus.Cancelled;
+                order.CancelReason = cancelDto.CancelReason;
+                order.UpdatedAt = DateTime.UtcNow;
+
+                await _orderRepo.UpdateAsync(order.Id!, order);
+
+                // Tạo notification cho bên còn lại
+                await CreateCancelOrderNotification(order, userId);
+
+                return true;
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task CreateCancelOrderNotification(Order order, string cancelledByUserId)
+        {
+            try
+            {
+                // Lấy thông tin người hủy
+                var cancelledByUser = await _userCollection.Find(u => u.Id == cancelledByUserId).FirstOrDefaultAsync();
+                var cancelledByName = cancelledByUser?.FullName ?? "Unknown";
+
+                // Lấy thông tin cửa hàng
+                var store = await _storeCollection.Find(s => s.SellerId == order.SellerId).FirstOrDefaultAsync();
+                var storeName = store?.Name ?? "Unknown Store";
+
+                string notificationMessage;
+                string notificationUserId;
+
+                if (cancelledByUserId == order.BuyerId)
+                {
+                    // Buyer hủy đơn -> thông báo cho seller
+                    notificationUserId = order.SellerId;
+                    notificationMessage = $"Đơn hàng #{order.Id} đã bị hủy bởi khách hàng {cancelledByName}. Lý do: {order.CancelReason}";
+                }
+                else
+                {
+                    // Seller hủy đơn -> thông báo cho buyer
+                    notificationUserId = order.BuyerId;
+                    notificationMessage = $"Đơn hàng #{order.Id} từ cửa hàng {storeName} đã bị hủy. Lý do: {order.CancelReason}";
+                }
+
+                var notification = new Notification
+                {
+                    UserId = notificationUserId,
+                    Title = "Đơn hàng đã bị hủy",
+                    Message = notificationMessage,
+                    Type = "ORDER_CANCELLED",
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _notificationRepo.CreateAsync(notification);
+            }
+            catch (Exception ex)
+            {
+                // Log error nhưng không throw để không ảnh hưởng đến việc hủy đơn hàng
+                Console.Error.WriteLine($"Failed to create cancel notification: {ex.Message}");
+            }
+        }
+
+        public async Task<bool> ConfirmOrderAsync(string orderId, string sellerId)
+        {
+            try
+            {
+                var order = await _orderRepo.GetByIdAsync(orderId);
+                if (order == null)
+                {
+                    throw new Exception("Đơn hàng không tồn tại");
+                }
+
+                // Kiểm tra quyền (chỉ seller của đơn hàng)
+                if (order.SellerId != sellerId)
+                {
+                    throw new UnauthorizedAccessException("Bạn không có quyền xác nhận đơn hàng này");
+                }
+
+                // Kiểm tra trạng thái (chỉ có thể confirm khi Pending)
+                if (order.Status != OrderStatus.Pending)
+                {
+                    throw new Exception($"Không thể xác nhận đơn hàng ở trạng thái {order.Status}");
+                }
+
+                // Cập nhật trạng thái
+                order.Status = OrderStatus.Confirmed;
+                order.UpdatedAt = DateTime.UtcNow;
+
+                await _orderRepo.UpdateAsync(order.Id!, order);
+
+                // Tạo notification cho buyer
+                await CreateOrderStatusNotification(order, "Đơn hàng đã được xác nhận", 
+                    "Người bán đã xác nhận còn hàng và sẵn sàng giao dịch.", "ORDER_CONFIRMED");
+
+                return true;
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        public async Task<bool> MarkAsPaidAsync(string orderId, string sellerId)
+        {
+            try
+            {
+                var order = await _orderRepo.GetByIdAsync(orderId);
+                if (order == null)
+                {
+                    throw new Exception("Đơn hàng không tồn tại");
+                }
+
+                // Kiểm tra quyền (chỉ seller của đơn hàng)
+                if (order.SellerId != sellerId)
+                {
+                    throw new UnauthorizedAccessException("Bạn không có quyền cập nhật đơn hàng này");
+                }
+
+                // Kiểm tra trạng thái (chỉ có thể mark paid khi Confirmed)
+                if (order.Status != OrderStatus.Confirmed)
+                {
+                    throw new Exception($"Không thể xác nhận thanh toán cho đơn hàng ở trạng thái {order.Status}");
+                }
+
+                // Cập nhật trạng thái
+                order.Status = OrderStatus.Paid;
+                order.UpdatedAt = DateTime.UtcNow;
+
+                await _orderRepo.UpdateAsync(order.Id!, order);
+
+                // Tạo notification cho buyer
+                await CreateOrderStatusNotification(order, "Đã xác nhận thanh toán", 
+                    "Người bán đã xác nhận nhận được tiền. Bạn có thể đến nhận hàng.", "PAYMENT_CONFIRMED");
+
+                return true;
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private async Task CreateOrderStatusNotification(Order order, string title, string message, string type)
+        {
+            try
+            {
+                var notification = new Notification
+                {
+                    UserId = order.BuyerId, // Gửi cho buyer
+                    Title = title,
+                    Message = $"Đơn hàng #{order.Id}: {message}",
+                    Type = type,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _notificationRepo.CreateAsync(notification);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to create status notification: {ex.Message}");
+            }
+        }
     }
 }
