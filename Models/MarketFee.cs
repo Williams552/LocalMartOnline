@@ -23,7 +23,7 @@ namespace LocalMartOnline.Models
         public string Description { get; set; } = string.Empty;
 
         [BsonElement("payment_day")]
-        public DateTime PaymentDay { get; set; }
+        public int PaymentDay { get; set; }
 
         [BsonElement("created_at")]
         public DateTime CreatedAt { get; set; }

@@ -1,4 +1,5 @@
 using AutoMapper;
+using MongoDB.Driver;
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs;
 using LocalMartOnline.Repositories;
@@ -13,23 +14,88 @@ namespace LocalMartOnline.Services.Implement
     public class MarketFeeService : IMarketFeeService
     {
         private readonly IRepository<MarketFee> _repo;
+        private readonly IRepository<Market> _marketRepo;
+        private readonly IMongoCollection<Market> _marketCollection;
+        private readonly IMongoCollection<MarketFee> _marketFeeCollection;
         private readonly IMapper _mapper;
-        public MarketFeeService(IRepository<MarketFee> repo, IMapper mapper)
+        public MarketFeeService(IRepository<MarketFee> repo, IRepository<Market> marketRepo, IMapper mapper, IMongoDatabase database)
         {
             _repo = repo;
+            _marketRepo = marketRepo;
             _mapper = mapper;
+            _marketCollection = database.GetCollection<Market>("Markets");
+            _marketFeeCollection = database.GetCollection<MarketFee>("MarketFees");
         }
 
-        public async Task<IEnumerable<MarketFeeDto>> GetAllAsync()
+        public async Task<IEnumerable<MarketFeeDto>> GetAllAsync(GetMarketFeeRequestDto request)
         {
-            var fees = await _repo.GetAllAsync();
-            return _mapper.Map<IEnumerable<MarketFeeDto>>(fees);
+            var filterBuilder = Builders<MarketFee>.Filter;
+            var filter = filterBuilder.Empty;
+
+            // Filter by MarketId if provided
+            if (!string.IsNullOrEmpty(request.MarketFeeId))
+            {
+                filter = filterBuilder.And(filter, 
+                    filterBuilder.Eq(mr => mr.MarketId, request.MarketFeeId));
+            }
+
+            // Filter by search keyword if provided
+            if (!string.IsNullOrEmpty(request.SearchKeyword))
+            {
+                filter = filterBuilder.And(filter, 
+                    filterBuilder.Or(
+                        filterBuilder.Regex(mr => mr.Name, 
+                            new MongoDB.Bson.BsonRegularExpression(request.SearchKeyword, "i")),
+                        filterBuilder.Regex(mr => mr.Description, 
+                            new MongoDB.Bson.BsonRegularExpression(request.SearchKeyword, "i"))
+                    ));
+            }
+
+            var totalCount = await _marketFeeCollection.CountDocumentsAsync(filter);
+
+            var marketFees = await _marketFeeCollection
+                .Find(filter)
+                .Sort(Builders<MarketFee>.Sort.Descending(mf => mf.CreatedAt))
+                .ToListAsync();
+
+            // Get market information for each fee
+            var marketIds = marketFees.Select(mf => mf.MarketId).Distinct().ToList();
+            var markets = await _marketCollection
+                .Find(Builders<Market>.Filter.In(m => m.Id, marketIds))
+                .ToListAsync();
+            
+            var marketDict = markets.ToDictionary(m => m.Id!, m => m.Name);
+
+            var marketFeeDtos = marketFees.Select(mf => new MarketFeeDto
+            {
+                Id = mf.Id!,
+                MarketId = mf.MarketId,
+                MarketName = marketDict.GetValueOrDefault(mf.MarketId, "Unknown Market"),
+                Name = mf.Name,
+                Amount = mf.Amount,
+                Description = mf.Description,
+                PaymentDay = mf.PaymentDay,
+                CreatedAt = mf.CreatedAt
+            }).ToList();
+
+            return marketFeeDtos;
         }
 
         public async Task<MarketFeeDto?> GetByIdAsync(string id)
         {
             var fee = await _repo.GetByIdAsync(id);
-            return fee == null ? null : _mapper.Map<MarketFeeDto>(fee);
+            if (fee == null) return null;
+            
+            var feeDto = _mapper.Map<MarketFeeDto>(fee);
+            
+            // Get market name
+            var market = await _marketRepo.GetByIdAsync(fee.MarketId);
+            if (market != null)
+            {
+                feeDto.MarketName = market.Name;
+            }
+            
+            return feeDto;
         }
 
         public async Task<MarketFeeDto> CreateAsync(MarketFeeCreateDto dto)
@@ -38,7 +104,17 @@ namespace LocalMartOnline.Services.Implement
             fee.CreatedAt = DateTime.UtcNow;
             fee.UpdatedAt = DateTime.UtcNow;
             await _repo.CreateAsync(fee);
-            return _mapper.Map<MarketFeeDto>(fee);
+            
+            var feeDto = _mapper.Map<MarketFeeDto>(fee);
+            
+            // Get market name
+            var market = await _marketRepo.GetByIdAsync(fee.MarketId);
+            if (market != null)
+            {
+                feeDto.MarketName = market.Name;
+            }
+            
+            return feeDto;
         }
 
         public async Task<MarketFeeDto> CreateAsync(MarketFeeDto dto)
@@ -48,7 +124,17 @@ namespace LocalMartOnline.Services.Implement
             fee.CreatedAt = DateTime.UtcNow;
             fee.UpdatedAt = DateTime.UtcNow;
             await _repo.CreateAsync(fee);
-            return _mapper.Map<MarketFeeDto>(fee);
+            
+            var feeDto = _mapper.Map<MarketFeeDto>(fee);
+            
+            // Get market name
+            var market = await _marketRepo.GetByIdAsync(fee.MarketId);
+            if (market != null)
+            {
+                feeDto.MarketName = market.Name;
+            }
+            
+            return feeDto;
         }
 
         public async Task<bool> UpdateAsync(string id, MarketFeeUpdateDto dto)
@@ -59,7 +145,6 @@ namespace LocalMartOnline.Services.Implement
             if (dto.Amount != null) fee.Amount = dto.Amount.Value;
             if (dto.Description != null) fee.Description = dto.Description;
             if (dto.PaymentDay != null) fee.PaymentDay = dto.PaymentDay.Value;
-            fee.UpdatedAt = DateTime.UtcNow;
             await _repo.UpdateAsync(id, fee);
             return true;
         }
