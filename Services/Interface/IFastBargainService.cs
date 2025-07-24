@@ -12,5 +12,7 @@ namespace LocalMartOnline.Services.Interface
         Task<FastBargainResponseDTO> TakeActionAsync(FastBargainActionRequestDTO request);
         Task<FastBargainResponseDTO?> GetByIdAsync(string bargainId);
         Task<List<FastBargainResponseDTO>> GetByUserIdAsync(string userId);
+        Task<List<FastBargainResponseDTO>> GetAllPendingBargainsAsync();
+        Task<List<FastBargainResponseDTO>> GetPendingBargainsBySellerIdAsync(string sellerId);
     }
 }

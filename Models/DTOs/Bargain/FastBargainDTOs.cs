@@ -7,6 +7,7 @@ namespace LocalMartOnline.Models.DTOs.FastBargain
     {
         public string ProductId { get; set; } = string.Empty;
         public string BuyerId { get; set; } = string.Empty;
+        public string SellerId { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public decimal InitialOfferPrice { get; set; }
     }
@@ -26,6 +27,7 @@ namespace LocalMartOnline.Models.DTOs.FastBargain
         public decimal? FinalPrice { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public decimal? OriginalPrice { get; set; }
+        public List<string> ProductImages { get; set; } = new();
         public List<FastBargainProposalDTO> Proposals { get; set; } = new();
     }
 

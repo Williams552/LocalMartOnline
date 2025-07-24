@@ -51,5 +51,21 @@ namespace LocalMartOnline.Controllers
             var result = await _service.GetByUserIdAsync(userId);
             return Ok(result);
         }
+
+        [HttpGet("admin")]
+        public async Task<IActionResult> GetAllPendingBargains()
+        {
+            // For admin - get all pending bargains
+            var result = await _service.GetAllPendingBargainsAsync();
+            return Ok(result);
+        }
+
+        [HttpGet("seller/{sellerId}")]
+        public async Task<IActionResult> GetPendingBargainsBySellerId(string sellerId)
+        {
+            // For seller - get all pending bargains for specific seller
+            var result = await _service.GetPendingBargainsBySellerIdAsync(sellerId);
+            return Ok(result);
+        }
     }
 }

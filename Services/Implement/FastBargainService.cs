@@ -13,22 +13,27 @@ namespace LocalMartOnline.Services.Implement
     {
         private readonly IRepository<FastBargain> _repository;
         private readonly IRepository<Product> _productRepository;
+        private readonly IRepository<ProductImage> _productImageRepository;
+        
 
-        public FastBargainService(IRepository<FastBargain> repository, IRepository<Product> productRepository)
+        public FastBargainService(IRepository<FastBargain> repository, IRepository<Product> productRepository, IRepository<ProductImage> productImageRepository)
         {
             _repository = repository;
             _productRepository = productRepository;
+            _productImageRepository = productImageRepository;
         }
 
         public async Task<FastBargainResponseDTO> StartBargainAsync(FastBargainCreateRequestDTO request)
         {
-            // TODO: Validate product, check inventory, check for existing active bargain, etc.
+            var product = await _productRepository.GetByIdAsync(request.ProductId);
+            if (product == null)
+                throw new Exception("Product not found");
+                
             var bargain = new FastBargain
             {
-                // Id = null, để MongoDB tự sinh ObjectId
                 ProductId = request.ProductId,
                 BuyerId = request.BuyerId,
-                // SellerId: get from product
+                SellerId = product.StoreId, // Get sellerId from product's StoreId
                 Status = FastBargainStatus.Pending,
                 CreatedAt = DateTime.Now,
                 Proposals = new List<FastBargainProposal>
@@ -42,7 +47,6 @@ namespace LocalMartOnline.Services.Implement
                     }
                 },
                 ProposalCount = 1,
-                // ExpiresAt: set timeout
             };
             await _repository.CreateAsync(bargain);
             return ToResponseDTO(bargain);
@@ -53,7 +57,6 @@ namespace LocalMartOnline.Services.Implement
             var bargain = await _repository.GetByIdAsync(proposal.BargainId);
             if (bargain == null || bargain.Status != FastBargainStatus.Pending)
                 throw new Exception("Bargain not found or not active");
-            // TODO: Check proposal limit, race condition, etc.
             bargain.Proposals.Add(new FastBargainProposal
             {
                 Id = Guid.NewGuid().ToString(),
@@ -62,7 +65,7 @@ namespace LocalMartOnline.Services.Implement
                 ProposedAt = DateTime.Now
             });
             bargain.ProposalCount++;
-            await _repository.UpdateAsync(bargain.Id, bargain);
+            await _repository.UpdateAsync(bargain.Id ?? string.Empty, bargain);
             return ToResponseDTO(bargain);
         }
 
@@ -93,8 +96,7 @@ namespace LocalMartOnline.Services.Implement
                 });
                 bargain.ProposalCount++;
             }
-            // TODO: Notification, timeout, abuse check, etc.
-            await _repository.UpdateAsync(bargain.Id, bargain);
+            await _repository.UpdateAsync(bargain.Id ?? string.Empty, bargain);
             return ToResponseDTO(bargain);
         }
 
@@ -106,24 +108,39 @@ namespace LocalMartOnline.Services.Implement
 
         public async Task<List<FastBargainResponseDTO>> GetByUserIdAsync(string userId)
         {
-            var bargains = await _repository.FindManyAsync(b => b.BuyerId == userId || b.SellerId == userId);
+            var bargains = await _repository.FindManyAsync(b => b.BuyerId == userId);
+            return bargains.Select(ToResponseDTO).ToList();
+        }
+
+        public async Task<List<FastBargainResponseDTO>> GetAllPendingBargainsAsync()
+        {
+            var bargains = await _repository.GetAllAsync();
+            return bargains.Select(ToResponseDTO).ToList();
+        }
+
+        public async Task<List<FastBargainResponseDTO>> GetPendingBargainsBySellerIdAsync(string sellerId)
+        {
+            var bargains = await _repository.FindManyAsync(b => b.SellerId == sellerId);
             return bargains.Select(ToResponseDTO).ToList();
         }
 
         private FastBargainResponseDTO ToResponseDTO(FastBargain bargain)
         {
-            // Synchronously get product info (for async, refactor all usages to async)
             var product = _productRepository.GetByIdAsync(bargain.ProductId).GetAwaiter().GetResult();
+            var productImages = _productImageRepository.FindManyAsync(img => img.ProductId == bargain.ProductId).GetAwaiter().GetResult();
+            var imageUrls = productImages.Select(img => img.ImageUrl).ToList();
+            
             return new FastBargainResponseDTO
             {
-                BargainId = bargain.Id,
+                BargainId = bargain.Id ?? string.Empty,
                 Status = bargain.Status.ToString(),
                 FinalPrice = bargain.FinalPrice,
                 ProductName = product?.Name ?? string.Empty,
                 OriginalPrice = product?.Price,
+                ProductImages = imageUrls,
                 Proposals = bargain.Proposals.Select(p => new FastBargainProposalDTO
                 {
-                    BargainId = bargain.Id,
+                    BargainId = bargain.Id ?? string.Empty,
                     UserId = p.UserId,
                     ProposedPrice = p.ProposedPrice,
                     ProposedAt = p.ProposedAt
