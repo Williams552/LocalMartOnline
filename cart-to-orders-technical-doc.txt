@@ -353,6 +353,7 @@ Content-Type: application/json
 #### POST /api/order/{orderId}/confirm
 **Description:** Seller xác nhận còn hàng (Pending → Confirmed)
 **Authorization:** Seller, Admin
+**Notification:** Gửi thông báo cho Buyer
 **Response:**
 ```json
 {
@@ -365,6 +366,7 @@ Content-Type: application/json
 #### POST /api/order/{orderId}/mark-paid  
 **Description:** Seller xác nhận đã nhận tiền (Confirmed → Paid)
 **Authorization:** Seller, Admin
+**Notification:** Gửi thông báo cho Buyer
 **Response:**
 ```json
 {
@@ -377,6 +379,7 @@ Content-Type: application/json
 #### POST /api/order/{orderId}/complete
 **Description:** Buyer xác nhận đã nhận hàng (Paid → Completed) 
 **Authorization:** Buyer, Admin
+**Notification:** Gửi thông báo cho Seller
 **Response:**
 ```json
 {
@@ -384,6 +387,42 @@ Content-Type: application/json
   "message": "Đơn hàng đã được xác thực thành công"
 }
 ```
+
+#### POST /api/order/{orderId}/cancel
+**Description:** Hủy đơn hàng với lý do
+**Authorization:** Buyer, Seller
+**Notification:** Gửi thông báo cho bên còn lại
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Đơn hàng đã được hủy thành công",
+  "data": { "orderId": "...", "status": "Cancelled", "cancelReason": "..." }
+}
+```
+
+## Notification Types và Messages
+
+### 1. ORDER_CONFIRMED (Seller → Buyer)
+- **Title:** "Đơn hàng đã được xác nhận"
+- **Message:** "Đơn hàng #{orderId}: Người bán đã xác nhận còn hàng và sẵn sàng giao dịch."
+
+### 2. PAYMENT_CONFIRMED (Seller → Buyer)
+- **Title:** "Đã xác nhận thanh toán"
+- **Message:** "Đơn hàng #{orderId}: Người bán đã xác nhận nhận được tiền. Bạn có thể đến nhận hàng."
+
+### 3. ORDER_COMPLETED (Buyer → Seller)
+- **Title:** "Đơn hàng đã hoàn thành"
+- **Message:** "Đơn hàng #{orderId}: Khách hàng đã xác nhận nhận hàng thành công. Giao dịch hoàn tất."
+
+### 4. ORDER_CANCELLED (Buyer ↔ Seller)
+- **Title:** "Đơn hàng đã bị hủy"
+- **Message (Buyer→Seller):** "Đơn hàng #{orderId} đã bị hủy bởi khách hàng {buyerName}. Lý do: {cancelReason}"
+- **Message (Seller→Buyer):** "Đơn hàng #{orderId} từ cửa hàng {storeName} đã bị hủy. Lý do: {cancelReason}"
+
+### 5. NEW_ORDER (System → Seller)
+- **Title:** "Đơn hàng mới"
+- **Message:** "Bạn có đơn hàng mới từ {buyerName} tại cửa hàng {storeName}. Giá trị: {totalAmount}đ. Mã đơn: #{orderId}"
 
 ### Frontend Usage:
 ```javascript
