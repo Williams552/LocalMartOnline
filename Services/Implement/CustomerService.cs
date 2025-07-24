@@ -39,7 +39,7 @@ namespace LocalMartOnline.Services
             var productIds = sellerProducts.Select(p => p.Id).ToList();
 
             // Date range filter
-            var fromDate = DateTime.UtcNow.AddDays(-request.DaysRange);
+            var fromDate = DateTime.Now.AddDays(-request.DaysRange);
 
             // Get orders containing seller's products
             var orderItems = await _orderItemCollection
@@ -102,8 +102,8 @@ namespace LocalMartOnline.Services
 
                 if (user == null) continue;
 
-                var daysSinceFirstOrder = (DateTime.UtcNow - stats.FirstOrderDate).Days;
-                var daysSinceLastOrder = (DateTime.UtcNow - stats.LastOrderDate).Days;
+                var daysSinceFirstOrder = (DateTime.Now - stats.FirstOrderDate).Days;
+                var daysSinceLastOrder = (DateTime.Now - stats.LastOrderDate).Days;
                 var loyaltyScore = CalculateLoyaltyScore(stats.TotalOrders, stats.TotalSpent, daysSinceFirstOrder, daysSinceLastOrder);
 
                 customerDtos.Add(new LoyalCustomerDto

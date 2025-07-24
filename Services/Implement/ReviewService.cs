@@ -46,8 +46,8 @@ namespace LocalMartOnline.Services
                 TargetId = createReviewDto.TargetId,
                 Rating = createReviewDto.Rating,
                 Comment = createReviewDto.Comment,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
             };
 
             await _reviewCollection.InsertOneAsync(review);
@@ -69,7 +69,7 @@ namespace LocalMartOnline.Services
             var update = Builders<Review>.Update
                 .Set(r => r.Rating, updateReviewDto.Rating)
                 .Set(r => r.Comment, updateReviewDto.Comment)
-                .Set(r => r.UpdatedAt, DateTime.UtcNow);
+                .Set(r => r.UpdatedAt, DateTime.Now);
 
             var result = await _reviewCollection.FindOneAndUpdateAsync(
                 filter, 

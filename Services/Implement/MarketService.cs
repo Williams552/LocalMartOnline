@@ -27,8 +27,8 @@ public class MarketService : IMarketService
     {
         var market = _mapper.Map<Market>(dto);
         market.Status = "Active";
-        market.CreatedAt = DateTime.UtcNow;
-        market.UpdatedAt = DateTime.UtcNow;
+        market.CreatedAt = DateTime.Now;
+        market.UpdatedAt = DateTime.Now;
         await _marketRepo.CreateAsync(market);
         var dtoResult = _mapper.Map<MarketDto>(market);
         dtoResult.StallCount = 0;
@@ -62,7 +62,7 @@ public class MarketService : IMarketService
         var market = await _marketRepo.GetByIdAsync(id);
         if (market == null) return false;
         _mapper.Map(dto, market);
-        market.UpdatedAt = DateTime.UtcNow;
+        market.UpdatedAt = DateTime.Now;
         await _marketRepo.UpdateAsync(id, market);
         return true;
     }
@@ -127,7 +127,7 @@ public class MarketService : IMarketService
 
         // Toggle trạng thái từ Active <-> Suspended
         market.Status = market.Status == "Active" ? "Suspended" : "Active";
-        market.UpdatedAt = DateTime.UtcNow;
+        market.UpdatedAt = DateTime.Now;
         await _marketRepo.UpdateAsync(id, market);
         return true;
     }

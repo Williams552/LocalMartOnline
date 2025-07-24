@@ -114,8 +114,8 @@ namespace LocalMartOnline.Services
                 MarketId = createMarketRuleDto.MarketId,
                 RuleName = createMarketRuleDto.RuleName,
                 Description = createMarketRuleDto.Description,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
             };
 
             await _marketRuleCollection.InsertOneAsync(marketRule);
@@ -129,7 +129,7 @@ namespace LocalMartOnline.Services
             var update = Builders<MarketRule>.Update
                 .Set(mr => mr.RuleName, updateMarketRuleDto.RuleName)
                 .Set(mr => mr.Description, updateMarketRuleDto.Description)
-                .Set(mr => mr.UpdatedAt, DateTime.UtcNow);
+                .Set(mr => mr.UpdatedAt, DateTime.Now);
 
             var result = await _marketRuleCollection.UpdateOneAsync(filter, update);
 

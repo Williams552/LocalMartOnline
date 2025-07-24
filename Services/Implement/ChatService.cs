@@ -25,7 +25,7 @@ namespace LocalMartOnline.Services.Implement
                 SenderId = senderId,
                 ReceiverId = request.ReceiverId,
                 Message = request.Message,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
 
             await _chatCollection.InsertOneAsync(chat);

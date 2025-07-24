@@ -101,8 +101,8 @@ namespace LocalMartOnline.Services.Implement
         public async Task<MarketFeeDto> CreateAsync(MarketFeeCreateDto dto)
         {
             var fee = _mapper.Map<MarketFee>(dto);
-            fee.CreatedAt = DateTime.UtcNow;
-            fee.UpdatedAt = DateTime.UtcNow;
+            fee.CreatedAt = DateTime.Now;
+            fee.UpdatedAt = DateTime.Now;
             await _repo.CreateAsync(fee);
             
             var feeDto = _mapper.Map<MarketFeeDto>(fee);
@@ -121,8 +121,8 @@ namespace LocalMartOnline.Services.Implement
         {
             // Map từ MarketFeeDto sang MarketFee entity
             var fee = _mapper.Map<MarketFee>(dto);
-            fee.CreatedAt = DateTime.UtcNow;
-            fee.UpdatedAt = DateTime.UtcNow;
+            fee.CreatedAt = DateTime.Now;
+            fee.UpdatedAt = DateTime.Now;
             await _repo.CreateAsync(fee);
             
             var feeDto = _mapper.Map<MarketFeeDto>(fee);

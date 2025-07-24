@@ -30,7 +30,7 @@ namespace LocalMartOnline.Services.Implement
                 BuyerId = request.BuyerId,
                 // SellerId: get from product
                 Status = FastBargainStatus.Pending,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
                 Proposals = new List<FastBargainProposal>
                 {
                     new FastBargainProposal
@@ -38,7 +38,7 @@ namespace LocalMartOnline.Services.Implement
                         Id = Guid.NewGuid().ToString(),
                         UserId = request.BuyerId,
                         ProposedPrice = request.InitialOfferPrice,
-                        ProposedAt = DateTime.UtcNow
+                        ProposedAt = DateTime.Now
                     }
                 },
                 ProposalCount = 1,
@@ -59,7 +59,7 @@ namespace LocalMartOnline.Services.Implement
                 Id = Guid.NewGuid().ToString(),
                 UserId = proposal.UserId,
                 ProposedPrice = proposal.ProposedPrice,
-                ProposedAt = DateTime.UtcNow
+                ProposedAt = DateTime.Now
             });
             bargain.ProposalCount++;
             await _repository.UpdateAsync(bargain.Id, bargain);
@@ -74,13 +74,13 @@ namespace LocalMartOnline.Services.Implement
             if (request.Action == "Accept")
             {
                 bargain.Status = FastBargainStatus.Accepted;
-                bargain.ClosedAt = DateTime.UtcNow;
+                bargain.ClosedAt = DateTime.Now;
                 bargain.FinalPrice = bargain.Proposals.LastOrDefault()?.ProposedPrice;
             }
             else if (request.Action == "Reject")
             {
                 bargain.Status = FastBargainStatus.Rejected;
-                bargain.ClosedAt = DateTime.UtcNow;
+                bargain.ClosedAt = DateTime.Now;
             }
             else if (request.Action == "Counter" && request.CounterPrice.HasValue)
             {
@@ -89,7 +89,7 @@ namespace LocalMartOnline.Services.Implement
                     Id = Guid.NewGuid().ToString(),
                     UserId = request.UserId,
                     ProposedPrice = request.CounterPrice.Value,
-                    ProposedAt = DateTime.UtcNow
+                    ProposedAt = DateTime.Now
                 });
                 bargain.ProposalCount++;
             }

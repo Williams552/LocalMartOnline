@@ -37,7 +37,7 @@ namespace LocalMartOnline.Services.Implement
             var policy = await _policyRepo.GetByIdAsync(id);
             if (policy == null) return false;
             _mapper.Map(dto, policy);
-            policy.UpdatedAt = DateTime.UtcNow;
+            policy.UpdatedAt = DateTime.Now;
             await _policyRepo.UpdateAsync(id, policy);
             return true;
         }

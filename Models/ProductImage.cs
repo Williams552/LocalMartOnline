@@ -21,10 +21,10 @@ namespace LocalMartOnline.Models
 
         [BsonElement("timestamp")]
         [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; set; } = DateTime.Now;
 
         [BsonElement("created_at")]
         [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

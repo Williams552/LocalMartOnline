@@ -43,7 +43,7 @@ namespace LocalMartOnline.Models.DTOs
         public DateTime? LicenseExpiryDate { get; set; }
 
         public string? RejectionReason { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
     }
 }

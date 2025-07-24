@@ -42,8 +42,8 @@ namespace LocalMartOnline.Services.Implement
             var registration = _mapper.Map<ProxyShopperRegistration>(dto);
             registration.UserId = userId!;
             registration.Status = "Pending";
-            registration.CreatedAt = DateTime.UtcNow;
-            registration.UpdatedAt = DateTime.UtcNow;
+            registration.CreatedAt = DateTime.Now;
+            registration.UpdatedAt = DateTime.Now;
             await _proxyRepo.CreateAsync(registration);
         }
 
@@ -90,7 +90,7 @@ namespace LocalMartOnline.Services.Implement
             if (reg == null) return false;
             reg.Status = dto.Approve ? "Approved" : "Rejected";
             reg.RejectionReason = dto.Approve ? null : dto.RejectionReason;
-            reg.UpdatedAt = DateTime.UtcNow;
+            reg.UpdatedAt = DateTime.Now;
             await _proxyRepo.UpdateAsync(reg.Id!, reg);
             return true;
         }
@@ -108,7 +108,7 @@ namespace LocalMartOnline.Services.Implement
             if (order == null || order.Status != "Pending") return false;
             order.ProxyShopperId = proxyShopperId;
             order.Status = "Accepted";
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
         }
@@ -121,7 +121,7 @@ namespace LocalMartOnline.Services.Implement
             order.TotalAmount = proposal.TotalAmount;
             order.ProxyFee = proposal.ProxyFee;
             order.Notes = proposal.Note;
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.Now;
             // Nếu cần lưu chi tiết sản phẩm, có thể mở rộng model
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
@@ -132,7 +132,7 @@ namespace LocalMartOnline.Services.Implement
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.ProxyShopperId == proxyShopperId);
             if (order == null || order.Status != "Accepted") return false;
             order.Status = "Confirmed";
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
         }
@@ -143,7 +143,7 @@ namespace LocalMartOnline.Services.Implement
             if (order == null || order.Status != "Confirmed") return false;
             // Nếu cần lưu ảnh, có thể mở rộng model
             order.Notes = note;
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
         }
@@ -153,7 +153,7 @@ namespace LocalMartOnline.Services.Implement
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
             if (order == null) return false;
             order.TotalAmount = finalPrice;
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
         }
@@ -165,7 +165,7 @@ namespace LocalMartOnline.Services.Implement
 
             // Cập nhật trạng thái đơn hàng
             order.Status = "Completed";
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
 
             // Tăng PurchaseCount cho các sản phẩm trong đơn hàng proxy shopping
@@ -203,7 +203,7 @@ namespace LocalMartOnline.Services.Implement
                 // Thay thế sản phẩm
                 order.Items[idx] = replacementItem;
             }
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
         }
@@ -285,7 +285,7 @@ namespace LocalMartOnline.Services.Implement
 
             order.Status = "Cancelled";
             order.Notes = $"Hủy bởi ProxyShopper: {reason}";
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
         }

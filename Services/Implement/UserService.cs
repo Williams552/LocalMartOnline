@@ -32,8 +32,8 @@ namespace LocalMartOnline.Services
                 throw new System.Exception("Email already exists");
 
             var user = _mapper.Map<User>(userDto);
-            user.CreatedAt = DateTime.UtcNow;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.CreatedAt = DateTime.Now;
+            user.UpdatedAt = DateTime.Now;
             user.PasswordHash = PasswordHashService.HashPassword(userDto.Password); // Hash password từ DTO
             user.IsEmailVerified = true;
 
@@ -74,7 +74,7 @@ namespace LocalMartOnline.Services
                 currentUser.PasswordHash = PasswordHashService.HashPassword(tempPassword);
             }
 
-            currentUser.UpdatedAt = DateTime.UtcNow;
+            currentUser.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(id, currentUser);
         }
         public Task DeleteAsync(string id) => _userRepo.DeleteAsync(id);
@@ -139,7 +139,7 @@ namespace LocalMartOnline.Services
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return false;
             user.PreferredLanguage = language;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(userId, user);
             return true;
         }
@@ -149,7 +149,7 @@ namespace LocalMartOnline.Services
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return false;
             user.PreferredTheme = theme;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(userId, user);
             return true;
         }
@@ -171,7 +171,7 @@ namespace LocalMartOnline.Services
             var user = await _userRepo.GetByIdAsync(id);
             if (user == null) return false;
             user.Status = user.Status == "Active" ? "Disabled" : "Active";
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(id, user);
             return true;
         }
@@ -181,7 +181,7 @@ namespace LocalMartOnline.Services
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return false;
             user.Status = "Disabled";
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(userId, user);
             return true;
         }

@@ -13,6 +13,6 @@ namespace LocalMartOnline.Models.DTOs.ProxyShopping
         public decimal ProxyFee { get; set; }
         public decimal TotalAmount => TotalProductPrice + ProxyFee;
         public string? Note { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

@@ -42,8 +42,8 @@ namespace LocalMartOnline.Services
                 cart = new Cart 
                 { 
                     UserId = userId,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
                 };
                 await _cartCollection.InsertOneAsync(cart);
             }
@@ -185,7 +185,7 @@ namespace LocalMartOnline.Services
 
                     var update = Builders<CartItem>.Update
                         .Set(ci => ci.Quantity, newQuantity)
-                        .Set(ci => ci.UpdatedAt, DateTime.UtcNow);
+                        .Set(ci => ci.UpdatedAt, DateTime.Now);
 
                     await _cartItemCollection.UpdateOneAsync(cartItemFilter, update);
                 }
@@ -197,8 +197,8 @@ namespace LocalMartOnline.Services
                         CartId = cart.Id!,
                         ProductId = productId,
                         Quantity = quantity,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now
                     };
                     await _cartItemCollection.InsertOneAsync(cartItem);
                 }
@@ -261,7 +261,7 @@ namespace LocalMartOnline.Services
                 // Update cart item quantity
                 var update = Builders<CartItem>.Update
                     .Set(ci => ci.Quantity, newQuantity)
-                    .Set(ci => ci.UpdatedAt, DateTime.UtcNow);
+                    .Set(ci => ci.UpdatedAt, DateTime.Now);
 
                 await _cartItemCollection.UpdateOneAsync(cartItemFilter, update);
 

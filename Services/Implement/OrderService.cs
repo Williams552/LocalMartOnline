@@ -55,8 +55,8 @@ namespace LocalMartOnline.Services.Implement
                 Status = OrderStatus.Pending,
                 PaymentStatus = PaymentStatus.Pending,
                 Notes = dto.Notes,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
             };
 
             // Tính tổng tiền
@@ -280,7 +280,7 @@ namespace LocalMartOnline.Services.Implement
 
             // Cập nhật trạng thái đơn hàng
             order.Status = OrderStatus.Completed;
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
 
             // Tăng PurchaseCount cho các sản phẩm trong đơn hàng
@@ -400,8 +400,8 @@ namespace LocalMartOnline.Services.Implement
                     Status = OrderStatus.Pending,
                     PaymentStatus = PaymentStatus.Pending,
                     Notes = dto.Notes,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
                 };
 
                 // Tính tổng tiền cho đơn hàng này
@@ -459,7 +459,7 @@ namespace LocalMartOnline.Services.Implement
                     Message = $"Bạn có đơn hàng mới từ {buyerName} tại cửa hàng {storeName}. Giá trị: {order.TotalAmount:N0}đ. Mã đơn: #{order.Id}",
                     Type = "NEW_ORDER",
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 await _notificationRepo.CreateAsync(notification);
@@ -497,7 +497,7 @@ namespace LocalMartOnline.Services.Implement
                 // Cập nhật trạng thái đơn hàng
                 order.Status = OrderStatus.Cancelled;
                 order.CancelReason = cancelDto.CancelReason;
-                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedAt = DateTime.Now;
 
                 await _orderRepo.UpdateAsync(order.Id!, order);
 
@@ -547,7 +547,7 @@ namespace LocalMartOnline.Services.Implement
                     Message = notificationMessage,
                     Type = "ORDER_CANCELLED",
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 await _notificationRepo.CreateAsync(notification);
@@ -583,7 +583,7 @@ namespace LocalMartOnline.Services.Implement
 
                 // Cập nhật trạng thái
                 order.Status = OrderStatus.Confirmed;
-                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedAt = DateTime.Now;
 
                 await _orderRepo.UpdateAsync(order.Id!, order);
 
@@ -623,7 +623,7 @@ namespace LocalMartOnline.Services.Implement
 
                 // Cập nhật trạng thái
                 order.Status = OrderStatus.Paid;
-                order.UpdatedAt = DateTime.UtcNow;
+                order.UpdatedAt = DateTime.Now;
 
                 await _orderRepo.UpdateAsync(order.Id!, order);
 
@@ -650,7 +650,7 @@ namespace LocalMartOnline.Services.Implement
                     Message = $"Đơn hàng #{order.Id}: {message}",
                     Type = type,
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 await _notificationRepo.CreateAsync(notification);

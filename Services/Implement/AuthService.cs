@@ -52,7 +52,7 @@ namespace LocalMartOnline.Services
                     if (isValidToken)
                     {
                         user.UserToken = token;
-                        user.UpdatedAt = DateTime.UtcNow;
+                        user.UpdatedAt = DateTime.Now;
                         await _userRepo.UpdateAsync(user.Id!, user);
                     }
                     // else: ignore invalid token, do not update
@@ -77,7 +77,7 @@ namespace LocalMartOnline.Services
                 return "Email already exists";
 
             var otpToken = Guid.NewGuid().ToString();
-            var otpExpiry = DateTime.UtcNow.AddHours(24);
+            var otpExpiry = DateTime.Now.AddHours(24);
             var newUser = new User
             {
                 Username = registerDto.Username,
@@ -91,8 +91,8 @@ namespace LocalMartOnline.Services
                 IsEmailVerified = false,
                 OTPToken = otpToken,
                 OTPExpiry = otpExpiry,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
                 UserToken = registerDto.UserToken // Lưu userToken khi đăng ký
             };
             await _userRepo.CreateAsync(newUser);
@@ -108,12 +108,12 @@ namespace LocalMartOnline.Services
 
         public async Task<bool> VerifyEmailAsync(string token)
         {
-            var user = await _userRepo.FindOneAsync(u => u.OTPToken == token && u.OTPExpiry != null && u.OTPExpiry > DateTime.UtcNow);
+            var user = await _userRepo.FindOneAsync(u => u.OTPToken == token && u.OTPExpiry != null && u.OTPExpiry > DateTime.Now);
             if (user == null) return false;
             user.IsEmailVerified = true;
             user.OTPToken = null;
             user.OTPExpiry = null;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(user.Id!, user);
             return true;
         }
@@ -123,10 +123,10 @@ namespace LocalMartOnline.Services
             var user = await _userRepo.FindOneAsync(u => u.Email == email);
             if (user == null) return;
             var otpToken = Guid.NewGuid().ToString();
-            var otpExpiry = DateTime.UtcNow.AddHours(1); // OTP hết hạn sau 1h
+            var otpExpiry = DateTime.Now.AddHours(1); // OTP hết hạn sau 1h
             user.OTPToken = otpToken;
             user.OTPExpiry = otpExpiry;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(user.Id!, user);
             var resetUrl = baseUrl + "/api/Auth/reset-password?token=" + otpToken;
             var subject = "Đặt lại mật khẩu LocalMartOnline";
@@ -136,12 +136,12 @@ namespace LocalMartOnline.Services
 
         public async Task<bool> ResetPasswordAsync(string token, string newPassword)
         {
-            var user = await _userRepo.FindOneAsync(u => u.OTPToken == token && u.OTPExpiry != null && u.OTPExpiry > DateTime.UtcNow);
+            var user = await _userRepo.FindOneAsync(u => u.OTPToken == token && u.OTPExpiry != null && u.OTPExpiry > DateTime.Now);
             if (user == null) return false;
             user.PasswordHash = PasswordHashService.HashPassword(newPassword);
             user.OTPToken = null;
             user.OTPExpiry = null;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(user.Id!, user);
             return true;
         }
@@ -152,7 +152,7 @@ namespace LocalMartOnline.Services
             if (user == null) return false;
             if (!PasswordHashService.VerifyPassword(currentPassword, user.PasswordHash)) return false;
             user.PasswordHash = PasswordHashService.HashPassword(newPassword);
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(user.Id!, user);
             return true;
         }
@@ -195,8 +195,8 @@ namespace LocalMartOnline.Services
             }
             var otp = otpInt.ToString();
             user.OTPToken = otp;
-            user.OTPExpiry = DateTime.UtcNow.AddMinutes(5);
-            user.UpdatedAt = DateTime.UtcNow;
+            user.OTPExpiry = DateTime.Now.AddMinutes(5);
+            user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(user.Id!, user);
             var subject = "Mã xác thực 2 bước LocalMartOnline";
             var body = $"<p>Mã xác thực 2 bước của bạn là: <b>{otp}</b>. Mã có hiệu lực trong 5 phút.</p>";
@@ -217,14 +217,14 @@ namespace LocalMartOnline.Services
                 _logger.LogWarning("2FA verification failed: invalid OTP for Email: {Email}", email);
                 return false;
             }
-            if (user.OTPExpiry == null || user.OTPExpiry < DateTime.UtcNow)
+            if (user.OTPExpiry == null || user.OTPExpiry < DateTime.Now)
             {
                 _logger.LogWarning("2FA verification failed: OTP expired for Email: {Email}", email);
                 return false;
             }
             user.OTPToken = null;
             user.OTPExpiry = null;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(user.Id!, user);
             _logger.LogInformation("2FA verification succeeded for UserId: {UserId}", user.Id);
             return true;

@@ -75,8 +75,8 @@ namespace LocalMartOnline.Services
                 Subject = createDto.Subject,
                 Description = createDto.Description,
                 Status = SupportRequestStatus.Open.ToString(),
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
             };
 
             await _supportRequests.InsertOneAsync(supportRequest);
@@ -89,7 +89,7 @@ namespace LocalMartOnline.Services
             var update = Builders<SupportRequest>.Update
                 .Set(sr => sr.Response, responseDto.Response)
                 .Set(sr => sr.Status, responseDto.Status)
-                .Set(sr => sr.UpdatedAt, DateTime.UtcNow);
+                .Set(sr => sr.UpdatedAt, DateTime.Now);
 
             var result = await _supportRequests.UpdateOneAsync(filter, update);
             return result.ModifiedCount > 0;
@@ -100,7 +100,7 @@ namespace LocalMartOnline.Services
             var filter = Builders<SupportRequest>.Filter.Eq(sr => sr.Id, id);
             var update = Builders<SupportRequest>.Update
                 .Set(sr => sr.Status, status)
-                .Set(sr => sr.UpdatedAt, DateTime.UtcNow);
+                .Set(sr => sr.UpdatedAt, DateTime.Now);
 
             var result = await _supportRequests.UpdateOneAsync(filter, update);
             return result.ModifiedCount > 0;

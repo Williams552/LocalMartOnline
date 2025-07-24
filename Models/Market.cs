@@ -35,9 +35,9 @@ namespace LocalMartOnline.Models
         public string Status { get; set; } = "Active"; // Active, Suspended
 
         [BsonElement("created_at")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         [BsonElement("updated_at")]
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.Now;
     }
 }

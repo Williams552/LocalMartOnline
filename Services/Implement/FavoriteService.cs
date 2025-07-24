@@ -66,7 +66,7 @@ namespace LocalMartOnline.Services
                 {
                     UserId = userId,
                     ProductId = productId,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.Now
                 };
 
                 await _favoriteRepo.CreateAsync(favorite);

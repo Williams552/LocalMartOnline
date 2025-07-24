@@ -36,7 +36,7 @@ namespace LocalMartOnline.Services.Implement
         {
             var payment = _mapper.Map<MarketFeePayment>(dto);
             payment.PaymentStatus = MarketFeePaymentStatus.Pending;
-            payment.CreatedAt = DateTime.UtcNow;
+            payment.CreatedAt = DateTime.Now;
             await _repo.CreateAsync(payment);
             return _mapper.Map<MarketFeePaymentDto>(payment);
         }

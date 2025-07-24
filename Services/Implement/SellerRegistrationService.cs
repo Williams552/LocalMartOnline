@@ -29,8 +29,8 @@ namespace LocalMartOnline.Services.Implement
             var registration = _mapper.Map<SellerRegistration>(dto);
             registration.UserId = userId;
             registration.Status = "Pending";
-            registration.CreatedAt = DateTime.UtcNow;
-            registration.UpdatedAt = DateTime.UtcNow;
+            registration.CreatedAt = DateTime.Now;
+            registration.UpdatedAt = DateTime.Now;
             await _sellerRepo.CreateAsync(registration);
             return true;
         }
@@ -92,7 +92,7 @@ namespace LocalMartOnline.Services.Implement
 
             reg.Status = dto.Approve ? "Approved" : "Rejected";
             reg.RejectionReason = dto.Approve ? null : dto.RejectionReason;
-            reg.UpdatedAt = DateTime.UtcNow;
+            reg.UpdatedAt = DateTime.Now;
             
             // Chỉ cập nhật license dates khi approve
             if (dto.Approve)
@@ -110,8 +110,8 @@ namespace LocalMartOnline.Services.Implement
                     Address = reg.StoreAddress,
                     MarketId = reg.MarketId,
                     SellerId = reg.UserId,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now,
                     Status = "Active"
                 };
                 await _storeRepo.CreateAsync(store);

@@ -115,7 +115,7 @@ namespace LocalMartOnline.Controllers
                             OrderId = orderId,
                             CancelReason = cancelDto.CancelReason,
                             Status = "Cancelled",
-                            UpdatedAt = DateTime.UtcNow
+                            UpdatedAt = DateTime.Now
                         }
                     });
                 }

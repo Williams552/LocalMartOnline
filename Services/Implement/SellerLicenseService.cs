@@ -57,8 +57,8 @@ namespace LocalMartOnline.Services
                 ExpiryDate = createLicenseDto.ExpiryDate,
                 IssuingAuthority = createLicenseDto.IssuingAuthority,
                 Status = "Pending",
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
             };
 
             await _licenseCollection.InsertOneAsync(license);
@@ -94,11 +94,11 @@ namespace LocalMartOnline.Services
             {
                 if (request.IsExpired.Value)
                 {
-                    filter = filterBuilder.And(filter, filterBuilder.Lt(l => l.ExpiryDate, DateTime.UtcNow));
+                    filter = filterBuilder.And(filter, filterBuilder.Lt(l => l.ExpiryDate, DateTime.Now));
                 }
                 else
                 {
-                    filter = filterBuilder.And(filter, filterBuilder.Gte(l => l.ExpiryDate, DateTime.UtcNow));
+                    filter = filterBuilder.And(filter, filterBuilder.Gte(l => l.ExpiryDate, DateTime.Now));
                 }
             }
 
@@ -207,7 +207,7 @@ namespace LocalMartOnline.Services
                 .Set(l => l.IssueDate, updateLicenseDto.IssueDate)
                 .Set(l => l.ExpiryDate, updateLicenseDto.ExpiryDate)
                 .Set(l => l.IssuingAuthority, updateLicenseDto.IssuingAuthority)
-                .Set(l => l.UpdatedAt, DateTime.UtcNow);
+                .Set(l => l.UpdatedAt, DateTime.Now);
 
             var result = await _licenseCollection.UpdateOneAsync(filter, update);
 
@@ -257,7 +257,7 @@ namespace LocalMartOnline.Services
             var update = Builders<SellerLicenses>.Update
                 .Set(l => l.Status, reviewDto.Status)
                 .Set(l => l.RejectionReason, reviewDto.RejectionReason)
-                .Set(l => l.UpdatedAt, DateTime.UtcNow);
+                .Set(l => l.UpdatedAt, DateTime.Now);
 
             var result = await _licenseCollection.UpdateOneAsync(filter, update);
 
@@ -275,12 +275,12 @@ namespace LocalMartOnline.Services
             var rejectedLicenses = await _licenseCollection.CountDocumentsAsync(Builders<SellerLicenses>.Filter.Eq(l => l.Status, "Rejected"));
 
             var expiredLicenses = await _licenseCollection.CountDocumentsAsync(
-                Builders<SellerLicenses>.Filter.Lt(l => l.ExpiryDate, DateTime.UtcNow));
+                Builders<SellerLicenses>.Filter.Lt(l => l.ExpiryDate, DateTime.Now));
 
             var expiringLicenses = await _licenseCollection.CountDocumentsAsync(
                 Builders<SellerLicenses>.Filter.And(
-                    Builders<SellerLicenses>.Filter.Gte(l => l.ExpiryDate, DateTime.UtcNow),
-                    Builders<SellerLicenses>.Filter.Lte(l => l.ExpiryDate, DateTime.UtcNow.AddDays(30))
+                    Builders<SellerLicenses>.Filter.Gte(l => l.ExpiryDate, DateTime.Now),
+                    Builders<SellerLicenses>.Filter.Lte(l => l.ExpiryDate, DateTime.Now.AddDays(30))
                 ));
 
             // Get licenses by type
