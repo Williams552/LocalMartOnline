@@ -174,18 +174,6 @@ namespace LocalMartOnline.Services.Implement
                     userRole = currentUserRole ?? string.Empty;
             }
             
-            // Xác định role của user hiện tại trong bargain này
-            string userRole = string.Empty;
-            if (!string.IsNullOrEmpty(currentUserId))
-            {
-                if (bargain.BuyerId == currentUserId)
-                    userRole = "Buyer";
-                else if (bargain.SellerId == currentUserId)
-                    userRole = "Seller";
-                else
-                    userRole = currentUserRole ?? string.Empty;
-            }
-            
             // Get product unit name
             var productUnit = product?.UnitId != null ? 
                 _productUnitRepository.GetByIdAsync(product.UnitId).GetAwaiter().GetResult() : 
