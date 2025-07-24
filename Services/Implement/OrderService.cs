@@ -267,10 +267,16 @@ namespace LocalMartOnline.Services.Implement
         }
 
         // Xác thực đơn hàng thành công và tăng PurchaseCount
-        public async Task<bool> CompleteOrderAsync(string orderId)
+        public async Task<bool> CompleteOrderAsync(string orderId, string buyerId)
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
             if (order == null || order.Status == OrderStatus.Completed) return false;
+
+            // Kiểm tra quyền (chỉ buyer của đơn hàng mới có thể complete)
+            if (order.BuyerId != buyerId)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền hoàn thành đơn hàng này");
+            }
 
             // Kiểm tra trạng thái (chỉ có thể complete khi Paid)
             if (order.Status != OrderStatus.Paid)

@@ -73,14 +73,33 @@ namespace LocalMartOnline.Controllers
 
         // Xác thực đơn hàng thành công
         [HttpPost("{orderId}/complete")]
-        [Authorize(Roles = "Seller,Admin")]
+        [Authorize] // Chỉ cần đăng nhập, buyer sẽ complete order
         public async Task<ActionResult> CompleteOrder(string orderId)
         {
-            var result = await _service.CompleteOrderAsync(orderId);
-            if (!result)
-                return BadRequest(new { success = false, message = "Không thể xác thực đơn hàng hoặc đơn hàng đã hoàn thành." });
+            try
+            {
+                // Lấy userId từ token để kiểm tra quyền
+                var userId = User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized(new { success = false, message = "Không thể xác định người dùng" });
+                }
 
-            return Ok(new { success = true, message = "Đơn hàng đã được xác thực thành công." });
+                var result = await _service.CompleteOrderAsync(orderId, userId);
+                if (!result)
+                    return BadRequest(new { success = false, message = "Không thể xác thực đơn hàng hoặc đơn hàng đã hoàn thành." });
+
+                return Ok(new { success = true, message = "Đơn hàng đã được xác thực thành công." });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
         }
 
         // Hủy đơn hàng
