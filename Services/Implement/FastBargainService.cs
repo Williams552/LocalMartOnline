@@ -14,13 +14,15 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<FastBargain> _repository;
         private readonly IRepository<Product> _productRepository;
         private readonly IRepository<ProductImage> _productImageRepository;
+        private readonly IRepository<ProductUnit> _productUnitRepository;
         
 
-        public FastBargainService(IRepository<FastBargain> repository, IRepository<Product> productRepository, IRepository<ProductImage> productImageRepository)
+        public FastBargainService(IRepository<FastBargain> repository, IRepository<Product> productRepository, IRepository<ProductImage> productImageRepository, IRepository<ProductUnit> productUnitRepository)
         {
             _repository = repository;
             _productRepository = productRepository;
             _productImageRepository = productImageRepository;
+            _productUnitRepository = productUnitRepository;
         }
 
         public async Task<FastBargainResponseDTO> StartBargainAsync(FastBargainCreateRequestDTO request)
@@ -34,6 +36,7 @@ namespace LocalMartOnline.Services.Implement
                 ProductId = request.ProductId,
                 BuyerId = request.BuyerId,
                 SellerId = product.StoreId, // Get sellerId from product's StoreId
+                Quantity = request.Quantity,
                 Status = FastBargainStatus.Pending,
                 CreatedAt = DateTime.Now,
                 Proposals = new List<FastBargainProposal>
@@ -130,6 +133,11 @@ namespace LocalMartOnline.Services.Implement
             var productImages = _productImageRepository.FindManyAsync(img => img.ProductId == bargain.ProductId).GetAwaiter().GetResult();
             var imageUrls = productImages.Select(img => img.ImageUrl).ToList();
             
+            // Get product unit name
+            var productUnit = product?.UnitId != null ? 
+                _productUnitRepository.GetByIdAsync(product.UnitId).GetAwaiter().GetResult() : 
+                null;
+            
             return new FastBargainResponseDTO
             {
                 BargainId = bargain.Id ?? string.Empty,
@@ -137,6 +145,8 @@ namespace LocalMartOnline.Services.Implement
                 FinalPrice = bargain.FinalPrice,
                 ProductName = product?.Name ?? string.Empty,
                 OriginalPrice = product?.Price,
+                Quantity = bargain.Quantity,
+                ProductUnitName = productUnit?.Name ?? string.Empty,
                 ProductImages = imageUrls,
                 Proposals = bargain.Proposals.Select(p => new FastBargainProposalDTO
                 {

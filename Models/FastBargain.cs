@@ -40,6 +40,9 @@ namespace LocalMartOnline.Models
         [BsonElement("seller_id")]
         public string SellerId { get; set; } = string.Empty;
 
+        [BsonElement("quantity")]
+        public int Quantity { get; set; }
+
         [BsonElement("proposals")]
         public List<FastBargainProposal> Proposals { get; set; } = new List<FastBargainProposal>();
 
