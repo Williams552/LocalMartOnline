@@ -2,6 +2,7 @@ using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.FastBargain;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Services.Interface;
+using LocalMartOnline.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,9 +18,10 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<ProductUnit> _productUnitRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<Store> _storeRepository;
+        private readonly ICartService _cartService;
         
 
-        public FastBargainService(IRepository<FastBargain> repository, IRepository<Product> productRepository, IRepository<ProductImage> productImageRepository, IRepository<ProductUnit> productUnitRepository, IRepository<User> userRepository, IRepository<Store> storeRepository)
+        public FastBargainService(IRepository<FastBargain> repository, IRepository<Product> productRepository, IRepository<ProductImage> productImageRepository, IRepository<ProductUnit> productUnitRepository, IRepository<User> userRepository, IRepository<Store> storeRepository, ICartService cartService)
         {
             _repository = repository;
             _productRepository = productRepository;
@@ -27,6 +29,7 @@ namespace LocalMartOnline.Services.Implement
             _productUnitRepository = productUnitRepository;
             _userRepository = userRepository;
             _storeRepository = storeRepository;
+            _cartService = cartService;
         }
 
         public async Task<FastBargainResponseDTO> StartBargainAsync(FastBargainCreateRequestDTO request)
@@ -46,16 +49,18 @@ namespace LocalMartOnline.Services.Implement
                 BuyerId = request.BuyerId,
                 SellerId = store.SellerId, // Get sellerId from store's SellerId
                 Quantity = request.Quantity,
+                Note = request.Note,
                 Status = FastBargainStatus.Pending,
-                CreatedAt = DateTime.Now,
+                CreatedAt = request.CreatedAt,
                 Proposals = new List<FastBargainProposal>
                 {
                     new FastBargainProposal
                     {
                         Id = Guid.NewGuid().ToString(),
                         UserId = request.BuyerId,
+                        Note = request.Note,
                         ProposedPrice = request.InitialOfferPrice,
-                        ProposedAt = DateTime.Now
+                        ProposedAt = request.CreatedAt
                     }
                 },
                 ProposalCount = 1,
@@ -73,6 +78,7 @@ namespace LocalMartOnline.Services.Implement
             {
                 Id = Guid.NewGuid().ToString(),
                 UserId = proposal.UserId,
+                Note = proposal.Note,
                 ProposedPrice = proposal.ProposedPrice,
                 ProposedAt = DateTime.Now
             });
@@ -91,6 +97,9 @@ namespace LocalMartOnline.Services.Implement
                 bargain.Status = FastBargainStatus.Accepted;
                 bargain.ClosedAt = DateTime.Now;
                 bargain.FinalPrice = bargain.Proposals.LastOrDefault()?.ProposedPrice;
+                
+                // Tự động thêm sản phẩm vào giỏ hàng của người mua khi seller chấp nhận
+                await AddToCartAfterAcceptAsync(bargain);
             }
             else if (request.Action == "Reject")
             {
@@ -103,6 +112,7 @@ namespace LocalMartOnline.Services.Implement
                 {
                     Id = Guid.NewGuid().ToString(),
                     UserId = request.UserId,
+                    Note = request.Note,
                     ProposedPrice = request.CounterPrice.Value,
                     ProposedAt = DateTime.Now
                 });
@@ -160,6 +170,36 @@ namespace LocalMartOnline.Services.Implement
             return bargains.Select(ToResponseDTO).ToList();
         }
 
+        private async Task AddToCartAfterAcceptAsync(FastBargain bargain)
+        {
+            try
+            {
+                // Thêm sản phẩm vào giỏ hàng của người mua với số lượng và giá từ bargain
+                var success = await _cartService.AddBargainToCartAsync(
+                    bargain.BuyerId, 
+                    bargain.ProductId, 
+                    bargain.Quantity,
+                    bargain.FinalPrice ?? 0, // Giá thương lượng cuối cùng
+                    bargain.Id ?? string.Empty // ID của bargain
+                );
+                
+                if (!success)
+                {
+                    // Log error hoặc xử lý lỗi nếu không thể thêm vào giỏ hàng
+                    // Có thể throw exception hoặc log warning tùy theo yêu cầu business
+                    throw new Exception("Failed to add bargain product to cart after acceptance");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log exception nhưng không throw để không ảnh hưởng đến việc accept bargain
+                // Có thể gửi notification cho user về việc cần thêm sản phẩm vào giỏ hàng manually
+                Console.WriteLine($"Error adding bargain product to cart after acceptance: {ex.Message}");
+                // Tùy theo requirement có thể throw hoặc không
+                // throw new Exception($"Bargain accepted but failed to add to cart: {ex.Message}");
+            }
+        }
+
         private FastBargainResponseDTO ToResponseDTO(FastBargain bargain)
         {
             return ToResponseDTO(bargain, null, null);
@@ -209,14 +249,17 @@ namespace LocalMartOnline.Services.Implement
                 BuyerName = buyer?.FullName ?? string.Empty,
                 SellerName = seller?.FullName ?? string.Empty,
                 StoreName = store?.Name ?? string.Empty,
+                CreatedAt = bargain.CreatedAt,
                 ProductImages = imageUrls,
                 BuyerId = bargain.BuyerId,
                 SellerId = bargain.SellerId,
                 UserRole = userRole,
+                Note = bargain.Note,
                 Proposals = bargain.Proposals.Select(p => new FastBargainProposalDTO
                 {
                     BargainId = bargain.Id ?? string.Empty,
                     UserId = p.UserId,
+                    Note = p.Note,
                     ProposedPrice = p.ProposedPrice,
                     ProposedAt = p.ProposedAt
                 }).ToList()

@@ -12,6 +12,9 @@ namespace LocalMartOnline.Models.DTOs.Cart
         public DateTime UpdatedAt { get; set; }
         public ProductInCartDto Product { get; set; } = new ProductInCartDto();
         public decimal SubTotal { get; set; }
+        public decimal? BargainPrice { get; set; } // Giá thương lượng nếu có
+        public string? BargainId { get; set; } // ID của bargain nếu sản phẩm từ thương lượng
+        public bool IsBargainProduct { get; set; } // True nếu sản phẩm đến từ bargain
     }
 
     public class ProductInCartDto

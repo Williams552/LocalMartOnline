@@ -19,6 +19,8 @@ namespace LocalMartOnline.Models
         public string Id { get; set; } = string.Empty;
         [BsonElement("user_id")]
         public string UserId { get; set; } = string.Empty;
+        [BsonElement("note")]
+        public string Note { get; set; } = string.Empty;
         [BsonElement("proposed_price")]
         public decimal ProposedPrice { get; set; }
         [BsonElement("proposed_at")]
@@ -42,6 +44,9 @@ namespace LocalMartOnline.Models
 
         [BsonElement("quantity")]
         public int Quantity { get; set; }
+
+        [BsonElement("note")]
+        public string Note { get; set; } = string.Empty;
 
         [BsonElement("proposals")]
         public List<FastBargainProposal> Proposals { get; set; } = new List<FastBargainProposal>();
