@@ -383,14 +383,22 @@ namespace LocalMartOnline.Services.Implement
         // FOR BUYERS - Search products in store (ONLY ACTIVE)
         public async Task<PagedResultDto<ProductDto>> SearchProductsInStoreAsync(string storeId, string keyword, int page, int pageSize)
         {
+            // Get all products from the store first, then filter in memory
             var products = await _productRepo.FindManyAsync(p =>
                 p.StoreId == storeId &&
-                p.Status == ProductStatus.Active && // Chỉ lấy Active products
-                (p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) || p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                p.Status == ProductStatus.Active
             );
-            var total = products.Count();
-            var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
+
+            // Filter by keyword in memory (case-insensitive)
+            var filtered = products.Where(p =>
+                p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+
+            var total = filtered.Count();
+            var paged = filtered.Skip((page - 1) * pageSize).Take(pageSize);
             var items = await MapProductDtosWithImages(paged);
+
             return new PagedResultDto<ProductDto>
             {
                 Items = items,
@@ -477,7 +485,6 @@ namespace LocalMartOnline.Services.Implement
             };
         }
 
-        // FOR BUYERS - Search products in market (ONLY ACTIVE) 
         public async Task<PagedResultDto<ProductDto>> SearchProductsInMarketAsync(string marketId, string keyword, int page, int pageSize)
         {
             var stores = await _storeRepo.FindManyAsync(s => s.MarketId == marketId && s.Status == "Open");
@@ -491,15 +498,21 @@ namespace LocalMartOnline.Services.Implement
                 };
 
             var storeIds = stores.Select(s => s.Id).ToList();
+
+            // Get all products from the stores first, then filter in memory
             var products = await _productRepo.FindManyAsync(p =>
                 storeIds.Contains(p.StoreId) &&
-                p.Status == ProductStatus.Active && // Chỉ lấy Active products
-                (p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                 p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                p.Status == ProductStatus.Active
             );
 
-            var total = products.Count();
-            var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
+            // Filter by keyword in memory (case-insensitive)
+            var filtered = products.Where(p =>
+                p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+
+            var total = filtered.Count();
+            var paged = filtered.Skip((page - 1) * pageSize).Take(pageSize);
             var items = await MapProductDtosWithImages(paged);
 
             return new PagedResultDto<ProductDto>
@@ -537,15 +550,20 @@ namespace LocalMartOnline.Services.Implement
         // FOR SELLERS - Search products (Active + OutOfStock)
         public async Task<PagedResultDto<ProductDto>> SearchProductsForSellerAsync(string storeId, string keyword, int page, int pageSize)
         {
+            // Get all products from the store first, then filter in memory
             var products = await _productRepo.FindManyAsync(p =>
                 p.StoreId == storeId &&
-                (p.Status == ProductStatus.Active || p.Status == ProductStatus.OutOfStock) &&
-                (p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                 p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                (p.Status == ProductStatus.Active || p.Status == ProductStatus.OutOfStock)
             );
 
-            var total = products.Count();
-            var paged = products.Skip((page - 1) * pageSize).Take(pageSize);
+            // Filter by keyword in memory (case-insensitive)
+            var filtered = products.Where(p =>
+                p.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+
+            var total = filtered.Count();
+            var paged = filtered.Skip((page - 1) * pageSize).Take(pageSize);
             var items = await MapProductDtosWithImages(paged);
 
             return new PagedResultDto<ProductDto>
