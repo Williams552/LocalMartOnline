@@ -15,42 +15,52 @@ namespace LocalMartOnline.Services
         private readonly IRepository<Product> _productRepository;
         private readonly IRepository<Category> _categoryRepository;
         private readonly IRepository<Store> _storeRepository;
+        private readonly IRepository<OrderItem> _orderItemRepository;
 
         public SellerAnalyticsService(
             IRepository<Order> orderRepository,
             IRepository<Product> productRepository,
             IRepository<Category> categoryRepository,
-            IRepository<Store> storeRepository)
+            IRepository<Store> storeRepository,
+            IRepository<OrderItem> orderItemRepository)
         {
             _orderRepository = orderRepository;
             _productRepository = productRepository;
             _categoryRepository = categoryRepository;
             _storeRepository = storeRepository;
+            _orderItemRepository = orderItemRepository;
+        }
+
+        private DateTime GetPeriodStart(string period)
+        {
+            if (string.IsNullOrEmpty(period)) return DateTime.MinValue;
+            if (period.EndsWith("d") && int.TryParse(period.TrimEnd('d'), out int days))
+                return DateTime.UtcNow.AddDays(-days);
+            if (period.EndsWith("m") && int.TryParse(period.TrimEnd('m'), out int months))
+                return DateTime.UtcNow.AddMonths(-months);
+            return DateTime.MinValue;
         }
 
         Task<RevenueAnalyticsDto> ISellerAnalyticsService.GetRevenueAsync(string sellerId, string period)
-        {
-            return GetRevenueAsync(sellerId, period);
-        }
+            => GetRevenueAsync(sellerId, period);
 
         Task<OrderAnalyticsDto> ISellerAnalyticsService.GetOrderStatsAsync(string sellerId, string period)
-        {
-            return GetOrderStatsAsync(sellerId, period);
-        }
+            => GetOrderStatsAsync(sellerId, period);
 
         Task<List<CategoryAnalyticsDto>> ISellerAnalyticsService.GetCategoryStatsAsync(string sellerId, string period)
-        {
-            return GetCategoryStatsAsync(sellerId, period);
-        }
+            => GetCategoryStatsAsync(sellerId, period);
 
         Task<List<ProductAnalyticsDto>> ISellerAnalyticsService.GetProductStatsAsync(string sellerId, string period)
-        {
-            return GetProductStatsAsync(sellerId, period);
-        }
+            => GetProductStatsAsync(sellerId, period);
 
         public async Task<RevenueAnalyticsDto> GetRevenueAsync(string sellerId, string period)
         {
-            var orders = await _orderRepository.FindManyAsync(o => o.SellerId == sellerId && o.Status == Models.OrderStatus.Completed);
+            var periodStart = GetPeriodStart(period);
+            var orders = await _orderRepository.FindManyAsync(o =>
+                o.SellerId == sellerId &&
+                o.Status == Models.OrderStatus.Completed &&
+                o.CreatedAt >= periodStart
+            );
             var orderList = orders.ToList();
             decimal totalRevenue = orderList.Sum(o => o.TotalAmount);
             int orderCount = orderList.Count;
@@ -64,7 +74,11 @@ namespace LocalMartOnline.Services
 
         public async Task<OrderAnalyticsDto> GetOrderStatsAsync(string sellerId, string period)
         {
-            var orders = await _orderRepository.FindManyAsync(o => o.SellerId == sellerId);
+            var periodStart = GetPeriodStart(period);
+            var orders = await _orderRepository.FindManyAsync(o =>
+                o.SellerId == sellerId &&
+                o.CreatedAt >= periodStart
+            );
             var orderList = orders.ToList();
             int totalOrders = orderList.Count;
             int completedOrders = orderList.Count(o => o.Status == Models.OrderStatus.Completed);
@@ -80,24 +94,44 @@ namespace LocalMartOnline.Services
 
         public async Task<List<CategoryAnalyticsDto>> GetCategoryStatsAsync(string sellerId, string period)
         {
+            var periodStart = GetPeriodStart(period);
             var stores = (await _storeRepository.FindManyAsync(s => s.SellerId == sellerId)).ToList();
             var storeIds = stores.Select(s => s.Id).ToHashSet();
             var products = (await _productRepository.GetAllAsync()).Where(p => storeIds.Contains(p.StoreId)).ToList();
+            var productIds = products.Select(p => p.Id).ToHashSet();
             var categories = (await _categoryRepository.GetAllAsync()).ToList();
-            var orders = (await _orderRepository.FindManyAsync(o => o.SellerId == sellerId && o.Status == Models.OrderStatus.Completed)).ToList();
 
-            // NOTE: Order does not have Items property, so revenue per category cannot be calculated without order items
+            // Lấy các order item thuộc các sản phẩm của seller, trong các đơn hàng hoàn thành, trong khoảng thời gian
+            var orderItems = (await _orderItemRepository.FindManyAsync(oi =>
+                productIds.Contains(oi.ProductId) &&
+                oi.PriceAtPurchase > 0 // Đảm bảo có giá
+            )).ToList();
+
+            // Lấy các order hoàn thành trong period
+            var completedOrderIds = (await _orderRepository.FindManyAsync(o =>
+                o.SellerId == sellerId &&
+                o.Status == Models.OrderStatus.Completed &&
+                o.CreatedAt >= periodStart
+            )).Select(o => o.Id).ToHashSet();
+
+            // Lọc orderItems theo các order hoàn thành
+            var filteredOrderItems = orderItems.Where(oi => completedOrderIds.Contains(oi.OrderId)).ToList();
+
             var categoryStats = products
                 .GroupBy(p => p.CategoryId)
                 .Select(g =>
                 {
                     var category = categories.FirstOrDefault(c => c.Id == g.Key);
+                    var productIdsInCategory = g.Select(p => p.Id).ToHashSet();
+                    var revenue = filteredOrderItems
+                        .Where(oi => productIdsInCategory.Contains(oi.ProductId))
+                        .Sum(oi => oi.Quantity * oi.PriceAtPurchase);
                     return new CategoryAnalyticsDto
                     {
                         CategoryId = g.Key,
                         CategoryName = category?.Name ?? "Unknown",
                         ProductCount = g.Count(),
-                        Revenue = 0 // Cannot calculate without order items
+                        Revenue = revenue
                     };
                 })
                 .ToList();
@@ -106,6 +140,7 @@ namespace LocalMartOnline.Services
 
         public async Task<List<ProductAnalyticsDto>> GetProductStatsAsync(string sellerId, string period)
         {
+            var periodStart = GetPeriodStart(period);
             var stores = (await _storeRepository.FindManyAsync(s => s.SellerId == sellerId)).ToList();
             var storeIds = stores.Select(s => s.Id).ToHashSet();
             var products = (await _productRepository.GetAllAsync()).Where(p => storeIds.Contains(p.StoreId)).ToList();

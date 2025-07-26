@@ -1,0 +1,24 @@
+# SellerAnalyticsController & SellerAnalyticsService - Technical Summary
+
+## SellerAnalyticsController
+- Đường dẫn API: `/api/seller/analytics` (yêu cầu đăng nhập role Seller)
+- Các endpoint:
+  - `GET /revenue?period=30d` : Thống kê doanh thu và số đơn hoàn thành trong khoảng thời gian (mặc định 30 ngày).
+  - `GET /orders?period=30d` : Thống kê tổng số đơn, số đơn hoàn thành, số đơn bị hủy trong khoảng thời gian.
+  - `GET /categories?period=30d` : Thống kê số lượng sản phẩm theo từng danh mục của seller trong khoảng thời gian.
+  - `GET /products?period=30d` : Thống kê từng sản phẩm của seller (số lượng bán, doanh thu - hiện chưa tính được) trong khoảng thời gian.
+- Tham số `period` (ví dụ: "30d", "3m") là số ngày/tháng gần nhất tính từ hiện tại.
+
+## SellerAnalyticsService
+- Xử lý logic truy vấn dữ liệu cho các endpoint trên.
+- Lọc dữ liệu theo thời gian dựa trên `period` (CreatedAt >= thời điểm bắt đầu).
+- Trả về các DTO:
+  - `RevenueAnalyticsDto`: Tổng doanh thu, số đơn hoàn thành, period.
+  - `OrderAnalyticsDto`: Tổng đơn, đơn hoàn thành, đơn hủy, period.
+  - `CategoryAnalyticsDto`: Id, tên, số lượng sản phẩm, doanh thu (chưa tính được).
+  - `ProductAnalyticsDto`: Id, tên, số lượng bán, doanh thu (chưa tính được).
+
+## Lưu ý cho FE
+- Tất cả kết quả trả về đều có trường `period` để biết khoảng thời gian thống kê.
+- Do backend chưa lưu chi tiết sản phẩm trong đơn hàng, các thống kê doanh thu/số lượng theo sản phẩm/danh mục sẽ luôn bằng 0.
+- FE có thể truyền tham số `period` để lấy dữ liệu theo thời gian mong muốn.
