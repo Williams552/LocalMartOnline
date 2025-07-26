@@ -288,7 +288,7 @@ namespace LocalMartOnline.Services
             }
         }
 
-        public async Task<bool> UpdateCartItemAsync(string userId, string productId, double newQuantity)
+        public async Task<bool> UpdateCartItemByIdAsync(string userId, string cartItemId, double newQuantity)
         {
             try
             {
@@ -296,16 +296,18 @@ namespace LocalMartOnline.Services
                 if (string.IsNullOrEmpty(userId))
                     throw new ArgumentException("User ID cannot be null or empty");
                 
-                if (string.IsNullOrEmpty(productId))
-                    throw new ArgumentException("Product ID cannot be null or empty");
+                if (string.IsNullOrEmpty(cartItemId))
+                    throw new ArgumentException("Cart Item ID cannot be null or empty");
                 
                 if (newQuantity < 0)
                     return false;
 
                 var cart = await GetOrCreateCartAsync(userId);
+                
+                // Tìm CartItem theo ID và đảm bảo nó thuộc về user này
                 var cartItemFilter = Builders<CartItem>.Filter.And(
-                    Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
-                    Builders<CartItem>.Filter.Eq(ci => ci.ProductId, productId)
+                    Builders<CartItem>.Filter.Eq(ci => ci.Id, cartItemId),
+                    Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id)
                 );
                 var cartItem = await _cartItemCollection.Find(cartItemFilter).FirstOrDefaultAsync();
 
@@ -320,13 +322,13 @@ namespace LocalMartOnline.Services
                 }
 
                 // Check if product has enough stock
-                var productFilter = Builders<Product>.Filter.Eq(p => p.Id, productId);
+                var productFilter = Builders<Product>.Filter.Eq(p => p.Id, cartItem.ProductId);
                 var product = await _productCollection.Find(productFilter).FirstOrDefaultAsync();
 
                 if (product == null || product.Status != ProductStatus.Active)
                     return false;
 
-                // Check minimum quantity requirement (unless removing item)
+                // Check minimum quantity requirement
                 if (newQuantity > 0 && newQuantity < (double)product.MinimumQuantity)
                     return false;
 
@@ -345,21 +347,38 @@ namespace LocalMartOnline.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error updating cart item: {ex.Message}");
+                Console.WriteLine($"Error updating cart item by ID: {ex.Message}");
                 return false;
             }
         }
 
-        public async Task<bool> RemoveFromCartAsync(string userId, string productId)
+        public async Task<bool> RemoveCartItemByIdAsync(string userId, string cartItemId)
         {
-            var cart = await GetOrCreateCartAsync(userId);
-            var cartItemFilter = Builders<CartItem>.Filter.And(
-                Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
-                Builders<CartItem>.Filter.Eq(ci => ci.ProductId, productId)
-            );
+            try
+            {
+                // Validate inputs
+                if (string.IsNullOrEmpty(userId))
+                    throw new ArgumentException("User ID cannot be null or empty");
+                
+                if (string.IsNullOrEmpty(cartItemId))
+                    throw new ArgumentException("Cart Item ID cannot be null or empty");
 
-            var result = await _cartItemCollection.DeleteOneAsync(cartItemFilter);
-            return result.DeletedCount > 0;
+                var cart = await GetOrCreateCartAsync(userId);
+                
+                // Tìm và xóa CartItem theo ID, đảm bảo nó thuộc về user này
+                var cartItemFilter = Builders<CartItem>.Filter.And(
+                    Builders<CartItem>.Filter.Eq(ci => ci.Id, cartItemId),
+                    Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id)
+                );
+
+                var result = await _cartItemCollection.DeleteOneAsync(cartItemFilter);
+                return result.DeletedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error removing cart item by ID: {ex.Message}");
+                return false;
+            }
         }
 
         public async Task<bool> RemoveBargainFromCartAsync(string userId, string bargainId)

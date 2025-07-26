@@ -48,8 +48,9 @@ namespace LocalMartOnline.Models.DTOs.Cart
         public double Quantity { get; set; }
     }
 
-    public class UpdateCartItemDto
+    public class UpdateCartItemByIdDto
     {
+        public string CartItemId { get; set; } = string.Empty;
         public double Quantity { get; set; }
     }
 }

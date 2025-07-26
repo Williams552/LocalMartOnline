@@ -74,27 +74,27 @@ namespace LocalMartOnline.Controllers
             }
         }
 
-        [HttpPut("{userId}/items/{productId}")]
-        public async Task<IActionResult> UpdateCartItem(string userId, string productId, [FromBody] UpdateCartItemDto request)
+        [HttpPut("{userId}/items/{cartItemId}")]
+        public async Task<IActionResult> UpdateCartItem(string userId, string cartItemId, [FromBody] UpdateCartItemByIdDto request)
         {
             try
             {
-                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(productId))
-                    return BadRequest(new { success = false, message = "User ID and Product ID are required" });
+                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(cartItemId))
+                    return BadRequest(new { success = false, message = "User ID and Cart Item ID are required" });
 
                 // Validate request
                 if (request.Quantity < 0)
                     return BadRequest(new { success = false, message = "Quantity cannot be negative" });
 
-                var success = await _cartService.UpdateCartItemAsync(userId, productId, request.Quantity);
+                var success = await _cartService.UpdateCartItemByIdAsync(userId, cartItemId, request.Quantity);
                 
                 if (!success)
-                    return BadRequest(new { success = false, message = "Unable to update cart item. Check product availability and stock." });
+                    return BadRequest(new { success = false, message = "Unable to update cart item. Check cart item exists and product availability." });
                 
                 return Ok(new { 
                     success = true, 
                     message = "Cart item updated successfully",
-                    data = new { productId = productId, quantity = request.Quantity }
+                    data = new { cartItemId = cartItemId, quantity = request.Quantity }
                 });
             }
             catch (Exception ex)
@@ -107,26 +107,26 @@ namespace LocalMartOnline.Controllers
             }
         }
 
-        [HttpDelete("{userId}/items/{productId}")]
-        public async Task<IActionResult> RemoveFromCart(string userId, string productId)
+        [HttpDelete("{userId}/items/{cartItemId}")]
+        public async Task<IActionResult> RemoveFromCart(string userId, string cartItemId)
         {
             try
             {
-                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(productId))
-                    return BadRequest(new { success = false, message = "User ID and Product ID are required" });
+                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(cartItemId))
+                    return BadRequest(new { success = false, message = "User ID and Cart Item ID are required" });
 
-                var success = await _cartService.RemoveFromCartAsync(userId, productId);
+                var success = await _cartService.RemoveCartItemByIdAsync(userId, cartItemId);
                 
                 if (!success)
                     return NotFound(new { success = false, message = "Cart item not found" });
                 
-                return Ok(new { success = true, message = "Product removed from cart successfully" });
+                return Ok(new { success = true, message = "Cart item removed successfully" });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { 
                     success = false,
-                    message = "Error removing from cart", 
+                    message = "Error removing cart item", 
                     error = ex.Message 
                 });
             }
