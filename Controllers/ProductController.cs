@@ -72,6 +72,7 @@ namespace LocalMartOnline.Controllers
                 ProductStatus.Active => "kích hoạt",
                 ProductStatus.OutOfStock => "hết hàng",
                 ProductStatus.Inactive => "vô hiệu hóa",
+                ProductStatus.Suspended => "đình chỉ",
                 _ => "cập nhật trạng thái"
             };
             
@@ -113,11 +114,13 @@ namespace LocalMartOnline.Controllers
             [FromQuery] string? search = null,
             [FromQuery] string? categoryId = null,
             [FromQuery] string? storeId = null,
-            [FromQuery] string? marketId = null)
+            [FromQuery] string? marketId = null,
+            [FromQuery] string? status = null)
         {
             // If we have any filter parameters, use the filter method
             if (!string.IsNullOrEmpty(search) || !string.IsNullOrEmpty(categoryId) || 
-                !string.IsNullOrEmpty(storeId) || !string.IsNullOrEmpty(marketId))
+                !string.IsNullOrEmpty(storeId) || !string.IsNullOrEmpty(marketId) || 
+                !string.IsNullOrEmpty(status))
             {
                 var filter = new ProductFilterDto
                 {
@@ -126,7 +129,8 @@ namespace LocalMartOnline.Controllers
                     Keyword = search,
                     CategoryId = categoryId,
                     StoreId = storeId,
-                    MarketId = marketId
+                    MarketId = marketId,
+                    Status = status
                 };
                 
                 var filteredProducts = await _service.FilterProductsAsync(filter);

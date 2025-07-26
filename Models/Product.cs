@@ -9,7 +9,8 @@ namespace LocalMartOnline.Models
     {
         Active,      // Còn hàng - hiển thị cho user và seller
         OutOfStock,  // Hết hàng - chỉ hiển thị cho seller
-        Inactive     // Đã xóa - không hiển thị cho ai
+        Inactive,    // Đã xóa - không hiển thị cho ai
+        Suspended
     }
 
     public class Product
@@ -36,14 +37,8 @@ namespace LocalMartOnline.Models
         [BsonElement("unit_id")]
         public string UnitId { get; set; } = string.Empty;
 
-        [BsonElement("images")]
-        public List<string> Images { get; set; } = new List<string>();
-
         [BsonElement("minimum_quantity")]
         public decimal MinimumQuantity { get; set; } = 1;
-
-        [BsonElement("stock_quantity")]
-        public decimal StockQuantity { get; set; } = 0; // Added stock management
 
         [BsonElement("status")]
         [BsonRepresentation(BsonType.String)]
@@ -62,9 +57,9 @@ namespace LocalMartOnline.Models
 
         // Helper properties
         [BsonIgnore]
-        public bool IsVisibleToUsers => Status == ProductStatus.Active;
+        public bool IsVisibleToUsers => Status == ProductStatus.Active || Status == ProductStatus.OutOfStock;
 
         [BsonIgnore]
-        public bool IsVisibleToSellers => Status == ProductStatus.Active || Status == ProductStatus.OutOfStock || Status == ProductStatus.Inactive;
+        public bool IsVisibleToSellers => Status == ProductStatus.Active || Status == ProductStatus.OutOfStock || Status == ProductStatus.Suspended;
     }
 }

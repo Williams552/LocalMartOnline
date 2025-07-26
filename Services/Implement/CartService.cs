@@ -121,7 +121,6 @@ namespace LocalMartOnline.Services
                         Unit = unitDisplayName,
                         Description = product.Description,
                         IsAvailable = product.Status == ProductStatus.Active,
-                        StockQuantity = product.StockQuantity,
                         MinimumQuantity = product.MinimumQuantity,
                         StoreId = product.StoreId ?? string.Empty,
                         StoreName = store?.Name ?? "Unknown Store",
@@ -165,10 +164,6 @@ namespace LocalMartOnline.Services
                 if (quantity < (double)product.MinimumQuantity)
                     return false;
 
-                // Check stock if stock management is enabled
-                if (product.StockQuantity > 0 && product.StockQuantity < (decimal)quantity)
-                    return false;
-
                 var cart = await GetOrCreateCartAsync(userId);
                 var cartItemFilter = Builders<CartItem>.Filter.And(
                     Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
@@ -180,9 +175,6 @@ namespace LocalMartOnline.Services
                 if (existingItem != null)
                 {
                     var newQuantity = existingItem.Quantity + quantity;
-                    if (product.StockQuantity > 0 && product.StockQuantity < (decimal)newQuantity)
-                        return false;
-
                     var update = Builders<CartItem>.Update
                         .Set(ci => ci.Quantity, newQuantity)
                         .Set(ci => ci.UpdatedAt, DateTime.Now);
@@ -238,10 +230,6 @@ namespace LocalMartOnline.Services
                 if (quantity < (double)product.MinimumQuantity)
                     return false;
 
-                // Check stock if stock management is enabled
-                if (product.StockQuantity > 0 && product.StockQuantity < (decimal)quantity)
-                    return false;
-
                 var cart = await GetOrCreateCartAsync(userId);
 
                 // Check if bargain item already exists in cart (chỉ từ CÙNG BARGAIN này)
@@ -255,8 +243,6 @@ namespace LocalMartOnline.Services
                 if (existingItem != null)
                 {
                     var newQuantity = existingItem.Quantity + quantity;
-                    if (product.StockQuantity > 0 && product.StockQuantity < (decimal)newQuantity)
-                        return false;
 
                     var update = Builders<CartItem>.Update
                         .Set(ci => ci.Quantity, newQuantity)
@@ -330,10 +316,6 @@ namespace LocalMartOnline.Services
 
                 // Check minimum quantity requirement
                 if (newQuantity > 0 && newQuantity < (double)product.MinimumQuantity)
-                    return false;
-
-                // Check stock availability
-                if (product.StockQuantity > 0 && product.StockQuantity < (decimal)newQuantity)
                     return false;
 
                 // Update cart item quantity

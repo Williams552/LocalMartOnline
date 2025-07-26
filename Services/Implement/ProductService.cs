@@ -122,7 +122,7 @@ namespace LocalMartOnline.Services.Implement
             return true;
         }
 
-        // UC049: View All Product List (FOR BUYERS - ACTIVE AND OUT OF STOCK)
+        // UC049: View All Product List (FOR BUYERS - ALL STATUSES)
         public async Task<PagedResultDto<ProductDto>> GetAllProductsAsync(int page, int pageSize)
         {
             var products = await _productRepo.GetAllAsync();
@@ -134,7 +134,7 @@ namespace LocalMartOnline.Services.Implement
             var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id!).Where(id => id != null));
 
             var productList = products
-                .Where(p => (p.Status == ProductStatus.Active || p.Status == ProductStatus.OutOfStock) && activeStoreIds.Contains(p.StoreId))
+                .Where(p => activeStoreIds.Contains(p.StoreId)) // Hiển thị tất cả trạng thái sản phẩm
                 .ToList();
 
             var total = productList.Count();
@@ -285,13 +285,16 @@ namespace LocalMartOnline.Services.Implement
             };
         }
 
-        // UC055: Filter Products (FOR BUYERS - ONLY ACTIVE)
+        // UC055: Filter Products (FOR BUYERS - ALL STATUSES WITH FILTER)
         public async Task<PagedResultDto<ProductDto>> FilterProductsAsync(ProductFilterDto filter)
         {
             var products = await _productRepo.GetAllAsync();
             var stores = await _storeRepo.GetAllAsync();
+            var units = await _unitRepo.GetAllAsync();
+            var users = await _userRepo.GetAllAsync();
+            var markets = await _marketRepo.GetAllAsync();
             
-            Console.WriteLine($"FilterProductsAsync called with MarketId: {filter.MarketId}, StoreId: {filter.StoreId}, CategoryId: {filter.CategoryId}, Keyword: {filter.Keyword}");
+            Console.WriteLine($"FilterProductsAsync called with MarketId: {filter.MarketId}, StoreId: {filter.StoreId}, CategoryId: {filter.CategoryId}, Keyword: {filter.Keyword}, Status: {filter.Status}");
             Console.WriteLine($"Total products: {products.Count()}, Total stores: {stores.Count()}");
             
             // Start with all open stores
@@ -316,8 +319,8 @@ namespace LocalMartOnline.Services.Implement
             }
 
             var filtered = products.Where(p =>
-                p.Status == ProductStatus.Active &&
                 validStoreIds.Contains(p.StoreId) &&
+                (string.IsNullOrEmpty(filter.Status) || p.Status.ToString().Equals(filter.Status, StringComparison.OrdinalIgnoreCase)) &&
                 (string.IsNullOrEmpty(filter.CategoryId) || p.CategoryId == filter.CategoryId) &&
                 (!filter.MinPrice.HasValue || p.Price >= filter.MinPrice.Value) &&
                 (!filter.MaxPrice.HasValue || p.Price <= filter.MaxPrice.Value) &&
@@ -352,6 +355,44 @@ namespace LocalMartOnline.Services.Implement
             var total = filtered.Count();
             var paged = filtered.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize);
             var items = await MapProductDtosWithImages(paged);
+
+            // Set StoreName, UnitName, Seller và MarketName cho từng ProductDto
+            var storeDict = stores.ToDictionary(s => s.Id!, s => s);
+            var unitDict = units.ToDictionary(u => u.Id!, u => u.Name);
+            var userDict = users.ToDictionary(u => u.Id!, u => u);
+            var marketDict = markets.ToDictionary(m => m.Id!, m => m.Name);
+            
+            foreach (var dto in items)
+            {
+                // Get store info first
+                var store = (!string.IsNullOrEmpty(dto.StoreId) && storeDict.TryGetValue(dto.StoreId, out var storeInfo)) ? storeInfo : null;
+                
+                dto.StoreName = store?.Name ?? string.Empty;
+                dto.UnitName = (!string.IsNullOrEmpty(dto.UnitId) && unitDict.TryGetValue(dto.UnitId, out var unitName)) ? unitName : string.Empty;
+                
+                // Set MarketName
+                if (store != null && !string.IsNullOrEmpty(store.MarketId) && marketDict.TryGetValue(store.MarketId, out var marketName))
+                {
+                    dto.MarketName = marketName;
+                }
+                
+                // Set Seller information
+                if (store != null && !string.IsNullOrEmpty(store.SellerId) && userDict.TryGetValue(store.SellerId, out var seller))
+                {
+                    dto.Seller = new SellerDto
+                    {
+                        Name = seller.FullName,
+                        Rating = 0, // Default rating for now
+                        Market = dto.MarketName
+                    };
+                }
+                
+                // Ensure Status is set
+                var product = products.FirstOrDefault(p => p.Id == dto.Id);
+                if (product != null)
+                    dto.Status = product.Status;
+            }
+
             return new PagedResultDto<ProductDto>
             {
                 Items = items,
@@ -561,7 +602,7 @@ namespace LocalMartOnline.Services.Implement
         {
             var products = await _productRepo.FindManyAsync(p =>
                 p.StoreId == storeId &&
-                (p.Status == ProductStatus.Active || p.Status == ProductStatus.OutOfStock)
+                (p.Status == ProductStatus.Active || p.Status == ProductStatus.OutOfStock || p.Status == ProductStatus.Suspended)
             );
 
             var total = products.Count();
