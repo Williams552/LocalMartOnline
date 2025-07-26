@@ -12,5 +12,6 @@ namespace LocalMartOnline.Services
         Task<GetReviewsResponseDto> GetReviewsForTargetAsync(object filterOptions);
         Task<ReviewDto?> GetReviewByIdAsync(string reviewId);
         Task<bool> CanUserReviewAsync(string userId, string targetType, string targetId);
+        Task<bool> IsOrderReviewedAsync(string userId, string orderId);
     }
 }

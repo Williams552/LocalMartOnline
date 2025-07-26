@@ -22,6 +22,10 @@ namespace LocalMartOnline.Models
         [BsonRepresentation(BsonType.ObjectId)]
         public string TargetId { get; set; } = string.Empty;
 
+        [BsonElement("order_id")]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string? OrderId { get; set; } // ID của đơn hàng để track review per order
+
         [BsonElement("rating")]
         public int Rating { get; set; } // 1 to 5
 
