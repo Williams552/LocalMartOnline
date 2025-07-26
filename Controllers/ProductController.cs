@@ -56,7 +56,7 @@ namespace LocalMartOnline.Controllers
 
         // UC043: Toggle Product
         [HttpPatch("{id}/toggle")]
-        [Authorize(Roles = "Seller,Admin")]
+        [Authorize(Roles = "Seller")]
         public async Task<IActionResult> ToggleProduct(string id, [FromQuery] bool enable)
         {
             var result = await _service.ToggleProductAsync(id, enable);
@@ -72,6 +72,27 @@ namespace LocalMartOnline.Controllers
             {
                 success = true,
                 message = $"Đã {status} sản phẩm thành công",
+                data = (object?)null
+            });
+        }
+
+        // Delete Product (Soft delete - set to Inactive)
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Seller")]
+        public async Task<IActionResult> DeleteProduct(string id)
+        {
+            var result = await _service.DeleteProductAsync(id);
+            if (!result) return NotFound(new
+            {
+                success = false,
+                message = "Không tìm thấy sản phẩm để xóa",
+                data = (object?)null
+            });
+
+            return Ok(new
+            {
+                success = true,
+                message = "Xóa sản phẩm thành công",
                 data = (object?)null
             });
         }
@@ -332,7 +353,7 @@ namespace LocalMartOnline.Controllers
 
         // Search products for seller (including inactive)
         [HttpGet("seller/store/{storeId}/search")]
-        [Authorize(Roles = "Seller")]
+       // [Authorize(Roles = "Seller")]
         public async Task<IActionResult> SearchProductsForSeller(
             string storeId,
             [FromQuery] string keyword,

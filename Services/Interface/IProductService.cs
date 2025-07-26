@@ -10,6 +10,7 @@ namespace LocalMartOnline.Services.Interface
         Task<ProductDto> AddProductAsync(ProductCreateDto dto);
         Task<bool> EditProductAsync(string id, ProductUpdateDto dto);
         Task<bool> ToggleProductAsync(string id, bool enable);
+        Task<bool> DeleteProductAsync(string id);
         Task<PagedResultDto<ProductDto>> GetAllProductsAsync(int page, int pageSize);
         Task<ProductDto?> GetProductDetailsAsync(string id);
         Task<bool> UploadActualProductPhotoAsync(ProductActualPhotoUploadDto dto);
