@@ -108,6 +108,11 @@ namespace LocalMartOnline.Services.Implement
             {
                 var dto = _mapper.Map<OrderDto>(order);
 
+                // Lấy thông tin người mua
+                var buyer = await _userCollection.Find(u => u.Id == order.BuyerId).FirstOrDefaultAsync();
+                dto.BuyerName = buyer?.FullName ?? "Unknown";
+                dto.BuyerPhone = buyer?.PhoneNumber ?? "Unknown";
+
                 // Lấy thông tin cửa hàng
                 var store = await _storeCollection
                     .Find(s => s.SellerId == order.SellerId)
