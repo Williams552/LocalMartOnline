@@ -170,20 +170,16 @@ namespace LocalMartOnline.Services
                     return false;
 
                 var cart = await GetOrCreateCartAsync(userId);
-
-                // Check if item already exists in cart
                 var cartItemFilter = Builders<CartItem>.Filter.And(
                     Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
-                    Builders<CartItem>.Filter.Eq(ci => ci.ProductId, productId)
+                    Builders<CartItem>.Filter.Eq(ci => ci.ProductId, productId),
+                    Builders<CartItem>.Filter.Eq(ci => ci.BargainId, null)
                 );
                 var existingItem = await _cartItemCollection.Find(cartItemFilter).FirstOrDefaultAsync();
 
                 if (existingItem != null)
                 {
-                    // Update existing item quantity
                     var newQuantity = existingItem.Quantity + quantity;
-                    
-                    // Check stock again for total quantity
                     if (product.StockQuantity > 0 && product.StockQuantity < (decimal)newQuantity)
                         return false;
 
@@ -195,12 +191,13 @@ namespace LocalMartOnline.Services
                 }
                 else
                 {
-                    // Create new cart item
                     var cartItem = new CartItem
                     {
                         CartId = cart.Id!,
                         ProductId = productId,
                         Quantity = quantity,
+                        BargainPrice = null,
+                        BargainId = null,
                         CreatedAt = DateTime.Now,
                         UpdatedAt = DateTime.Now
                     };
@@ -247,20 +244,17 @@ namespace LocalMartOnline.Services
 
                 var cart = await GetOrCreateCartAsync(userId);
 
-                // Check if bargain item already exists in cart
+                // Check if bargain item already exists in cart (chỉ từ CÙNG BARGAIN này)
                 var cartItemFilter = Builders<CartItem>.Filter.And(
                     Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
                     Builders<CartItem>.Filter.Eq(ci => ci.ProductId, productId),
-                    Builders<CartItem>.Filter.Eq(ci => ci.BargainId, bargainId)
+                    Builders<CartItem>.Filter.Eq(ci => ci.BargainId, bargainId) // Phải cùng BargainId
                 );
                 var existingItem = await _cartItemCollection.Find(cartItemFilter).FirstOrDefaultAsync();
 
                 if (existingItem != null)
                 {
-                    // Update existing bargain item quantity
                     var newQuantity = existingItem.Quantity + quantity;
-                    
-                    // Check stock again for total quantity
                     if (product.StockQuantity > 0 && product.StockQuantity < (decimal)newQuantity)
                         return false;
 
@@ -272,7 +266,6 @@ namespace LocalMartOnline.Services
                 }
                 else
                 {
-                    // Create new cart item with bargain price
                     var cartItem = new CartItem
                     {
                         CartId = cart.Id!,
@@ -395,10 +388,7 @@ namespace LocalMartOnline.Services
             {
                 var cart = await GetOrCreateCartAsync(userId);
                 var cartItemFilter = Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id);
-
-                // Clear all cart items (including both regular and bargain items)
                 var result = await _cartItemCollection.DeleteManyAsync(cartItemFilter);
-
                 return result.DeletedCount > 0;
             }
             catch (Exception ex)
