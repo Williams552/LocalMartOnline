@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Services.Interface;
 using LocalMartOnline.Models.DTOs.Product;
+using LocalMartOnline.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using LocalMartOnline.Models.DTOs.Common;
@@ -54,12 +55,11 @@ namespace LocalMartOnline.Controllers
             });
         }
 
-        // UC043: Toggle Product
-        [HttpPatch("{id}/toggle")]
-        [Authorize(Roles = "Seller")]
-        public async Task<IActionResult> ToggleProduct(string id, [FromQuery] bool enable)
+        // UC043: Toggle Product Status
+        [HttpPatch("{id}/status")]
+        public async Task<IActionResult> ToggleProductStatus(string id, [FromBody] ProductStatusToggleDto request)
         {
-            var result = await _service.ToggleProductAsync(id, enable);
+            var result = await _service.ToggleProductStatusAsync(id, request.Status);
             if (!result) return NotFound(new
             {
                 success = false,
@@ -67,12 +67,20 @@ namespace LocalMartOnline.Controllers
                 data = (object?)null
             });
             
-            var status = enable ? "kích hoạt" : "vô hiệu hóa";
+            var statusText = request.Status switch
+            {   
+                ProductStatus.Active => "kích hoạt",
+                ProductStatus.OutOfStock => "hết hàng",
+                ProductStatus.Inactive => "vô hiệu hóa",
+                ProductStatus.Suspended => "đình chỉ",
+                _ => "cập nhật trạng thái"
+            };
+            
             return Ok(new
             {
                 success = true,
-                message = $"Đã {status} sản phẩm thành công",
-                data = (object?)null
+                message = $"Đã chuyển sản phẩm sang trạng thái {statusText} thành công",
+                data = new { status = request.Status, statusText = statusText }
             });
         }
 
@@ -106,11 +114,13 @@ namespace LocalMartOnline.Controllers
             [FromQuery] string? search = null,
             [FromQuery] string? categoryId = null,
             [FromQuery] string? storeId = null,
-            [FromQuery] string? marketId = null)
+            [FromQuery] string? marketId = null,
+            [FromQuery] string? status = null)
         {
             // If we have any filter parameters, use the filter method
             if (!string.IsNullOrEmpty(search) || !string.IsNullOrEmpty(categoryId) || 
-                !string.IsNullOrEmpty(storeId) || !string.IsNullOrEmpty(marketId))
+                !string.IsNullOrEmpty(storeId) || !string.IsNullOrEmpty(marketId) || 
+                !string.IsNullOrEmpty(status))
             {
                 var filter = new ProductFilterDto
                 {
@@ -119,7 +129,8 @@ namespace LocalMartOnline.Controllers
                     Keyword = search,
                     CategoryId = categoryId,
                     StoreId = storeId,
-                    MarketId = marketId
+                    MarketId = marketId,
+                    Status = status
                 };
                 
                 var filteredProducts = await _service.FilterProductsAsync(filter);
