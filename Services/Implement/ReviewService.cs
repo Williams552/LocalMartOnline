@@ -29,21 +29,39 @@ namespace LocalMartOnline.Services
             if (!await CanUserReviewAsync(userId, createReviewDto.TargetType, createReviewDto.TargetId))
                 return null;
 
-            // Check if user already reviewed this target
-            var existingReview = await _reviewCollection
-                .Find(r => r.UserId == userId && 
-                          r.TargetType == createReviewDto.TargetType && 
-                          r.TargetId == createReviewDto.TargetId)
-                .FirstOrDefaultAsync();
+            // Check if user already reviewed this specific order-product combination
+            // This allows multiple reviews for same product from different orders
+            if (!string.IsNullOrEmpty(createReviewDto.OrderId))
+            {
+                var existingOrderReview = await _reviewCollection
+                    .Find(r => r.UserId == userId && 
+                              r.TargetType == createReviewDto.TargetType && 
+                              r.TargetId == createReviewDto.TargetId &&
+                              r.OrderId == createReviewDto.OrderId)
+                    .FirstOrDefaultAsync();
 
-            if (existingReview != null)
-                return null; // User already reviewed this target
+                if (existingOrderReview != null)
+                    return null; // User already reviewed this product from this specific order
+            }
+            else
+            {
+                // Fallback to old logic for backward compatibility (when OrderId is not provided)
+                var existingReview = await _reviewCollection
+                    .Find(r => r.UserId == userId && 
+                              r.TargetType == createReviewDto.TargetType && 
+                              r.TargetId == createReviewDto.TargetId)
+                    .FirstOrDefaultAsync();
+
+                if (existingReview != null)
+                    return null; // User already reviewed this target
+            }
 
             var review = new Review
             {
                 UserId = userId,
                 TargetType = createReviewDto.TargetType,
                 TargetId = createReviewDto.TargetId,
+                OrderId = createReviewDto.OrderId,
                 Rating = createReviewDto.Rating,
                 Comment = createReviewDto.Comment,
                 CreatedAt = DateTime.Now,
@@ -259,7 +277,19 @@ namespace LocalMartOnline.Services
                 default:
                     return false;
             }
-        }        private async Task<bool> HasCompletedOrderWithProductAsync(string userId, string productId)
+        }
+
+        public async Task<bool> IsOrderReviewedAsync(string userId, string orderId)
+        {
+            // Check if any product from this order has been reviewed by this user
+            var existingReview = await _reviewCollection
+                .Find(r => r.UserId == userId && r.OrderId == orderId)
+                .FirstOrDefaultAsync();
+
+            return existingReview != null;
+        }
+
+        private async Task<bool> HasCompletedOrderWithProductAsync(string userId, string productId)
         {
             // This would require joining Orders with OrderItems to check if user has completed orders with this product
             // For now, return true to allow testing
@@ -296,6 +326,7 @@ namespace LocalMartOnline.Services
                 UserId = review.UserId,
                 TargetType = review.TargetType,
                 TargetId = review.TargetId,
+                OrderId = review.OrderId,
                 Rating = review.Rating,
                 Comment = review.Comment,
                 Response = review.Response,

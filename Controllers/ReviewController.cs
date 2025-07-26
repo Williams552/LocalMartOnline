@@ -164,5 +164,25 @@ namespace LocalMartOnline.Controllers
                 return StatusCode(500, new { message = "Error retrieving review", error = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Kiểm tra xem đơn hàng đã được đánh giá chưa
+        /// </summary>
+        [HttpGet("order/{orderId}/reviewed")]
+        public async Task<IActionResult> IsOrderReviewed(string orderId, [FromQuery] string userId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(userId))
+                    return BadRequest(new { message = "User ID is required" });
+
+                var isReviewed = await _reviewService.IsOrderReviewedAsync(userId, orderId);
+                return Ok(new { isReviewed });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error checking review status", error = ex.Message });
+            }
+        }
     }
 }
