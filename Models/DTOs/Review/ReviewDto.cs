@@ -4,6 +4,7 @@ namespace LocalMartOnline.Models.DTOs.Review
     {
         public string TargetType { get; set; } = string.Empty; // 'Product', 'Seller', 'ProxyShopper'
         public string TargetId { get; set; } = string.Empty;
+        public string? OrderId { get; set; } // ID của đơn hàng để track review per order
         public int Rating { get; set; } // 1 to 5
         public string? Comment { get; set; }
     }
@@ -20,6 +21,7 @@ namespace LocalMartOnline.Models.DTOs.Review
         public string UserId { get; set; } = string.Empty;
         public string TargetType { get; set; } = string.Empty;
         public string TargetId { get; set; } = string.Empty;
+        public string? OrderId { get; set; }
         public int Rating { get; set; }
         public string? Comment { get; set; }
         public string? Response { get; set; }
