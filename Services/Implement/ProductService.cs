@@ -20,6 +20,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<Store> _storeRepo;
         private readonly IRepository<ProductUnit> _unitRepo;
         private readonly IRepository<Market> _marketRepo;
+        private readonly IRepository<User> _userRepo;
         private readonly IMapper _mapper;
         private readonly IMongoCollection<BsonDocument> _productCollection;
 
@@ -29,6 +30,7 @@ namespace LocalMartOnline.Services.Implement
             IRepository<Store> storeRepo,
             IRepository<ProductUnit> unitRepo,
             IRepository<Market> marketRepo,
+            IRepository<User> userRepo,
             IMapper mapper,
             IMongoDatabase database)
         {
@@ -37,6 +39,7 @@ namespace LocalMartOnline.Services.Implement
             _storeRepo = storeRepo;
             _unitRepo = unitRepo;
             _marketRepo = marketRepo;
+            _userRepo = userRepo;
             _mapper = mapper;
             _productCollection = database.GetCollection<BsonDocument>("products");
         }
@@ -119,29 +122,56 @@ namespace LocalMartOnline.Services.Implement
             return true;
         }
 
-        // UC049: View All Product List (FOR BUYERS - ONLY ACTIVE)
+        // UC049: View All Product List (FOR BUYERS - ACTIVE AND OUT OF STOCK)
         public async Task<PagedResultDto<ProductDto>> GetAllProductsAsync(int page, int pageSize)
         {
             var products = await _productRepo.GetAllAsync();
             var stores = await _storeRepo.GetAllAsync();
             var units = await _unitRepo.GetAllAsync();
+            var users = await _userRepo.GetAllAsync();
+            var markets = await _marketRepo.GetAllAsync();
+            
             var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id!).Where(id => id != null));
 
             var productList = products
-                .Where(p => p.Status == ProductStatus.Active && activeStoreIds.Contains(p.StoreId))
+                .Where(p => (p.Status == ProductStatus.Active || p.Status == ProductStatus.OutOfStock) && activeStoreIds.Contains(p.StoreId))
                 .ToList();
 
             var total = productList.Count();
             var paged = productList.Skip((page - 1) * pageSize).Take(pageSize);
             var items = await MapProductDtosWithImages(paged);
 
-            // Set StoreName và UnitName cho từng ProductDto
-            var storeDict = stores.ToDictionary(s => s.Id!, s => s.Name);
+            // Set StoreName, UnitName, Seller và MarketName cho từng ProductDto
+            var storeDict = stores.ToDictionary(s => s.Id!, s => s);
             var unitDict = units.ToDictionary(u => u.Id!, u => u.Name);
+            var userDict = users.ToDictionary(u => u.Id!, u => u);
+            var marketDict = markets.ToDictionary(m => m.Id!, m => m.Name);
+            
             foreach (var dto in items)
             {
-                dto.StoreName = (!string.IsNullOrEmpty(dto.StoreId) && storeDict.TryGetValue(dto.StoreId, out var storeName)) ? storeName : string.Empty;
+                // Get store info first
+                var store = (!string.IsNullOrEmpty(dto.StoreId) && storeDict.TryGetValue(dto.StoreId, out var storeInfo)) ? storeInfo : null;
+                
+                dto.StoreName = store?.Name ?? string.Empty;
                 dto.UnitName = (!string.IsNullOrEmpty(dto.UnitId) && unitDict.TryGetValue(dto.UnitId, out var unitName)) ? unitName : string.Empty;
+                
+                // Set MarketName
+                if (store != null && !string.IsNullOrEmpty(store.MarketId) && marketDict.TryGetValue(store.MarketId, out var marketName))
+                {
+                    dto.MarketName = marketName;
+                }
+                
+                // Set Seller information
+                if (store != null && !string.IsNullOrEmpty(store.SellerId) && userDict.TryGetValue(store.SellerId, out var seller))
+                {
+                    dto.Seller = new SellerDto
+                    {
+                        Name = seller.FullName,
+                        Rating = 0, // Default rating for now
+                        Market = dto.MarketName
+                    };
+                }
+                
                 // Ensure Status is set
                 var product = products.FirstOrDefault(p => p.Id == dto.Id);
                 if (product != null)

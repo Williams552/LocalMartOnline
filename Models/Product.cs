@@ -65,6 +65,6 @@ namespace LocalMartOnline.Models
         public bool IsVisibleToUsers => Status == ProductStatus.Active;
 
         [BsonIgnore]
-        public bool IsVisibleToSellers => Status == ProductStatus.Active || Status == ProductStatus.OutOfStock;
+        public bool IsVisibleToSellers => Status == ProductStatus.Active || Status == ProductStatus.OutOfStock || Status == ProductStatus.Inactive;
     }
 }
