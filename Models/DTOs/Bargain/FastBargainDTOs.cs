@@ -8,14 +8,17 @@ namespace LocalMartOnline.Models.DTOs.FastBargain
         public string ProductId { get; set; } = string.Empty;
         public string BuyerId { get; set; } = string.Empty;
         public string SellerId { get; set; } = string.Empty;
+        public string Note { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public decimal InitialOfferPrice { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 
     public class FastBargainProposalDTO
     {
         public string BargainId { get; set; } = string.Empty;
         public string UserId { get; set; } = string.Empty;
+        public string Note { get; set; } = string.Empty;
         public decimal ProposedPrice { get; set; }
         public DateTime ProposedAt { get; set; }
     }
@@ -32,17 +35,20 @@ namespace LocalMartOnline.Models.DTOs.FastBargain
         public string BuyerName { get; set; } = string.Empty;
         public string SellerName { get; set; } = string.Empty;
         public string StoreName { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
         public List<string> ProductImages { get; set; } = new();
         public List<FastBargainProposalDTO> Proposals { get; set; } = new();
         public string BuyerId { get; set; } = string.Empty;
         public string SellerId { get; set; } = string.Empty;
-        public string UserRole { get; set; } = string.Empty; // "Buyer" or "Seller" - role của user hiện tại trong bargain này
+        public string UserRole { get; set; } = string.Empty; 
+        public string Note { get; set; } = string.Empty;
     }
 
     public class FastBargainActionRequestDTO
     {
         public string BargainId { get; set; } = string.Empty;
         public string UserId { get; set; } = string.Empty;
+        public string Note { get; set; } = string.Empty;
         public string Action { get; set; } = string.Empty; // Accept, Reject, Counter
         public decimal? CounterPrice { get; set; }
     }

@@ -117,17 +117,21 @@ namespace LocalMartOnline.Services
                         Id = product.Id ?? string.Empty,
                         Name = product.Name,
                         Price = product.Price,
-                        Images = imgUrl, // Get first image or empty string
+                        Images = imgUrl,
                         Unit = unitDisplayName,
                         Description = product.Description,
                         IsAvailable = product.Status == ProductStatus.Active,
-                        StockQuantity = product.StockQuantity, // Use actual stock quantity
+                        StockQuantity = product.StockQuantity,
                         MinimumQuantity = product.MinimumQuantity,
                         StoreId = product.StoreId ?? string.Empty,
                         StoreName = store?.Name ?? "Unknown Store",
                         SellerName = seller?.FullName ?? "Unknown Seller"
                     },
-                    SubTotal = product.Price * (decimal)item.Quantity
+                    // Sử dụng giá bargain nếu có, ngược lại dùng giá gốc
+                    SubTotal = (item.BargainPrice ?? product.Price) * (decimal)item.Quantity,
+                    BargainPrice = item.BargainPrice,
+                    BargainId = item.BargainId,
+                    IsBargainProduct = !string.IsNullOrEmpty(item.BargainId)
                 };
 
                 result.Add(cartItemDto);
@@ -212,6 +216,85 @@ namespace LocalMartOnline.Services
             }
         }
 
+        public async Task<bool> AddBargainToCartAsync(string userId, string productId, double quantity, decimal bargainPrice, string bargainId)
+        {
+            try
+            {
+                // Validate inputs
+                if (string.IsNullOrEmpty(userId))
+                    throw new ArgumentException("User ID cannot be null or empty");
+                
+                if (string.IsNullOrEmpty(productId))
+                    throw new ArgumentException("Product ID cannot be null or empty");
+                
+                if (quantity <= 0)
+                    return false;
+
+                // Check if product exists and is active
+                var productFilter = Builders<Product>.Filter.Eq(p => p.Id, productId);
+                var product = await _productCollection.Find(productFilter).FirstOrDefaultAsync();
+
+                if (product == null || product.Status != ProductStatus.Active)
+                    return false;
+
+                // Check minimum quantity requirement
+                if (quantity < (double)product.MinimumQuantity)
+                    return false;
+
+                // Check stock if stock management is enabled
+                if (product.StockQuantity > 0 && product.StockQuantity < (decimal)quantity)
+                    return false;
+
+                var cart = await GetOrCreateCartAsync(userId);
+
+                // Check if bargain item already exists in cart
+                var cartItemFilter = Builders<CartItem>.Filter.And(
+                    Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
+                    Builders<CartItem>.Filter.Eq(ci => ci.ProductId, productId),
+                    Builders<CartItem>.Filter.Eq(ci => ci.BargainId, bargainId)
+                );
+                var existingItem = await _cartItemCollection.Find(cartItemFilter).FirstOrDefaultAsync();
+
+                if (existingItem != null)
+                {
+                    // Update existing bargain item quantity
+                    var newQuantity = existingItem.Quantity + quantity;
+                    
+                    // Check stock again for total quantity
+                    if (product.StockQuantity > 0 && product.StockQuantity < (decimal)newQuantity)
+                        return false;
+
+                    var update = Builders<CartItem>.Update
+                        .Set(ci => ci.Quantity, newQuantity)
+                        .Set(ci => ci.UpdatedAt, DateTime.Now);
+
+                    await _cartItemCollection.UpdateOneAsync(cartItemFilter, update);
+                }
+                else
+                {
+                    // Create new cart item with bargain price
+                    var cartItem = new CartItem
+                    {
+                        CartId = cart.Id!,
+                        ProductId = productId,
+                        Quantity = quantity,
+                        BargainPrice = bargainPrice,
+                        BargainId = bargainId,
+                        CreatedAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now
+                    };
+                    await _cartItemCollection.InsertOneAsync(cartItem);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error adding bargain to cart: {ex.Message}");
+                return false;
+            }
+        }
+
         public async Task<bool> UpdateCartItemAsync(string userId, string productId, double newQuantity)
         {
             try
@@ -286,13 +369,43 @@ namespace LocalMartOnline.Services
             return result.DeletedCount > 0;
         }
 
+        public async Task<bool> RemoveBargainFromCartAsync(string userId, string bargainId)
+        {
+            try
+            {
+                var cart = await GetOrCreateCartAsync(userId);
+                var filter = Builders<CartItem>.Filter.And(
+                    Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
+                    Builders<CartItem>.Filter.Eq(ci => ci.BargainId, bargainId)
+                );
+
+                var result = await _cartItemCollection.DeleteOneAsync(filter);
+                return result.DeletedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error removing bargain from cart: {ex.Message}");
+                return false;
+            }
+        }
+
         public async Task<bool> ClearCartAsync(string userId)
         {
-            var cart = await GetOrCreateCartAsync(userId);
-            var cartItemFilter = Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id);
+            try
+            {
+                var cart = await GetOrCreateCartAsync(userId);
+                var cartItemFilter = Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id);
 
-            var result = await _cartItemCollection.DeleteManyAsync(cartItemFilter);
-            return result.DeletedCount > 0;
+                // Clear all cart items (including both regular and bargain items)
+                var result = await _cartItemCollection.DeleteManyAsync(cartItemFilter);
+
+                return result.DeletedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error clearing cart: {ex.Message}");
+                return false;
+            }
         }
 
         // Get cart summary with totals

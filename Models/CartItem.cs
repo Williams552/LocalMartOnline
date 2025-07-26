@@ -20,10 +20,14 @@ namespace LocalMartOnline.Models
         [BsonElement("product_id")]
         [BsonRepresentation(BsonType.ObjectId)]
         public string ProductId { get; set; } = string.Empty;
+        [BsonElement("bargain_id")]
+        public string? BargainId { get; set; }
 
         [BsonElement("quantity")]
         public double Quantity { get; set; }
 
+        [BsonElement("bargain_price")]
+        public decimal? BargainPrice { get; set; }
         [BsonElement("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
