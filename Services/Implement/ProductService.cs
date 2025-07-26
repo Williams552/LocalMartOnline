@@ -97,14 +97,14 @@ namespace LocalMartOnline.Services.Implement
             return true;
         }
 
-        // UC043: Toggle Product (Active/OutOfStock)
-        public async Task<bool> ToggleProductAsync(string id, bool enable)
+        // UC043: Toggle Product Status (Active/OutOfStock/Inactive)
+        public async Task<bool> ToggleProductStatusAsync(string id, ProductStatus newStatus)
         {
             var product = await _productRepo.GetByIdAsync(id);
-            if (product == null || product.Status == ProductStatus.Inactive) return false;
+            if (product == null) return false;
 
-            // Chỉ toggle giữa Active và OutOfStock
-            product.Status = enable ? ProductStatus.Active : ProductStatus.OutOfStock;
+            // Update status to the specified new status
+            product.Status = newStatus;
             product.UpdatedAt = DateTime.Now;
             await _productRepo.UpdateAsync(id, product);
             return true;
