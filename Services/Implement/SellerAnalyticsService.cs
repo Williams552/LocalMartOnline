@@ -16,19 +16,22 @@ namespace LocalMartOnline.Services
         private readonly IRepository<Category> _categoryRepository;
         private readonly IRepository<Store> _storeRepository;
         private readonly IRepository<OrderItem> _orderItemRepository;
+        private readonly IRepository<Review> _reviewRepository;
 
         public SellerAnalyticsService(
             IRepository<Order> orderRepository,
             IRepository<Product> productRepository,
             IRepository<Category> categoryRepository,
             IRepository<Store> storeRepository,
-            IRepository<OrderItem> orderItemRepository)
+            IRepository<OrderItem> orderItemRepository,
+            IRepository<Review> reviewRepository)
         {
             _orderRepository = orderRepository;
             _productRepository = productRepository;
             _categoryRepository = categoryRepository;
             _storeRepository = storeRepository;
             _orderItemRepository = orderItemRepository;
+            _reviewRepository = reviewRepository;
         }
 
         private DateTime GetPeriodStart(string period)
@@ -144,15 +147,43 @@ namespace LocalMartOnline.Services
             var stores = (await _storeRepository.FindManyAsync(s => s.SellerId == sellerId)).ToList();
             var storeIds = stores.Select(s => s.Id).ToHashSet();
             var products = (await _productRepository.GetAllAsync()).Where(p => storeIds.Contains(p.StoreId)).ToList();
-            // NOTE: Order does not have Items property, so cannot calculate sold quantity or revenue per product
+            var productIds = products.Select(p => p.Id).ToHashSet();
+
+            // Lấy order items của các sản phẩm seller trong các đơn hàng hoàn thành, trong period
+            var orderItems = (await _orderItemRepository.FindManyAsync(oi =>
+                productIds.Contains(oi.ProductId) &&
+                oi.PriceAtPurchase > 0
+            )).ToList();
+
+            var completedOrderIds = (await _orderRepository.FindManyAsync(o =>
+                o.SellerId == sellerId &&
+                o.Status == Models.OrderStatus.Completed &&
+                o.CreatedAt >= periodStart
+            )).Select(o => o.Id).ToHashSet();
+
+            var filteredOrderItems = orderItems.Where(oi => completedOrderIds.Contains(oi.OrderId)).ToList();
+
+            // Lấy review cho các sản phẩm
+            var reviews = (await _reviewRepository.FindManyAsync(r =>
+                r.TargetType == "Product" && productIds.Contains(r.TargetId)
+            )).ToList();
+
             var productStats = products.Select(p =>
             {
+                var items = filteredOrderItems.Where(oi => oi.ProductId == p.Id).ToList();
+                var soldQuantity = items.Sum(oi => oi.Quantity);
+                var revenue = items.Sum(oi => oi.Quantity * oi.PriceAtPurchase);
+                var orderCount = items.Select(oi => oi.OrderId).Distinct().Count();
+                var productReviews = reviews.Where(r => r.TargetId == p.Id).ToList();
+                var avgRating = productReviews.Count > 0 ? productReviews.Average(r => r.Rating) : 0;
                 return new ProductAnalyticsDto
                 {
                     ProductId = p.Id,
                     ProductName = p.Name,
-                    SoldQuantity = 0, // Cannot calculate without order items
-                    Revenue = 0
+                    SoldQuantity = soldQuantity,
+                    Revenue = revenue,
+                    OrderCount = orderCount,
+                    AverageRating = avgRating
                 };
             }).ToList();
             return productStats;

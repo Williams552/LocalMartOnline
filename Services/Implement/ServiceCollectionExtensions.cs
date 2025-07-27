@@ -16,99 +16,124 @@ namespace LocalMartOnline.Services
         // Đăng ký MongoDB client, database, MongoDBService và các repository vào DI container
         public static IServiceCollection AddMongoDbAndRepositories(this IServiceCollection services)
         {
-            services.AddSingleton(sp => {
+            services.AddSingleton(sp =>
+            {
                 var configuration = sp.GetRequiredService<IConfiguration>();
                 var connectionString = configuration["MongoDB:ConnectionString"];
                 return new MongoDB.Driver.MongoClient(connectionString);
             });
-            services.AddSingleton(sp => {
+            services.AddSingleton(sp =>
+            {
                 var configuration = sp.GetRequiredService<IConfiguration>();
                 var client = sp.GetRequiredService<MongoDB.Driver.MongoClient>();
                 var dbName = configuration["MongoDB:DatabaseName"];
                 return client.GetDatabase(dbName);
             });
             services.AddScoped<MongoDBService>();
-            services.AddScoped<IRepository<User>>(sp => {
+            services.AddScoped<IRepository<User>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<User>(mongoService, "Users");
             });
-            services.AddScoped<IRepository<SellerRegistration>>(sp => {
+            services.AddScoped<IRepository<SellerRegistration>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<SellerRegistration>(mongoService, "SellerRegistration");
             });
-            services.AddScoped<IRepository<ProxyShopperRegistration>>(sp => {
+            services.AddScoped<IRepository<ProxyShopperRegistration>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<ProxyShopperRegistration>(mongoService, "ProxyShopperRegistrations");
             });
-            services.AddScoped<IRepository<ProxyShoppingOrder>>(sp => {
+            services.AddScoped<IRepository<ProxyShoppingOrder>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<ProxyShoppingOrder>(mongoService, "ProxyShoppingOrders");
             });
-            services.AddScoped<IRepository<MarketFee>>(sp => {
+            services.AddScoped<IRepository<MarketFee>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<MarketFee>(mongoService, "MarketFees");
             });
-            services.AddScoped<IRepository<MarketFeePayment>>(sp => {
+            services.AddScoped<IRepository<MarketFeePayment>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<MarketFeePayment>(mongoService, "MarketFeePayments");
             });
-            services.AddScoped<IRepository<FastBargain>>(sp => {
+            services.AddScoped<IRepository<FastBargain>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<FastBargain>(mongoService, "FastBargains");
             });
             services.AddScoped<IFastBargainService, Implement.FastBargainService>();
-            
+
             // Add Cart Service here
             services.AddScoped<ICartService, CartService>();
-            
+
             services.AddStackExchangeRedisCache(options =>
             {
                 var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
                 options.Configuration = configuration["Redis:ConnectionString"];
             });
-            services.AddScoped<IRepository<Product>>(sp => {
+            services.AddScoped<IRepository<Product>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<Product>(mongoService, "Products");
             });
-            services.AddScoped<IRepository<Order>>(sp => {
+            services.AddScoped<IRepository<Order>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<Order>(mongoService, "Orders");
             });
-            services.AddScoped<IRepository<Store>>(sp => {
+            services.AddScoped<IRepository<Store>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<Store>(mongoService, "Stores");
             });
-            services.AddScoped<IRepository<Category>>(sp => {
+            services.AddScoped<IRepository<Category>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<Category>(mongoService, "Categories");
             });
-            services.AddScoped<IRepository<CategoryRegistration>>(sp => {
+            services.AddScoped<IRepository<CategoryRegistration>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<CategoryRegistration>(mongoService, "CategoryRegistrations");
             });
-            services.AddScoped<IRepository<ProductImage>>(sp => {
+            services.AddScoped<IRepository<ProductImage>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<ProductImage>(mongoService, "ProductImages");
             });
-            services.AddScoped<IRepository<OrderItem>>(sp => {
+            services.AddScoped<IRepository<OrderItem>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<OrderItem>(mongoService, "OrderItems");
             });
-            services.AddScoped<IRepository<StoreFollow>>(sp => {
+            services.AddScoped<IRepository<StoreFollow>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<StoreFollow>(mongoService, "StoreFollows");
             });
-            services.AddScoped<IRepository<ProductUnit>>(sp => {
+            services.AddScoped<IRepository<ProductUnit>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<ProductUnit>(mongoService, "ProductUnits");
             });
-            services.AddScoped<IRepository<Favorite>>(sp => {
+            services.AddScoped<IRepository<Favorite>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<Favorite>(mongoService, "Favorites");
             });
-            services.AddScoped<IRepository<Notification>>(sp => {
+            services.AddScoped<IRepository<Notification>>(sp =>
+            {
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<Notification>(mongoService, "Notifications");
+            });
+            services.AddScoped<IRepository<Review>>(sp =>
+            {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<Review>(mongoService, "Reviews");
             });
             return services;
         }
@@ -121,7 +146,6 @@ namespace LocalMartOnline.Services
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IVnPayService, VnPayService>();
-
             // Business Services
             services.AddScoped<ICategoryService, CategoryService>();
             services.AddScoped<ICategoryRegistrationService, CategoryRegistrationService>();
@@ -138,9 +162,7 @@ namespace LocalMartOnline.Services
             services.AddScoped<IFaqService, FaqService>();
             services.AddScoped<IPlatformPolicyService, PlatformPolicyService>();
             services.AddScoped<IProductUnitService, ProductUnitService>();
-
             services.AddScoped<IReviewService, ReviewService>();
-
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<ICartService, CartService>();
             services.AddScoped<ICustomerService, CustomerService>();
