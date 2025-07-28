@@ -18,15 +18,18 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<Store> _storeRepo;
         private readonly IRepository<StoreFollow> _followRepo;
         private readonly IMapper _mapper;
+        private readonly IMarketService _marketService;
 
         public StoreService(
             IRepository<Store> storeRepo,
             IRepository<StoreFollow> followRepo,
-            IMapper mapper)
+            IMapper mapper,
+            IMarketService marketService)
         {
             _storeRepo = storeRepo;
             _followRepo = followRepo;
             _mapper = mapper;
+            _marketService = marketService;
         }
 
         // UC030: Create Store
@@ -263,17 +266,71 @@ namespace LocalMartOnline.Services.Implement
             var store = await _storeRepo.GetByIdAsync(id);
             if (store == null) return false;
             
-            // Chuyển đổi giữa Open và Closed (không liên quan đến Suspended)
-            if (store.Status == "Open")
-                store.Status = "Closed";
-            else if (store.Status == "Closed")
+            // Nếu store đang Suspended, không cho phép toggle
+            if (store.Status == "Suspended")
+                return false;
+            
+            // Nếu đang chuyển từ Closed sang Open, kiểm tra market có đang hoạt động không
+            if (store.Status == "Closed")
+            {
+                var isMarketOpen = await _marketService.IsMarketOpenAsync(store.MarketId);
+                if (!isMarketOpen)
+                {
+                    // Market đang đóng cửa, không cho phép mở store
+                    return false;
+                }
                 store.Status = "Open";
+            }
+            else if (store.Status == "Open")
+            {
+                // Luôn cho phép đóng store
+                store.Status = "Closed";
+            }
             else
-                return false; // Nếu store đang Suspended, không toggle trạng thái
+            {
+                return false; // Trạng thái không hợp lệ
+            }
                 
             store.UpdatedAt = DateTime.Now;
             await _storeRepo.UpdateAsync(id, store);
             return true;
+        }
+
+        public async Task<(bool Success, string Message)> ToggleStoreStatusWithMessageAsync(string id)
+        {
+            var store = await _storeRepo.GetByIdAsync(id);
+            if (store == null) 
+                return (false, "Không tìm thấy cửa hàng");
+            
+            // Nếu store đang Suspended, không cho phép toggle
+            if (store.Status == "Suspended")
+                return (false, "Cửa hàng đang bị tạm ngưng, không thể thay đổi trạng thái");
+            
+            // Nếu đang chuyển từ Closed sang Open, kiểm tra market có đang hoạt động không
+            if (store.Status == "Closed")
+            {
+                var (isMarketOpen, reason) = await _marketService.GetMarketOpenStatusAsync(store.MarketId);
+                if (!isMarketOpen)
+                {
+                    return (false, $"Không thể mở cửa hàng: {reason}");
+                }
+                store.Status = "Open";
+            }
+            else if (store.Status == "Open")
+            {
+                // Luôn cho phép đóng store
+                store.Status = "Closed";
+            }
+            else
+            {
+                return (false, "Trạng thái cửa hàng không hợp lệ");
+            }
+                
+            store.UpdatedAt = DateTime.Now;
+            await _storeRepo.UpdateAsync(id, store);
+            
+            string action = store.Status == "Open" ? "mở" : "đóng";
+            return (true, $"Đã {action} cửa hàng thành công");
         }
 
         public async Task<PagedResultDto<StoreDto>> SearchStoresAsync(StoreSearchFilterDto filter, bool isAdmin = false)
