@@ -98,16 +98,16 @@ namespace LocalMartOnline.Services.Implement
         public async Task<List<ProxyShoppingOrder>> GetAvailableOrdersAsync()
         {
             // Lấy danh sách đơn hàng chưa có proxy shopper nhận
-            var orders = await _orderRepo.FindManyAsync(o => o.Status == "Pending" && o.ProxyShopperId == null);
+            var orders = await _orderRepo.FindManyAsync(o => o.Status == Status.Pending && o.ProxyShopperId == null);
             return orders.ToList();
         }
 
         public async Task<bool> AcceptOrderAsync(string orderId, string proxyShopperId)
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null || order.Status != "Pending") return false;
+            if (order == null || order.Status != Status.Pending) return false;
             order.ProxyShopperId = proxyShopperId;
-            order.Status = "Accepted";
+            order.Status = Status.Confirmed; // Sử dụng Confirmed cho trạng thái đã nhận đơn
             order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
@@ -117,7 +117,7 @@ namespace LocalMartOnline.Services.Implement
         {
             // Gửi đề xuất cho người mua: lưu thông tin đề xuất vào đơn hàng
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null || order.Status != "Accepted") return false;
+            if (order == null || order.Status != Status.Confirmed) return false;
             order.TotalAmount = proposal.TotalAmount;
             order.ProxyFee = proposal.ProxyFee;
             order.Notes = proposal.Note;
@@ -130,8 +130,8 @@ namespace LocalMartOnline.Services.Implement
         public async Task<bool> ConfirmOrderAsync(string orderId, string proxyShopperId)
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.ProxyShopperId == proxyShopperId);
-            if (order == null || order.Status != "Accepted") return false;
-            order.Status = "Confirmed";
+            if (order == null || order.Status != Status.Confirmed) return false;
+            order.Status = Status.Paid; // Đã xác nhận mua hàng, chuyển sang trạng thái Paid
             order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
@@ -140,7 +140,7 @@ namespace LocalMartOnline.Services.Implement
         public async Task<bool> UploadBoughtItemsAsync(string orderId, List<string> imageUrls, string note)
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null || order.Status != "Confirmed") return false;
+            if (order == null || order.Status != Status.Paid) return false;
             // Nếu cần lưu ảnh, có thể mở rộng model
             order.Notes = note;
             order.UpdatedAt = DateTime.Now;
@@ -161,10 +161,10 @@ namespace LocalMartOnline.Services.Implement
         public async Task<bool> ConfirmDeliveryAsync(string orderId)
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null || order.Status != "Confirmed") return false;
+            if (order == null || order.Status != Status.Paid) return false;
 
             // Cập nhật trạng thái đơn hàng
-            order.Status = "Completed";
+            order.Status = Status.Completed;
             order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
 
@@ -259,7 +259,7 @@ namespace LocalMartOnline.Services.Implement
         {
             var orders = string.IsNullOrEmpty(status)
                 ? await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId)
-                : await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId && o.Status == status);
+                : await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId && o.Status.ToString() == status);
 
             return orders.OrderByDescending(o => o.CreatedAt).ToList();
         }
@@ -281,9 +281,9 @@ namespace LocalMartOnline.Services.Implement
         public async Task<bool> CancelOrderAsync(string orderId, string proxyShopperId, string reason)
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.ProxyShopperId == proxyShopperId);
-            if (order == null || order.Status == "Completed" || order.Status == "Cancelled") return false;
+            if (order == null || order.Status == Status.Completed || order.Status == Status.Cancelled) return false;
 
-            order.Status = "Cancelled";
+            order.Status = Status.Cancelled;
             order.Notes = $"Hủy bởi ProxyShopper: {reason}";
             order.UpdatedAt = DateTime.Now;
             await _orderRepo.UpdateAsync(orderId, order);
@@ -296,11 +296,10 @@ namespace LocalMartOnline.Services.Implement
             var orderList = orders.ToList();
 
             var totalOrders = orderList.Count;
-            var completedOrders = orderList.Count(o => o.Status == "Completed");
-            var cancelledOrders = orderList.Count(o => o.Status == "Cancelled");
-            var pendingOrders = orderList.Count(o => o.Status == "Pending" || o.Status == "Accepted" || o.Status == "Confirmed");
-
-            var totalEarnings = orderList.Where(o => o.Status == "Completed").Sum(o => o.ProxyFee ?? 0);
+            var completedOrders = orderList.Count(o => o.Status == Status.Completed);
+            var cancelledOrders = orderList.Count(o => o.Status == Status.Cancelled);
+            var pendingOrders = orderList.Count(o => o.Status == Status.Pending);
+            var totalEarnings = orderList.Where(o => o.Status == Status.Completed).Sum(o => o.ProxyFee ?? 0);
             var firstOrderDate = orderList.Any() ? orderList.Min(o => o.CreatedAt) : (DateTime?)null;
             var lastOrderDate = orderList.Any() ? orderList.Max(o => o.UpdatedAt) : (DateTime?)null;
 
