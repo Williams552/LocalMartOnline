@@ -424,11 +424,21 @@ namespace LocalMartOnline.Services.Implement
                 var orderItemDtos = new List<OrderItemDto>();
                 foreach (var cartItem in storeItems)
                 {
+                    var product = await _productCollection.Find(p => p.Id == cartItem.ProductId).FirstOrDefaultAsync();
+                    if (product != null)
+                    {
+                        var unit = await _productUnitCollection.Find(u => u.Id == product.UnitId).FirstOrDefaultAsync();
+                        if (unit != null && unit.RequiresIntegerQuantity && cartItem.Quantity != Math.Floor(cartItem.Quantity))
+                        {
+                            throw new ArgumentException($"Sản phẩm '{product.Name}' yêu cầu số lượng phải là số nguyên. Số lượng hiện tại: {cartItem.Quantity}");
+                        }
+                    }
+
                     var orderItem = new OrderItem
                     {
                         OrderId = order.Id!,
                         ProductId = cartItem.ProductId,
-                        Quantity = (int)cartItem.Quantity,
+                        Quantity = (decimal)cartItem.Quantity,
                         PriceAtPurchase = cartItem.Product.Price
                     };
                     await _orderItemRepo.CreateAsync(orderItem);
@@ -440,7 +450,7 @@ namespace LocalMartOnline.Services.Implement
                         ProductName = cartItem.Product.Name,
                         ProductImageUrl = cartItem.Product.Images,
                         ProductUnitName = cartItem.Product.Unit,
-                        Quantity = (int)cartItem.Quantity,
+                        Quantity = (decimal)cartItem.Quantity,
                         PriceAtPurchase = cartItem.Product.Price
                     });
                 }

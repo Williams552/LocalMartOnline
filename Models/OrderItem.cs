@@ -19,7 +19,7 @@ namespace LocalMartOnline.Models
         public string ProductId { get; set; } = string.Empty;
 
         [BsonElement("quantity")]
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
 
         [BsonElement("price_at_purchase")]
         public decimal PriceAtPurchase { get; set; }
