@@ -27,7 +27,7 @@ namespace LocalMartOnline.Models.DTOs
     {
         public string ProductId { get; set; }
         public string ProductName { get; set; }
-        public int SoldQuantity { get; set; }
+        public decimal SoldQuantity { get; set; }
         public decimal Revenue { get; set; }
         public int OrderCount { get; set; } // Số lượng đơn hàng chứa sản phẩm
         public double AverageRating { get; set; } // Đánh giá trung bình

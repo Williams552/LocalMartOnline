@@ -68,6 +68,6 @@ namespace LocalMartOnline.Models.DTOs.LoyalCustomer
         public decimal TotalAmount { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
-        public int ItemCount { get; set; }
+        public int ItemCount { get; set; } = 0;
     }
 }

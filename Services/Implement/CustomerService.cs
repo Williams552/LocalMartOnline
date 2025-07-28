@@ -219,7 +219,7 @@ namespace LocalMartOnline.Services
                     TotalAmount = orderAmount,
                     Status = order.Status.ToString(),
                     CreatedAt = order.CreatedAt,
-                    ItemCount = sellerOrderItems.Sum(oi => oi.Quantity)
+                    //ItemCount = sellerOrderItems.Sum(oi => oi.Quantity)
                 });
             }
 

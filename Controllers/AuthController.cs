@@ -88,10 +88,12 @@ namespace LocalMartOnline.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDTO dto)
         {
-            var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            await _authService.ForgotPasswordAsync(dto.Email, baseUrl);
+            // Gửi link về trang FE thay vì BE
+            var frontendBaseUrl = "http://localhost:3000";
+            await _authService.ForgotPasswordAsync(dto.Email, frontendBaseUrl);
             return Ok(new { success = true, message = "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi.", data = (object?)null });
         }
+
 
         [HttpPost("reset-password")]
         [AllowAnonymous]

@@ -35,11 +35,11 @@ namespace LocalMartOnline.Services
                 return null;
             if (!user.IsEmailVerified)
                 throw new InvalidOperationException("Email chưa xác thực");
-            
+
             // Kiểm tra trạng thái tài khoản
             if (user.Status == "Disabled")
                 throw new InvalidOperationException("ACCOUNT_DISABLED");
-                
+
             // Cập nhật userToken nếu có gửi lên và khác với DB
             if (!string.IsNullOrEmpty(loginDto.UserToken) && user.UserToken != loginDto.UserToken)
             {
@@ -128,7 +128,7 @@ namespace LocalMartOnline.Services
             user.OTPExpiry = otpExpiry;
             user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(user.Id!, user);
-            var resetUrl = baseUrl + "/api/Auth/reset-password?token=" + otpToken;
+            var resetUrl = $"{baseUrl}/reset-password?token={otpToken}&email={Uri.EscapeDataString(user.Email)}";
             var subject = "Đặt lại mật khẩu LocalMartOnline";
             var body = $"<p>Bạn vừa yêu cầu đặt lại mật khẩu. Nhấn vào link sau để đặt lại mật khẩu: <a href='{resetUrl}'>Đặt lại mật khẩu</a></p>";
             await _emailService.SendEmailAsync(user.Email, subject, body);

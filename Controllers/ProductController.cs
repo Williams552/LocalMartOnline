@@ -15,7 +15,7 @@ namespace LocalMartOnline.Controllers
     {
         private readonly IProductService _service;
 
-        public ProductController(IProductService service)
+        public ProductController(IProductService service) 
         {
             _service = service;
         }
