@@ -229,7 +229,7 @@ namespace LocalMartOnline.Controllers
 
         // UC038: View Following Store List
         [HttpGet("following")]
-        [Authorize(Roles = "Buyer")]
+[Authorize(Roles = "Buyer,Proxy Shopper")]
         public async Task<IActionResult> GetFollowingStores([FromQuery] string userId)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(userId, out _))

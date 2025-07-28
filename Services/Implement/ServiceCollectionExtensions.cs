@@ -170,6 +170,7 @@ namespace LocalMartOnline.Services
             services.AddScoped<ISellerAnalyticsService, SellerAnalyticsService>();
             services.AddScoped<IProxyShopperService, ProxyShopperService>();
             services.AddScoped<ISupportRequestService, SupportRequestService>();
+            services.AddScoped<IShopperAnalyticsService, ShopperAnalyticsService>();
             return services;
         }
 

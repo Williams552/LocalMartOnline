@@ -5,6 +5,14 @@ using LocalMartOnline.Models.DTOs.Product;
 
 namespace LocalMartOnline.Models
 {
+    public enum Status
+    {
+        Pending,    // Người mua mới đặt hàng
+        Confirmed,  // Người bán xác nhận còn hàng
+        Paid,       // Người bán xác nhận đã nhận được tiền
+        Completed,  // Người mua xác nhận đã nhận đúng hàng
+        Cancelled   // Đơn hàng bị hủy
+    }
     [BsonIgnoreExtraElements]
     public class ProxyShoppingOrder
     {
@@ -28,7 +36,7 @@ namespace LocalMartOnline.Models
         public decimal? TotalAmount { get; set; }
 
         [BsonElement("status")]
-        public string Status { get; set; } = "Pending"; // 'Pending', 'Accepted', 'Completed', 'Cancelled'
+        public Status Status { get; set; } = Status.Pending; // 'Pending', 'Confirmed', 'Completed', 'Cancelled'
 
         [BsonElement("proxy_fee")]
         public decimal? ProxyFee { get; set; }
