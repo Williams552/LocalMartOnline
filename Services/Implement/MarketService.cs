@@ -61,9 +61,19 @@ public class MarketService : IMarketService
     {
         var market = await _marketRepo.GetByIdAsync(id);
         if (market == null) return false;
+        
+        var oldStatus = market.Status;
+        
         _mapper.Map(dto, market);
         market.UpdatedAt = DateTime.Now;
         await _marketRepo.UpdateAsync(id, market);
+        
+        // Nếu market status thay đổi từ Active sang Suspended/Inactive, đóng tất cả stores
+        if (oldStatus == "Active" && market.Status != "Active")
+        {
+            await CloseAllStoresInMarketAsync(id);
+        }
+        
         return true;
     }
 
@@ -125,10 +135,19 @@ public class MarketService : IMarketService
         var market = await _marketRepo.GetByIdAsync(id);
         if (market == null) return false;
 
+        var oldStatus = market.Status;
+        
         // Toggle trạng thái từ Active <-> Suspended
         market.Status = market.Status == "Active" ? "Suspended" : "Active";
         market.UpdatedAt = DateTime.Now;
         await _marketRepo.UpdateAsync(id, market);
+        
+        // Nếu market chuyển từ Active sang Suspended, đóng tất cả stores
+        if (oldStatus == "Active" && market.Status == "Suspended")
+        {
+            await CloseAllStoresInMarketAsync(id);
+        }
+        
         return true;
     }
 
@@ -189,5 +208,148 @@ public class MarketService : IMarketService
         }
 
         return result;
+    }
+
+    // Market Operation Methods
+    public async Task<bool> IsMarketOpenAsync(string marketId)
+    {
+        var market = await _marketRepo.GetByIdAsync(marketId);
+        if (market == null || market.Status != "Active")
+            return false;
+
+        if (string.IsNullOrEmpty(market.OperatingHours))
+            return true; // Nếu không có giờ hoạt động thì mặc định luôn mở
+
+        var currentTime = DateTime.Now;
+        return IsTimeInOperatingHours(market.OperatingHours, currentTime);
+    }
+
+    public async Task<(bool IsOpen, string Reason)> GetMarketOpenStatusAsync(string marketId)
+    {
+        var market = await _marketRepo.GetByIdAsync(marketId);
+        if (market == null)
+            return (false, "Không tìm thấy chợ");
+
+        if (market.Status != "Active")
+            return (false, "Chợ hiện đang ngừng hoạt động");
+
+        if (string.IsNullOrEmpty(market.OperatingHours))
+            return (true, "Chợ đang hoạt động");
+
+        var currentTime = DateTime.Now;
+        var isInOperatingHours = IsTimeInOperatingHours(market.OperatingHours, currentTime);
+        
+        if (!isInOperatingHours)
+            return (false, $"Chợ đang đóng cửa (giờ hoạt động: {market.OperatingHours})");
+
+        return (true, "Chợ đang hoạt động");
+    }
+
+    public bool IsTimeInOperatingHours(string operatingHours, DateTime currentTime)
+    {
+        if (string.IsNullOrEmpty(operatingHours))
+            return true;
+
+        try
+        {
+            // Support formats: "06:00-18:00", "6:00 AM - 6:00 PM", "06:00 - 18:00"
+            var timePattern = @"(\d{1,2}):(\d{2})(?:\s*(AM|PM))?\s*-\s*(\d{1,2}):(\d{2})(?:\s*(AM|PM))?";
+            var match = System.Text.RegularExpressions.Regex.Match(operatingHours.Replace(" ", ""), timePattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            
+            if (!match.Success)
+                return true; // Nếu format không đúng thì mặc định luôn mở
+
+            var startHour = int.Parse(match.Groups[1].Value);
+            var startMinute = int.Parse(match.Groups[2].Value);
+            var startAmPm = match.Groups[3].Value;
+            
+            var endHour = int.Parse(match.Groups[4].Value);
+            var endMinute = int.Parse(match.Groups[5].Value);
+            var endAmPm = match.Groups[6].Value;
+
+            // Convert to 24-hour format if AM/PM is specified
+            if (!string.IsNullOrEmpty(startAmPm))
+            {
+                if (startAmPm.ToUpper() == "PM" && startHour != 12)
+                    startHour += 12;
+                else if (startAmPm.ToUpper() == "AM" && startHour == 12)
+                    startHour = 0;
+            }
+
+            if (!string.IsNullOrEmpty(endAmPm))
+            {
+                if (endAmPm.ToUpper() == "PM" && endHour != 12)
+                    endHour += 12;
+                else if (endAmPm.ToUpper() == "AM" && endHour == 12)
+                    endHour = 0;
+            }
+
+            var openTime = new TimeSpan(startHour, startMinute, 0);
+            var closeTime = new TimeSpan(endHour, endMinute, 0);
+            var currentTimeSpan = currentTime.TimeOfDay;
+
+            // Handle case where market operates across midnight (e.g., 22:00-06:00)
+            if (closeTime < openTime)
+            {
+                return currentTimeSpan >= openTime || currentTimeSpan <= closeTime;
+            }
+            else
+            {
+                return currentTimeSpan >= openTime && currentTimeSpan <= closeTime;
+            }
+        }
+        catch
+        {
+            return true; // Nếu có lỗi parse thì mặc định luôn mở
+        }
+    }
+
+    public async Task UpdateStoreStatusBasedOnMarketHoursAsync()
+    {
+        var markets = await _marketRepo.GetAllAsync();
+        var stores = await _storeRepo.GetAllAsync();
+        
+        Console.WriteLine($"[DEBUG] Found {markets.Count()} markets and {stores.Count()} stores");
+
+        foreach (var market in markets.Where(m => m.Status == "Active"))
+        {
+            var isMarketOpen = IsTimeInOperatingHours(market.OperatingHours ?? "", DateTime.Now);
+            var marketStores = stores.Where(s => s.MarketId.ToString() == market.Id!.ToString()).ToList();
+            
+            Console.WriteLine($"[DEBUG] Market '{market.Name}' (ID: {market.Id}) - Open: {isMarketOpen}, Hours: {market.OperatingHours}, Stores: {marketStores.Count}");
+
+            foreach (var store in marketStores)
+            {
+                Console.WriteLine($"[DEBUG] Store '{store.Name}' (ID: {store.Id}) - Status: {store.Status}, MarketId: {store.MarketId}");
+                
+                // Chỉ tự động đóng cửa hàng khi chợ đóng cửa
+                // KHÔNG tự động mở lại cửa hàng khi chợ mở cửa (seller phải tự mở)
+                // Handle cả "Open" và "Active" status (có thể có inconsistent data)
+                if (!isMarketOpen && (store.Status == "Open" || store.Status == "Active"))
+                {
+                    Console.WriteLine($"[DEBUG] Closing store '{store.Name}' because market is closed");
+                    store.Status = "Closed";
+                    store.UpdatedAt = DateTime.Now;
+                    await _storeRepo.UpdateAsync(store.Id!, store);
+                }
+            }
+        }
+    }
+
+    public async Task CloseAllStoresInMarketAsync(string marketId)
+    {
+        // Lấy tất cả stores trong market này
+        var stores = await _storeRepo.FindManyAsync(s => s.MarketId.ToString() == marketId);
+        
+        foreach (var store in stores)
+        {
+            // Chỉ đóng những store đang Open, không touch Suspended stores
+            if (store.Status == "Open")
+            {
+                store.Status = "Closed";
+                store.UpdatedAt = DateTime.Now;
+                await _storeRepo.UpdateAsync(store.Id!, store);
+            }
+        }
     }
 }

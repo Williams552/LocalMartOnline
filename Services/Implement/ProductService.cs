@@ -21,6 +21,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<ProductUnit> _unitRepo;
         private readonly IRepository<Market> _marketRepo;
         private readonly IRepository<User> _userRepo;
+        private readonly IMarketService _marketService;
         private readonly IMapper _mapper;
         private readonly IMongoCollection<BsonDocument> _productCollection;
 
@@ -31,6 +32,7 @@ namespace LocalMartOnline.Services.Implement
             IRepository<ProductUnit> unitRepo,
             IRepository<Market> marketRepo,
             IRepository<User> userRepo,
+            IMarketService marketService,
             IMapper mapper,
             IMongoDatabase database)
         {
@@ -40,6 +42,7 @@ namespace LocalMartOnline.Services.Implement
             _unitRepo = unitRepo;
             _marketRepo = marketRepo;
             _userRepo = userRepo;
+            _marketService = marketService;
             _mapper = mapper;
             _productCollection = database.GetCollection<BsonDocument>("products");
         }
@@ -125,16 +128,28 @@ namespace LocalMartOnline.Services.Implement
         // UC049: View All Product List (FOR BUYERS - ALL STATUSES)
         public async Task<PagedResultDto<ProductDto>> GetAllProductsAsync(int page, int pageSize)
         {
+            // Update store status based on market hours before filtering
+            await _marketService.UpdateStoreStatusBasedOnMarketHoursAsync();
+            
             var products = await _productRepo.GetAllAsync();
             var stores = await _storeRepo.GetAllAsync();
             var units = await _unitRepo.GetAllAsync();
             var users = await _userRepo.GetAllAsync();
             var markets = await _marketRepo.GetAllAsync();
             
-            var activeStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id!).Where(id => id != null));
+            // Filter stores that are open and in active markets
+            var validStoreIds = new HashSet<string>();
+            foreach (var store in stores.Where(s => s.Status == "Open"))
+            {
+                var isMarketOpen = await _marketService.IsMarketOpenAsync(store.MarketId);
+                if (isMarketOpen)
+                {
+                    validStoreIds.Add(store.Id!);
+                }
+            }
 
             var productList = products
-                .Where(p => activeStoreIds.Contains(p.StoreId)) // Hiển thị tất cả trạng thái sản phẩm
+                .Where(p => validStoreIds.Contains(p.StoreId)) // Chỉ hiển thị sản phẩm của cửa hàng mở và chợ hoạt động
                 .ToList();
 
             var total = productList.Count();
@@ -288,6 +303,9 @@ namespace LocalMartOnline.Services.Implement
         // UC055: Filter Products (FOR BUYERS - ALL STATUSES WITH FILTER)
         public async Task<PagedResultDto<ProductDto>> FilterProductsAsync(ProductFilterDto filter)
         {
+            // Update store status based on market hours before filtering
+            await _marketService.UpdateStoreStatusBasedOnMarketHoursAsync();
+            
             var products = await _productRepo.GetAllAsync();
             var stores = await _storeRepo.GetAllAsync();
             var units = await _unitRepo.GetAllAsync();
@@ -297,17 +315,23 @@ namespace LocalMartOnline.Services.Implement
             Console.WriteLine($"FilterProductsAsync called with MarketId: {filter.MarketId}, StoreId: {filter.StoreId}, CategoryId: {filter.CategoryId}, Keyword: {filter.Keyword}, Status: {filter.Status}");
             Console.WriteLine($"Total products: {products.Count()}, Total stores: {stores.Count()}");
             
-            // Start with all open stores
-            var validStoreIds = new HashSet<string>(stores.Where(s => s.Status == "Open").Select(s => s.Id!).Where(id => id != null));
-            Console.WriteLine($"Open stores count: {validStoreIds.Count}");
+            // Start with stores that are open and in active markets
+            var validStoreIds = new HashSet<string>();
+            foreach (var store in stores.Where(s => s.Status == "Open"))
+            {
+                var isMarketOpen = await _marketService.IsMarketOpenAsync(store.MarketId);
+                if (isMarketOpen)
+                {
+                    validStoreIds.Add(store.Id!);
+                }
+            }
+            Console.WriteLine($"Valid stores (open + market active) count: {validStoreIds.Count}");
 
             // Filter by market if specified
             if (!string.IsNullOrEmpty(filter.MarketId))
             {
-                validStoreIds = new HashSet<string>(stores
-                    .Where(s => s.MarketId == filter.MarketId && s.Status == "Open")
-                    .Select(s => s.Id!)
-                    .Where(id => id != null));
+                var marketStores = stores.Where(s => s.MarketId == filter.MarketId).Select(s => s.Id!).ToHashSet();
+                validStoreIds = validStoreIds.Where(id => marketStores.Contains(id)).ToHashSet();
                 Console.WriteLine($"Stores in market {filter.MarketId}: {validStoreIds.Count}");
             }
 

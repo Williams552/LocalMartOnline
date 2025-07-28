@@ -93,19 +93,19 @@ namespace LocalMartOnline.Controllers
                 });
             }
 
-            var result = await _storeService.ToggleStoreStatusAsync(id);
-            if (!result)
-                return NotFound(new
+            var (success, message) = await _storeService.ToggleStoreStatusWithMessageAsync(id);
+            if (!success)
+                return BadRequest(new
                 {
                     success = false,
-                    message = "Không thể thay đổi trạng thái gian hàng",
+                    message = message,
                     data = (object?)null
                 });
 
             return Ok(new
             {
                 success = true,
-                message = "Thay đổi trạng thái gian hàng thành công",
+                message = message,
                 data = (object?)null
             });
         }

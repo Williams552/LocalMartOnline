@@ -248,5 +248,107 @@ namespace LocalMartOnline.Controllers
                 data = market
             });
         }
+
+        [HttpPost("{marketId}/close-all-stores")]
+        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        public async Task<IActionResult> CloseAllStoresInMarket(string marketId)
+        {
+            try
+            {
+                if (!MongoDB.Bson.ObjectId.TryParse(marketId, out _))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "ID chợ không hợp lệ",
+                        data = (object?)null
+                    });
+                }
+
+                await _marketService.CloseAllStoresInMarketAsync(marketId);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Đã đóng tất cả cửa hàng trong chợ thành công",
+                    data = new
+                    {
+                        marketId = marketId,
+                        closedAt = DateTime.Now
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi đóng cửa hàng trong chợ",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [HttpGet("{marketId}/test-store-auto-close")]
+        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        public async Task<IActionResult> TestStoreAutoClose(string marketId, [FromQuery] string? testTime = null)
+        {
+            try
+            {
+                if (!MongoDB.Bson.ObjectId.TryParse(marketId, out _))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "ID chợ không hợp lệ",
+                        data = (object?)null
+                    });
+                }
+
+                var market = await _marketService.GetByIdAsync(marketId);
+                if (market == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy chợ",
+                        data = (object?)null
+                    });
+                }
+
+                DateTime testDateTime = DateTime.Now;
+                if (!string.IsNullOrEmpty(testTime) && DateTime.TryParse(testTime, out var parsedTime))
+                {
+                    testDateTime = parsedTime;
+                }
+
+                var isMarketOpen = _marketService.IsTimeInOperatingHours(market.OperatingHours ?? "", testDateTime);
+                
+                return Ok(new
+                {
+                    success = true,
+                    message = "Test auto-close logic completed",
+                    data = new
+                    {
+                        marketId = marketId,
+                        marketName = market.Name,
+                        operatingHours = market.OperatingHours,
+                        testTime = testDateTime,
+                        currentTime = DateTime.Now,
+                        isMarketOpen = isMarketOpen,
+                        shouldCloseStores = !isMarketOpen,
+                        explanation = isMarketOpen ? "Stores should be OPEN (market operating)" : "Stores should be CLOSED (market closed)"
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi test auto-close logic",
+                    error = ex.Message
+                });
+            }
+        }
     }
 }

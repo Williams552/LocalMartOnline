@@ -24,6 +24,7 @@ namespace LocalMartOnline.Services.Interface
         Task<StoreDto?> GetStoreProfileAsync(string id);
         Task<PagedResultDto<StoreDto>> GetActiveStoresByMarketIdAsync(string marketId, int page, int pageSize);
         Task<bool> ToggleStoreStatusAsync(string id);
+        Task<(bool Success, string Message)> ToggleStoreStatusWithMessageAsync(string id);
         
         // Thêm phương thức tìm kiếm và lọc
         Task<PagedResultDto<StoreDto>> SearchStoresAsync(StoreSearchFilterDto searchFilter, bool isAdmin = false);

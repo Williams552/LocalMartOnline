@@ -83,6 +83,9 @@ builder.Services.AddSignalR();
 // Chat Service
 builder.Services.AddScoped<IChatService, ChatService>();
 
+// Background Services
+builder.Services.AddHostedService<LocalMartOnline.Services.Implement.MarketOperationBackgroundService>();
+
 // CORS policy
 builder.Services.AddCors(options =>
 {
