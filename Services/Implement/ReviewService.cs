@@ -255,10 +255,6 @@ namespace LocalMartOnline.Services
 
         public async Task<bool> CanUserReviewAsync(string userId, string targetType, string targetId)
         {
-            // For now, we'll implement basic logic. In a real scenario, you'd check:
-            // - For Product: User must have completed an order containing this product
-            // - For Seller: User must have completed an order from this seller
-            // - For ProxyShopper: User must have completed a proxy shopping order with this shopper
 
             switch (targetType.ToLower())
             {
@@ -269,6 +265,10 @@ namespace LocalMartOnline.Services
                 case "seller":
                     // Check if user has completed orders from this seller
                     return await HasCompletedOrderFromSellerAsync(userId, targetId);
+                
+                case "store":
+                    // Check if user has completed orders from this store
+                    return await HasCompletedOrderFromStoreAsync(userId, targetId);
                 
                 case "proxyshopper":
                     // Check if user has completed proxy shopping orders with this shopper
@@ -300,6 +300,14 @@ namespace LocalMartOnline.Services
         private async Task<bool> HasCompletedOrderFromSellerAsync(string userId, string sellerId)
         {
             // This would require checking if user has completed orders from stores owned by this seller
+            // For now, return true to allow testing
+            await Task.CompletedTask;
+            return true;
+        }
+
+        private async Task<bool> HasCompletedOrderFromStoreAsync(string userId, string storeId)
+        {
+            // Check if user has completed orders from this specific store
             // For now, return true to allow testing
             await Task.CompletedTask;
             return true;
