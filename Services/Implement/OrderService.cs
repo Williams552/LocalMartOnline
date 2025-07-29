@@ -168,6 +168,7 @@ namespace LocalMartOnline.Services.Implement
             var orders = await _orderRepo.GetAllAsync();
             var filtered = orders.Where(o =>
                 (string.IsNullOrEmpty(filter.BuyerId) || o.BuyerId == filter.BuyerId) &&
+                (string.IsNullOrEmpty(filter.SellerId) || o.SellerId == filter.SellerId) &&
                 (string.IsNullOrEmpty(filter.Status) || o.Status.ToString() == filter.Status) &&
                 (string.IsNullOrEmpty(filter.PaymentStatus) || o.PaymentStatus.ToString() == filter.PaymentStatus) &&
                 (!filter.FromDate.HasValue || o.CreatedAt >= filter.FromDate.Value) &&
