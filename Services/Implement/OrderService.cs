@@ -183,6 +183,11 @@ namespace LocalMartOnline.Services.Implement
             {
                 var dto = _mapper.Map<OrderDto>(order);
 
+                // Lấy thông tin người mua
+                var buyer = await _userCollection.Find(u => u.Id == order.BuyerId).FirstOrDefaultAsync();
+                dto.BuyerName = buyer?.FullName ?? "Unknown";
+                dto.BuyerPhone = buyer?.PhoneNumber ?? "Unknown";
+
                 // Lấy thông tin cửa hàng
                 var store = await _storeCollection
                     .Find(s => s.SellerId == order.SellerId)
@@ -190,12 +195,36 @@ namespace LocalMartOnline.Services.Implement
                 dto.StoreName = store?.Name ?? "Unknown Store";
 
                 var items = await _orderItemRepo.FindManyAsync(i => i.OrderId == order.Id);
-                dto.Items = items.Select(i => new OrderItemDto
+                var itemDtos = new List<OrderItemDto>();
+
+                foreach (var item in items)
                 {
-                    ProductId = i.ProductId,
-                    Quantity = i.Quantity,
-                    PriceAtPurchase = i.PriceAtPurchase
-                }).ToList();
+                    var product = await _productCollection
+                        .Find(p => p.Id == item.ProductId)
+                        .FirstOrDefaultAsync();
+
+                    if (product == null) continue;
+
+                    var unit = await _productUnitCollection
+                        .Find(u => u.Id == product.UnitId)
+                        .FirstOrDefaultAsync();
+
+                    var image = await _productImageCollection
+                        .Find(img => img.ProductId == product.Id)
+                        .FirstOrDefaultAsync();
+
+                    itemDtos.Add(new OrderItemDto
+                    {
+                        ProductId = product.Id ?? string.Empty,
+                        ProductName = product.Name,
+                        ProductImageUrl = image?.ImageUrl ?? string.Empty,
+                        ProductUnitName = unit?.DisplayName ?? "kg",
+                        Quantity = item.Quantity,
+                        PriceAtPurchase = item.PriceAtPurchase
+                    });
+                }
+
+                dto.Items = itemDtos;
                 result.Add(dto);
             }
 
