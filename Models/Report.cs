@@ -15,7 +15,7 @@ namespace LocalMartOnline.Models
         public string ReporterId { get; set; } = string.Empty;
 
         [BsonElement("target_type")]
-        public string TargetType { get; set; } = string.Empty; // Product, Seller, Buyer
+        public string TargetType { get; set; } = string.Empty; // Product, Seller, Buyer, Store
 
         [BsonElement("target_id")]
         [BsonRepresentation(BsonType.ObjectId)]
@@ -23,6 +23,16 @@ namespace LocalMartOnline.Models
 
         [BsonElement("reason")]
         public string Reason { get; set; } = string.Empty;
+
+        [BsonElement("title")]
+        public string Title { get; set; } = string.Empty;
+
+        [BsonElement("evidence_image")]
+        public string? EvidenceImage { get; set; }
+
+        [BsonElement("admin_response")]
+        public string? AdminResponse { get; set; }
+
         [BsonElement("status")]
         public string Status { get; set; } = "Pending"; // Pending, Resolved, Dismissed
 
