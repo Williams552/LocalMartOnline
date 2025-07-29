@@ -144,7 +144,6 @@ namespace LocalMartOnline.Controllers
 
         // UC037: Follow Store
         [HttpPost("{storeId}/follow")]
-        [Authorize(Roles = "Buyer")]
         public async Task<IActionResult> FollowStore(string storeId, [FromQuery] string userId)
         {
             // Kiểm tra ObjectId hợp lệ
@@ -187,7 +186,6 @@ namespace LocalMartOnline.Controllers
 
         // UC039: Unfollow Store
         [HttpPost("{storeId}/unfollow")]
-        [Authorize(Roles = "Buyer")]
         public async Task<IActionResult> UnfollowStore(string storeId, [FromQuery] string userId)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(storeId, out _))
@@ -229,7 +227,6 @@ namespace LocalMartOnline.Controllers
 
         // UC038: View Following Store List
         [HttpGet("following")]
-[Authorize(Roles = "Buyer,Proxy Shopper")]
         public async Task<IActionResult> GetFollowingStores([FromQuery] string userId)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(userId, out _))
