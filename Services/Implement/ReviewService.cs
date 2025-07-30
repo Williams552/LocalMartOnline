@@ -98,6 +98,23 @@ namespace LocalMartOnline.Services
             return result != null ? MapToDto(result) : null;
         }
 
+        public async Task<ReviewDto?> UpdateReviewResponseAsync(string reviewId, UpdateReviewResponseDto updateResponseDto)
+        {
+            var filter = Builders<Review>.Filter.Eq(r => r.Id, reviewId);
+
+            var update = Builders<Review>.Update
+                .Set(r => r.Response, updateResponseDto.Response)
+                .Set(r => r.UpdatedAt, DateTime.Now);
+
+            var result = await _reviewCollection.FindOneAndUpdateAsync(
+                filter, 
+                update, 
+                new FindOneAndUpdateOptions<Review> { ReturnDocument = ReturnDocument.After }
+            );
+
+            return result != null ? MapToDto(result) : null;
+        }
+
         public async Task<bool> DeleteReviewAsync(string userId, string reviewId)
         {
             var filter = Builders<Review>.Filter.And(
