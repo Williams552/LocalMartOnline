@@ -201,6 +201,9 @@ namespace LocalMartOnline.Services
             AddRepository<Faq>("Faqs");
             AddRepository<PlatformPolicy>("PlatformPolicies");
             AddRepository<Market>("Markets");
+            AddRepository<MarketFee>("MarketFees");
+            AddRepository<MarketFeeType>("MarketFeeTypes");
+            AddRepository<MarketFeePayment>("MarketFeePayments");
             AddRepository<ProductUnit>("ProductUnits");
             AddRepository<Favorite>("Favorites");
             AddRepository<Notification>("Notifications");

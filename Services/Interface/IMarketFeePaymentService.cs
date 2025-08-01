@@ -7,9 +7,16 @@ namespace LocalMartOnline.Services.Interface
 {
     public interface IMarketFeePaymentService
     {
-        Task<IEnumerable<MarketFeePaymentDto>> GetPaymentsBySellerAsync(long sellerId);
-        Task<MarketFeePaymentDto?> GetPaymentByIdAsync(long paymentId);
+        Task<IEnumerable<MarketFeePaymentDto>> GetPaymentsBySellerAsync(string sellerId);
+        Task<MarketFeePaymentDto?> GetPaymentByIdAsync(string paymentId);
         Task<MarketFeePaymentDto> CreatePaymentAsync(MarketFeePaymentCreateDto dto);
-        Task<bool> UpdatePaymentStatusAsync(long paymentId, string status);
+        Task<bool> UpdatePaymentStatusAsync(string paymentId, string status);
+        
+        // New methods for seller payment status tracking
+        Task<GetSellersPaymentStatusResponseDto> GetSellersPaymentStatusAsync(GetSellersPaymentStatusRequestDto request);
+        Task<bool> UpdatePaymentStatusByAdminAsync(UpdatePaymentStatusDto dto);
+        
+        // New method for admin to get all payments with filtering
+        Task<GetAllMarketFeePaymentsResponseDto> GetAllPaymentsAsync(GetAllMarketFeePaymentsRequestDto request);
     }
 }
