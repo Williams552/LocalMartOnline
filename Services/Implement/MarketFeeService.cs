@@ -19,7 +19,14 @@ namespace LocalMartOnline.Services.Implement
         private readonly IMongoCollection<MarketFee> _marketFeeCollection;
         private readonly IMongoCollection<MarketFeeType> _marketFeeTypeCollection;
         private readonly IMapper _mapper;
-        public MarketFeeService(IRepository<MarketFee> repo, IRepository<Market> marketRepo, IMapper mapper, IMongoDatabase database)
+        private readonly IStoreService _storeService;
+        
+        public MarketFeeService(
+            IRepository<MarketFee> repo, 
+            IRepository<Market> marketRepo, 
+            IMapper mapper, 
+            IMongoDatabase database,
+            IStoreService storeService)
         {
             _repo = repo;
             _marketRepo = marketRepo;
@@ -27,6 +34,7 @@ namespace LocalMartOnline.Services.Implement
             _marketCollection = database.GetCollection<Market>("Markets");
             _marketFeeCollection = database.GetCollection<MarketFee>("MarketFees");
             _marketFeeTypeCollection = database.GetCollection<MarketFeeType>("MarketFeeTypes");
+            _storeService = storeService;
         }
 
         public async Task<IEnumerable<MarketFeeDto>> GetAllAsync(GetMarketFeeRequestDto request)
@@ -134,6 +142,18 @@ namespace LocalMartOnline.Services.Implement
             {
                 feeDto.MarketName = market.Name;
             }
+
+            // Auto-trigger payment generation when new MarketFee is created
+            try
+            {
+                var paymentsCreated = await _storeService.GenerateMonthlyPaymentsAsync(); // Current month
+                // Log success if needed: $"Auto-generated {paymentsCreated} payments for new MarketFee"
+            }
+            catch
+            {
+                // Log error but don't fail MarketFee creation
+                // Consider logging: "Failed to auto-generate payments for new MarketFee"
+            }
             
             return feeDto;
         }
@@ -153,6 +173,18 @@ namespace LocalMartOnline.Services.Implement
             if (market != null)
             {
                 feeDto.MarketName = market.Name;
+            }
+
+            // Auto-trigger payment generation when new MarketFee is created
+            try
+            {
+                var paymentsCreated = await _storeService.GenerateMonthlyPaymentsAsync(); // Current month
+                // Log success if needed: $"Auto-generated {paymentsCreated} payments for new MarketFee"
+            }
+            catch
+            {
+                // Log error but don't fail MarketFee creation
+                // Consider logging: "Failed to auto-generate payments for new MarketFee"
             }
             
             return feeDto;

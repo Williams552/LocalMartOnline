@@ -1,5 +1,6 @@
 ﻿using LocalMartOnline.Models.DTOs.Common;
 using LocalMartOnline.Models.DTOs.Store;
+using LocalMartOnline.Models;
 using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -730,6 +731,53 @@ namespace LocalMartOnline.Controllers
                 {
                     success = false,
                     message = $"Lỗi khi cập nhật trạng thái thanh toán: {ex.Message}",
+                    data = (object?)null
+                });
+            }
+        }
+
+        // Admin endpoint: Generate monthly payments for all stores
+        [HttpPost("admin/generate-monthly-payments")]
+        // [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GenerateMonthlyPayments([FromQuery] int? month = null, [FromQuery] int? year = null)
+        {
+            try
+            {
+                // Use current month/year if not provided
+                var targetMonth = month ?? DateTime.Now.Month;
+                var targetYear = year ?? DateTime.Now.Year;
+
+                if (targetMonth < 1 || targetMonth > 12)
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Tháng phải từ 1 đến 12",
+                        data = (object?)null
+                    });
+
+                if (targetYear < 2020 || targetYear > 2030)
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Năm phải từ 2020 đến 2030",
+                        data = (object?)null
+                    });
+
+                var createdCount = await _storeService.GenerateMonthlyPaymentsAsync(month, year);
+                
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Đã tạo thành công {createdCount} bản ghi thanh toán cho tháng {targetMonth}/{targetYear}",
+                    data = new { createdCount, month = targetMonth, year = targetYear }
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message,
                     data = (object?)null
                 });
             }

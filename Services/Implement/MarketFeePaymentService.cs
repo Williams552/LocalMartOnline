@@ -322,7 +322,6 @@ namespace LocalMartOnline.Services.Implement
                     PaymentStatus = payment.PaymentStatus.ToString(),
                     PaymentDate = payment.PaymentDate,
                     CreatedAt = payment.CreatedAt,
-                    AdminNotes = payment.AdminNotes,
                     IsOverdue = isOverdue,
                     DaysOverdue = daysOverdue
                 });

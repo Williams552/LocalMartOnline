@@ -39,8 +39,5 @@ namespace LocalMartOnline.Models
         
         [BsonElement("payment_date")]
         public DateTime? PaymentDate { get; set; }
-        
-        [BsonElement("admin_notes")]
-        public string? AdminNotes { get; set; }
     }
 }

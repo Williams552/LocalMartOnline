@@ -62,6 +62,19 @@ namespace LocalMartOnline.Services.Implement
             store.UpdatedAt = DateTime.Now;
             store.Rating = 0.0m;
             await _storeRepo.CreateAsync(store);
+
+            // Auto-trigger payment generation for current month when new store is created
+            try
+            {
+                var paymentsCreated = await GenerateMonthlyPaymentsAsync(); // Call without params = current month
+                // Log success if needed: $"Auto-generated {paymentsCreated} payments for new store"
+            }
+            catch
+            {
+                // Log error but don't fail store creation
+                // Consider logging: "Failed to auto-generate payments for new store"
+            }
+
             return _mapper.Map<StoreDto>(store);
         }
 
@@ -662,6 +675,7 @@ namespace LocalMartOnline.Services.Implement
                 var storeInfo = new StoreWithPaymentInfoDto
                 {
                     Id = store.Id,
+                    PaymentId = monthlyRentPayment?.PaymentId ?? string.Empty,
                     StoreName = store.Name,
                     SellerName = seller.FullName,
                     SellerPhone = seller.PhoneNumber ?? string.Empty,
@@ -726,6 +740,74 @@ namespace LocalMartOnline.Services.Implement
             };
 
             await _paymentRepo.CreateAsync(newPayment);
+        }
+
+        public async Task<int> GenerateMonthlyPaymentsAsync(int? month = null, int? year = null)
+        {
+            try
+            {
+                // Auto-detect current month/year if not provided
+                var targetMonth = month ?? DateTime.Now.Month;
+                var targetYear = year ?? DateTime.Now.Year;
+
+                // Get all active stores
+                var allStores = await _storeRepo.FindManyAsync(s => s.Status == "Open");
+                if (!allStores.Any()) return 0;
+
+                // Get related data
+                var allMarkets = await _marketRepo.GetAllAsync();
+                var allMarketFees = await _marketFeeRepo.GetAllAsync();
+                var allMarketFeeTypes = await _marketFeeTypeRepo.GetAllAsync();
+                var allPayments = await _paymentRepo.GetAllAsync();
+
+                // Find "Phí Thuê Tháng" fee type
+                var monthlyRentFeeType = allMarketFeeTypes.FirstOrDefault(ft => 
+                    ft.FeeType.Equals("Phí Thuê Tháng", StringComparison.OrdinalIgnoreCase) && 
+                    !ft.IsDeleted);
+
+                if (monthlyRentFeeType == null) return 0;
+
+                int createdCount = 0;
+
+                foreach (var store in allStores)
+                {
+                    // Get MarketFee for this market with "Phí Thuê Tháng" type
+                    var monthlyRentMarketFee = allMarketFees.FirstOrDefault(mf => 
+                        mf.MarketId == store.MarketId && 
+                        mf.MarketFeeTypeId == monthlyRentFeeType.Id);
+
+                    if (monthlyRentMarketFee == null) continue;
+
+                    // Check if payment already exists for this month/year - DUPLICATE CHECK
+                    var existingPayment = allPayments.FirstOrDefault(p => 
+                        p.SellerId == store.SellerId && 
+                        p.FeeId == monthlyRentMarketFee.Id &&
+                        p.DueDate.Month == targetMonth &&
+                        p.DueDate.Year == targetYear);
+
+                    if (existingPayment != null) continue; // Skip if already exists - PREVENT DUPLICATE
+
+                    // Calculate due date from PaymentDay in MarketFee
+                    var dueDate = new DateTime(targetYear, targetMonth, monthlyRentMarketFee.PaymentDay);
+                    
+                    // Ensure dueDate is valid (handle cases where PaymentDay > days in month)
+                    var daysInMonth = DateTime.DaysInMonth(targetYear, targetMonth);
+                    if (monthlyRentMarketFee.PaymentDay > daysInMonth)
+                    {
+                        dueDate = new DateTime(targetYear, targetMonth, daysInMonth);
+                    }
+
+                    // Create new payment
+                    await CreateMonthlyPaymentAsync(store.SellerId, monthlyRentMarketFee.Id, monthlyRentMarketFee.Amount, dueDate);
+                    createdCount++;
+                }
+
+                return createdCount;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Lỗi khi tạo thanh toán tháng {month ?? DateTime.Now.Month}/{year ?? DateTime.Now.Year}: {ex.Message}");
+            }
         }
     }
 }
