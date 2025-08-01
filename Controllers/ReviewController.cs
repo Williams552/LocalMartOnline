@@ -64,6 +64,30 @@ namespace LocalMartOnline.Controllers
         }
 
         /// <summary>
+        /// Admin hoặc Seller trả lời review
+        /// </summary>
+        [HttpPut("{reviewId}/response")]
+        public async Task<IActionResult> UpdateReviewResponse(string reviewId, [FromQuery] string userId, [FromBody] UpdateReviewResponseDto updateResponseDto)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(userId))
+                    return BadRequest(new { message = "User ID is required" });
+
+                var review = await _reviewService.UpdateReviewResponseAsync(userId, reviewId, updateResponseDto);
+                
+                if (review == null)
+                    return NotFound(new { message = "Review not found or you don't have permission to respond to this review" });
+
+                return Ok(new { message = "Review response updated successfully", review });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error updating review response", error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Buyer hoặc ProxyShopper xóa review
         /// </summary>
         [HttpDelete("{reviewId}")]

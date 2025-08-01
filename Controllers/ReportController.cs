@@ -166,5 +166,30 @@ namespace LocalMartOnline.Controllers
                 return StatusCode(500, new { message = "Error updating report status", error = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Debug database collections (temporary endpoint for troubleshooting)
+        /// </summary>
+        [HttpGet("debug/database")]
+        public async Task<IActionResult> DebugDatabase()
+        {
+            try
+            {
+                // Cast to concrete type to access debug method
+                if (_reportService is LocalMartOnline.Services.Implement.ReportService reportServiceImpl)
+                {
+                    var debugInfo = await reportServiceImpl.DebugDatabaseAsync();
+                    return Ok(debugInfo);
+                }
+                else
+                {
+                    return BadRequest(new { message = "Debug method not available for this service implementation" });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error in debug database", error = ex.Message });
+            }
+        }
     }
 }

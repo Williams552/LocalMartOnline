@@ -6,6 +6,7 @@ namespace LocalMartOnline.Services
     {
         Task<ReviewDto?> CreateReviewAsync(string userId, CreateReviewDto createReviewDto);
         Task<ReviewDto?> UpdateReviewAsync(string userId, string reviewId, UpdateReviewDto updateReviewDto);
+        Task<ReviewDto?> UpdateReviewResponseAsync(string userId, string reviewId, UpdateReviewResponseDto updateResponseDto);
         Task<bool> DeleteReviewAsync(string userId, string reviewId);
         Task<GetReviewsResponseDto> GetReviewsByUserAsync(string userId);
         Task<GetReviewsResponseDto> GetReviewsForTargetAsync(string targetType, string targetId);

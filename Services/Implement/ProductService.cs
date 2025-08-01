@@ -149,7 +149,7 @@ namespace LocalMartOnline.Services.Implement
             }
 
             var productList = products
-                .Where(p => validStoreIds.Contains(p.StoreId)) // Chỉ hiển thị sản phẩm của cửa hàng mở và chợ hoạt động
+                .Where(p => validStoreIds.Contains(p.StoreId) && p.Status == ProductStatus.Active) // Chỉ hiển thị sản phẩm của cửa hàng mở và chợ hoạt động
                 .ToList();
 
             var total = productList.Count();
@@ -344,6 +344,7 @@ namespace LocalMartOnline.Services.Implement
 
             var filtered = products.Where(p =>
                 validStoreIds.Contains(p.StoreId) &&
+                p.Status == ProductStatus.Active &&
                 (string.IsNullOrEmpty(filter.Status) || p.Status.ToString().Equals(filter.Status, StringComparison.OrdinalIgnoreCase)) &&
                 (string.IsNullOrEmpty(filter.CategoryId) || p.CategoryId == filter.CategoryId) &&
                 (!filter.MinPrice.HasValue || p.Price >= filter.MinPrice.Value) &&

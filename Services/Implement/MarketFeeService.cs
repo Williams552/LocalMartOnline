@@ -17,6 +17,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<Market> _marketRepo;
         private readonly IMongoCollection<Market> _marketCollection;
         private readonly IMongoCollection<MarketFee> _marketFeeCollection;
+        private readonly IMongoCollection<MarketFeeType> _marketFeeTypeCollection;
         private readonly IMapper _mapper;
         public MarketFeeService(IRepository<MarketFee> repo, IRepository<Market> marketRepo, IMapper mapper, IMongoDatabase database)
         {
@@ -25,6 +26,7 @@ namespace LocalMartOnline.Services.Implement
             _mapper = mapper;
             _marketCollection = database.GetCollection<Market>("Markets");
             _marketFeeCollection = database.GetCollection<MarketFee>("MarketFees");
+            _marketFeeTypeCollection = database.GetCollection<MarketFeeType>("MarketFeeTypes");
         }
 
         public async Task<IEnumerable<MarketFeeDto>> GetAllAsync(GetMarketFeeRequestDto request)
@@ -66,11 +68,21 @@ namespace LocalMartOnline.Services.Implement
             
             var marketDict = markets.ToDictionary(m => m.Id!, m => m.Name);
 
+            // Get market fee type information for each fee
+            var marketFeeTypeIds = marketFees.Select(mf => mf.MarketFeeTypeId).Distinct().ToList();
+            var marketFeeTypes = await _marketFeeTypeCollection
+                .Find(Builders<MarketFeeType>.Filter.In(mft => mft.Id, marketFeeTypeIds))
+                .ToListAsync();
+            
+            var marketFeeTypeDict = marketFeeTypes.ToDictionary(mft => mft.Id!, mft => mft.FeeType);
+
             var marketFeeDtos = marketFees.Select(mf => new MarketFeeDto
             {
                 Id = mf.Id!,
                 MarketId = mf.MarketId,
                 MarketName = marketDict.GetValueOrDefault(mf.MarketId, "Unknown Market"),
+                MarketFeeTypeId = mf.MarketFeeTypeId,
+                MarketFeeTypeName = marketFeeTypeDict.GetValueOrDefault(mf.MarketFeeTypeId, "Unknown Type"),
                 Name = mf.Name,
                 Amount = mf.Amount,
                 Description = mf.Description,
@@ -93,6 +105,15 @@ namespace LocalMartOnline.Services.Implement
             if (market != null)
             {
                 feeDto.MarketName = market.Name;
+            }
+            
+            // Get market fee type name
+            var marketFeeType = await _marketFeeTypeCollection
+                .Find(Builders<MarketFeeType>.Filter.Eq(mft => mft.Id, fee.MarketFeeTypeId))
+                .FirstOrDefaultAsync();
+            if (marketFeeType != null)
+            {
+                feeDto.MarketFeeTypeName = marketFeeType.FeeType;
             }
             
             return feeDto;
@@ -141,10 +162,14 @@ namespace LocalMartOnline.Services.Implement
         {
             var fee = await _repo.GetByIdAsync(id);
             if (fee == null) return false;
+            
+            if (dto.MarketFeeTypeId != null) fee.MarketFeeTypeId = dto.MarketFeeTypeId;
             if (dto.Name != null) fee.Name = dto.Name;
             if (dto.Amount != null) fee.Amount = dto.Amount.Value;
             if (dto.Description != null) fee.Description = dto.Description;
             if (dto.PaymentDay != null) fee.PaymentDay = dto.PaymentDay.Value;
+            
+            fee.UpdatedAt = DateTime.UtcNow;
             await _repo.UpdateAsync(id, fee);
             return true;
         }

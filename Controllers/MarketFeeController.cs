@@ -17,7 +17,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        // [Authorize(Roles = "Admin,MarketStaff,Seller")]
         public async Task<IActionResult> GetAll([FromQuery] GetMarketFeeRequestDto request)
         {
             var result = await _service.GetAllAsync(request);

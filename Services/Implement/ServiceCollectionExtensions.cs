@@ -160,6 +160,7 @@ namespace LocalMartOnline.Services
             services.AddScoped<IOrderService, OrderService>();
             services.AddScoped<IStoreService, StoreService>();
             services.AddScoped<IMarketFeeService, MarketFeeService>();
+            services.AddScoped<IMarketFeeTypeService, MarketFeeTypeService>();
             services.AddScoped<IMarketFeePaymentService, MarketFeePaymentService>();
             services.AddScoped<IReportService, ReportService>();
             services.AddScoped<IMarketService, MarketService>();

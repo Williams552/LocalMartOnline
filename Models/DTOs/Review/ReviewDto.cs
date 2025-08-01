@@ -15,6 +15,11 @@ namespace LocalMartOnline.Models.DTOs.Review
         public string? Comment { get; set; }
     }
 
+    public class UpdateReviewResponseDto
+    {
+        public string? Response { get; set; }
+    }
+
     public class ReviewDto
     {
         public string? Id { get; set; }

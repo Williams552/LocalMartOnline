@@ -11,12 +11,16 @@ namespace LocalMartOnline.Services
         private readonly IMongoCollection<Review> _reviewCollection;
         private readonly IMongoCollection<Models.Order> _orderCollection;
         private readonly IMongoCollection<ProxyShoppingOrder> _proxyOrderCollection;
+        private readonly IMongoCollection<Product> _productCollection;
+        private readonly IMongoCollection<Store> _storeCollection;
         
         public ReviewService(IMongoDatabase database)
         {
             _reviewCollection = database.GetCollection<Review>("Reviews");
             _orderCollection = database.GetCollection<Order>("Orders");
             _proxyOrderCollection = database.GetCollection<ProxyShoppingOrder>("ProxyShoppingOrders");
+            _productCollection = database.GetCollection<Product>("Products");
+            _storeCollection = database.GetCollection<Store>("Stores");
         }
 
         public async Task<ReviewDto?> CreateReviewAsync(string userId, CreateReviewDto createReviewDto)
@@ -87,6 +91,37 @@ namespace LocalMartOnline.Services
             var update = Builders<Review>.Update
                 .Set(r => r.Rating, updateReviewDto.Rating)
                 .Set(r => r.Comment, updateReviewDto.Comment)
+                .Set(r => r.UpdatedAt, DateTime.Now);
+
+            var result = await _reviewCollection.FindOneAndUpdateAsync(
+                filter, 
+                update, 
+                new FindOneAndUpdateOptions<Review> { ReturnDocument = ReturnDocument.After }
+            );
+
+            return result != null ? MapToDto(result) : null;
+        }
+
+        public async Task<ReviewDto?> UpdateReviewResponseAsync(string userId, string reviewId, UpdateReviewResponseDto updateResponseDto)
+        {
+            // Lấy review để kiểm tra quyền sở hữu
+            var review = await _reviewCollection
+                .Find(r => r.Id == reviewId)
+                .FirstOrDefaultAsync();
+
+            if (review == null)
+                return null;
+
+            // Kiểm tra quyền phản hồi dựa trên target type
+            bool hasPermission = await CanUserRespondToReviewAsync(userId, review);
+            
+            if (!hasPermission)
+                return null; // Không có quyền phản hồi
+
+            var filter = Builders<Review>.Filter.Eq(r => r.Id, reviewId);
+
+            var update = Builders<Review>.Update
+                .Set(r => r.Response, updateResponseDto.Response)
                 .Set(r => r.UpdatedAt, DateTime.Now);
 
             var result = await _reviewCollection.FindOneAndUpdateAsync(
@@ -255,10 +290,6 @@ namespace LocalMartOnline.Services
 
         public async Task<bool> CanUserReviewAsync(string userId, string targetType, string targetId)
         {
-            // For now, we'll implement basic logic. In a real scenario, you'd check:
-            // - For Product: User must have completed an order containing this product
-            // - For Seller: User must have completed an order from this seller
-            // - For ProxyShopper: User must have completed a proxy shopping order with this shopper
 
             switch (targetType.ToLower())
             {
@@ -269,6 +300,10 @@ namespace LocalMartOnline.Services
                 case "seller":
                     // Check if user has completed orders from this seller
                     return await HasCompletedOrderFromSellerAsync(userId, targetId);
+                
+                case "store":
+                    // Check if user has completed orders from this store
+                    return await HasCompletedOrderFromStoreAsync(userId, targetId);
                 
                 case "proxyshopper":
                     // Check if user has completed proxy shopping orders with this shopper
@@ -305,6 +340,14 @@ namespace LocalMartOnline.Services
             return true;
         }
 
+        private async Task<bool> HasCompletedOrderFromStoreAsync(string userId, string storeId)
+        {
+            // Check if user has completed orders from this specific store
+            // For now, return true to allow testing
+            await Task.CompletedTask;
+            return true;
+        }
+
         private async Task<bool> HasCompletedProxyOrderWithShopperAsync(string userId, string proxyShopperId)
         {
             // Check if user has completed proxy shopping orders with this shopper
@@ -316,6 +359,46 @@ namespace LocalMartOnline.Services
 
             var order = await _proxyOrderCollection.Find(filter).FirstOrDefaultAsync();
             return order != null;
+        }
+
+        private async Task<bool> CanUserRespondToReviewAsync(string userId, Review review)
+        {
+            switch (review.TargetType.ToLower())
+            {
+                case "product":
+                    // Kiểm tra xem user có phải là chủ sở hữu của sản phẩm không
+                    var product = await _productCollection
+                        .Find(p => p.Id == review.TargetId)
+                        .FirstOrDefaultAsync();
+                    
+                    if (product == null) return false;
+                    
+                    // Kiểm tra xem user có phải là chủ cửa hàng của sản phẩm này không
+                    var store = await _storeCollection
+                        .Find(s => s.Id == product.StoreId)
+                        .FirstOrDefaultAsync();
+                    
+                    return store != null && store.SellerId == userId;
+                
+                case "store":
+                    // Kiểm tra xem user có phải là chủ cửa hàng không
+                    var targetStore = await _storeCollection
+                        .Find(s => s.Id == review.TargetId)
+                        .FirstOrDefaultAsync();
+                    
+                    return targetStore != null && targetStore.SellerId == userId;
+                
+                case "seller":
+                    // Chỉ chính seller đó mới có thể phản hồi
+                    return review.TargetId == userId;
+                
+                case "proxyshopper":
+                    // Chỉ chính proxy shopper đó mới có thể phản hồi
+                    return review.TargetId == userId;
+                
+                default:
+                    return false;
+            }
         }
 
         private static ReviewDto MapToDto(Review review)
