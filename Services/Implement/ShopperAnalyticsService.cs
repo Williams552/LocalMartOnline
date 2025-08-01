@@ -42,9 +42,9 @@ namespace LocalMartOnline.Services
             var orderList = orders.ToList();
 
             int totalOrders = orderList.Count;
-            int completedOrders = orderList.Count(o => o.Status == Status.Completed);
+            int completedOrders = orderList.Count(o => o.Status == ProxyOrderStatus.Completed);
             decimal totalSpent = orderList
-                .Where(o => o.Status == Status.Completed)
+                .Where(o => o.Status == ProxyOrderStatus.Completed)
                 .Sum(o => o.TotalAmount ?? 0);
 
             var reviews = await _reviewRepository.FindManyAsync(r =>

@@ -1,13 +1,10 @@
+using LocalMartOnline.Models;
+using LocalMartOnline.Models.DTOs;
+using LocalMartOnline.Models.DTOs.ProxyShopping;
+using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using LocalMartOnline.Models.DTOs;
-using LocalMartOnline.Services;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using LocalMartOnline.Models.DTOs.Product;
-using LocalMartOnline.Services.Interface;
-using LocalMartOnline.Models.DTOs.ProxyShopping;
-using LocalMartOnline.Models.DTOs.Seller;
+using LocalMartOnline.Repositories;
 
 namespace LocalMartOnline.Controllers
 {
@@ -15,163 +12,155 @@ namespace LocalMartOnline.Controllers
     [Route("api/[controller]")]
     public class ProxyShopperController : ControllerBase
     {
-        private readonly IProxyShopperService _service;
-        public ProxyShopperController(IProxyShopperService service)
+        private readonly IProxyShopperService _proxyShopperService;
+        private readonly IRepository<User> _userRepo;
+        public ProxyShopperController(IProxyShopperService proxyShopperService, IRepository<User> userRepo)
         {
-            _service = service;
+            _proxyShopperService = proxyShopperService;
+            _userRepo = userRepo;
         }
 
-        [HttpPost("register")]
-        [Authorize]
-        public async Task<IActionResult> Register([FromBody] ProxyShopperRegistrationRequestDTO dto)
+        // Proxy lấy các request đã nhận
+        [HttpGet("requests/my-accepted")]
+        [Authorize(Roles = "Proxy Shopper")]
+        public async Task<IActionResult> GetMyAcceptedRequests()
         {
-            var userId = ""; // Lấy userId từ Claims
-            await _service.RegisterProxyShopperAsync(dto, userId);
-            return Ok(new { success = true });
+            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(proxyShopperId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+            var requests = await _proxyShopperService.GetMyAcceptedRequestsAsync(proxyShopperId);
+            // Lấy danh sách userId
+            var buyerIds = requests.Select(r => r.BuyerId).Distinct().ToList();
+            var users = await _userRepo.FindManyAsync(u => u.Id != null && buyerIds.Contains(u.Id!));
+            var userDict = users.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
+            var result = requests.Select(r => new ProxyRequestResponseDto
+            {
+                Id = r.Id,
+                Items = r.Items,
+                Status = r.Status.ToString(),
+                CreatedAt = r.CreatedAt,
+                UpdatedAt = r.UpdatedAt,
+                BuyerName = userDict.TryGetValue(r.BuyerId, out var user) ? user.FullName : null,
+                BuyerEmail = userDict.TryGetValue(r.BuyerId, out var user2) ? user2.Email : null,
+                BuyerPhone = userDict.TryGetValue(r.BuyerId, out var user3) ? user3.PhoneNumber : null
+            }).ToList();
+            return Ok(result);
+        }
+        // 1. Buyer tạo request
+        [HttpPost("requests")]
+        [Authorize(Roles = "Buyer")]
+        public async Task<IActionResult> CreateProxyRequest([FromBody] ProxyRequestDto proxyRequest)
+        {
+            var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(buyerId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+            var requestId = await _proxyShopperService.CreateProxyRequestAsync(buyerId, proxyRequest);
+            return Ok(new { requestId });
         }
 
-        [HttpGet("orders")]
-        [Authorize]
-        public async Task<IActionResult> GetAvailableOrders()
+        // 2. Proxy lấy danh sách request còn Open
+        [HttpGet("requests/available")]
+        [Authorize(Roles = "Proxy Shopper")]
+        public async Task<IActionResult> GetAvailableRequests()
         {
-            var orders = await _service.GetAvailableOrdersAsync();
-            return Ok(new { success = true, data = orders });
+            var requests = await _proxyShopperService.GetAvailableRequestsAsync();
+            // Lấy danh sách userId
+            var buyerIds = requests.Select(r => r.BuyerId).Distinct().ToList();
+            // Giả sử bạn có _userService hoặc _userRepo, ở đây dùng _userRepo
+            // Nếu không có, inject thêm vào controller
+            var users = await _userRepo.FindManyAsync(u => u.Id != null && buyerIds.Contains(u.Id!));
+            var userDict = users.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
+            var result = requests.Select(r => new ProxyRequestResponseDto
+            {
+                Id = r.Id,
+                Items = r.Items,
+                Status = r.Status.ToString(),
+                CreatedAt = r.CreatedAt,
+                UpdatedAt = r.UpdatedAt,
+                BuyerName = userDict.TryGetValue(r.BuyerId, out var user) ? user.FullName : null,
+                BuyerEmail = userDict.TryGetValue(r.BuyerId, out var user2) ? user2.Email : null,
+                BuyerPhone = userDict.TryGetValue(r.BuyerId, out var user3) ? user3.PhoneNumber : null
+            }).ToList();
+            return Ok(result);
         }
 
-        [HttpPost("orders/{orderId}/accept")]
-        [Authorize]
-        public async Task<IActionResult> AcceptOrder(string orderId)
+        // 3. Proxy nhận request & tạo order
+        [HttpPost("requests/{requestId}/accept")]
+        [Authorize(Roles = "Proxy Shopper")]
+        public async Task<IActionResult> AcceptRequest(string requestId)
         {
-            var proxyShopperId = ""; // Lấy userId từ Claims
-            await _service.AcceptOrderAsync(orderId, proxyShopperId);
-            return Ok(new { success = true });
+            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(proxyShopperId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+            var orderId = await _proxyShopperService.AcceptRequestAndCreateOrderAsync(requestId, proxyShopperId);
+            if (orderId == null) return BadRequest("Yêu cầu đã được nhận bởi người khác hoặc không còn hiệu lực.");
+            return Ok(new { orderId });
         }
 
+        // 4. Proxy gửi đề xuất đơn hàng (products + tổng giá + phí)
         [HttpPost("orders/{orderId}/proposal")]
-        [Authorize]
-        public async Task<IActionResult> SendProposal(string orderId, [FromBody] ProxyShoppingProposalDTO proposal)
+        [Authorize(Roles = "Proxy Shopper")]
+        public async Task<IActionResult> SendProposal(string orderId, [FromBody] ProxyShoppingProposalDTO dto)
         {
-            await _service.SendProposalAsync(orderId, proposal);
-            return Ok(new { success = true });
+            var ok = await _proxyShopperService.SendProposalAsync(orderId, dto);
+            return ok ? Ok() : BadRequest("Không thể gửi đề xuất. Vui lòng kiểm tra trạng thái đơn hàng.");
         }
 
-        [HttpPost("orders/{orderId}/confirm")]
-        [Authorize]
-        public async Task<IActionResult> ConfirmOrder(string orderId)
+        // 5. Buyer duyệt & thanh toán
+        [HttpPost("orders/{orderId}/approve-pay")]
+        [Authorize(Roles = "Buyer")]
+        public async Task<IActionResult> BuyerApproveAndPay(string orderId)
         {
-            var proxyShopperId = ""; // Lấy userId từ Claims
-            await _service.ConfirmOrderAsync(orderId, proxyShopperId);
-            return Ok(new { success = true });
+            var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(buyerId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+            var ok = await _proxyShopperService.BuyerApproveAndPayAsync(orderId, buyerId);
+            return ok ? Ok() : BadRequest("Chỉ được duyệt khi đơn ở trạng thái chờ thanh toán.");
         }
 
-        [HttpPost("orders/{orderId}/upload")]
-        [Authorize]
-        public async Task<IActionResult> UploadBoughtItems(string orderId, [FromBody] List<string> imageUrls, [FromQuery] string note)
+        // 6. Proxy bắt đầu mua hàng
+        [HttpPost("orders/{orderId}/start-shopping")]
+        [Authorize(Roles = "Proxy Shopper")]
+        public async Task<IActionResult> StartShopping(string orderId)
         {
-            await _service.UploadBoughtItemsAsync(orderId, imageUrls, note);
-            return Ok(new { success = true });
+            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(proxyShopperId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+            var ok = await _proxyShopperService.StartShoppingAsync(orderId, proxyShopperId);
+            return ok ? Ok() : BadRequest("Không thể bắt đầu mua hàng ở trạng thái này.");
         }
 
-        [HttpPost("orders/{orderId}/final-price")]
-        [Authorize]
-        public async Task<IActionResult> ConfirmFinalPrice(string orderId, [FromQuery] decimal finalPrice)
+        // 7. Proxy upload ảnh hàng hóa (hóa đơn, sản phẩm thực tế...)
+        [HttpPost("orders/{orderId}/proof")]
+        [Authorize(Roles = "Proxy Shopper")]
+        public async Task<IActionResult> UploadBoughtItems(string orderId, [FromBody] UploadBoughtItemsDTO dto)
         {
-            await _service.ConfirmFinalPriceAsync(orderId, finalPrice);
-            return Ok(new { success = true });
+            var ok = await _proxyShopperService.UploadBoughtItemsAsync(orderId, dto.ImageUrls, dto.Note);
+            return ok ? Ok() : BadRequest("Không thể upload ảnh cho đơn này.");
         }
 
-        [HttpPost("orders/{orderId}/delivery")]
-        [Authorize]
+        // 8. Buyer xác nhận hoàn tất đơn
+        [HttpPost("orders/{orderId}/confirm-delivery")]
+        [Authorize(Roles = "Buyer")]
         public async Task<IActionResult> ConfirmDelivery(string orderId)
         {
-            var result = await _service.ConfirmDeliveryAsync(orderId);
-            if (!result)
-                return BadRequest(new { success = false, message = "Không thể xác nhận giao hàng hoặc đơn hàng không ở trạng thái phù hợp." });
-            
-            return Ok(new { success = true, message = "Đã xác nhận giao hàng thành công và cập nhật thống kê sản phẩm." });
+            var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(buyerId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+            var ok = await _proxyShopperService.ConfirmDeliveryAsync(orderId, buyerId);
+            return ok ? Ok() : BadRequest("Không thể xác nhận giao hàng cho đơn này.");
         }
 
-        [HttpPut("orders/{orderId}/items/{productId}")]
-        [Authorize]
-        public async Task<IActionResult> ReplaceOrRemoveProduct(string orderId, string productId, [FromBody] ProductDto? replacementItem)
-        {
-            var result = await _service.ReplaceOrRemoveProductAsync(orderId, productId, replacementItem);
-            return Ok(new { success = result });
-        }
-
-        [HttpGet("products/smart-search")]
-        [Authorize]
-        public async Task<IActionResult> SmartSearchProducts([FromQuery] string q, [FromQuery] int limit = 10)
-        {
-            var products = await _service.SmartSearchProductsAsync(q, limit);
-            return Ok(new { success = true, data = products });
-        }
-
-        // Order management endpoints for ProxyShopper
-        [HttpGet("my-orders")]
-        [Authorize]
-        public async Task<IActionResult> GetMyOrders([FromQuery] string? status = null)
-        {
-            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(proxyShopperId))
-                return Unauthorized(new { success = false, message = "Không xác định được ProxyShopper." });
-
-            var orders = await _service.GetMyOrdersAsync(proxyShopperId, status);
-            return Ok(new { success = true, data = orders });
-        }
-
-        [HttpGet("orders/{orderId}/detail")]
-        [Authorize]
-        public async Task<IActionResult> GetOrderDetail(string orderId)
-        {
-            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(proxyShopperId))
-                return Unauthorized(new { success = false, message = "Không xác định được ProxyShopper." });
-
-            var order = await _service.GetOrderDetailAsync(orderId, proxyShopperId);
-            if (order == null)
-                return NotFound(new { success = false, message = "Không tìm thấy đơn hàng." });
-
-            return Ok(new { success = true, data = order });
-        }
-
-        [HttpGet("order-history")]
-        [Authorize]
-        public async Task<IActionResult> GetOrderHistory([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        {
-            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(proxyShopperId))
-                return Unauthorized(new { success = false, message = "Không xác định được ProxyShopper." });
-
-            var orders = await _service.GetOrderHistoryAsync(proxyShopperId, page, pageSize);
-            return Ok(new { success = true, data = orders, page, pageSize });
-        }
-
+        // 9. Proxy hủy đơn, mở lại request
         [HttpPost("orders/{orderId}/cancel")]
-        [Authorize]
-        public async Task<IActionResult> CancelOrder(string orderId, [FromBody] CancelOrderRequestDTO request)
+        [Authorize(Roles = "Proxy Shopper")]
+        public async Task<IActionResult> CancelOrder(string orderId, [FromBody] CancelOrderDTO dto)
         {
             var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(proxyShopperId))
-                return Unauthorized(new { success = false, message = "Không xác định được ProxyShopper." });
-
-            var result = await _service.CancelOrderAsync(orderId, proxyShopperId, request.Reason);
-            if (!result)
-                return BadRequest(new { success = false, message = "Không thể hủy đơn hàng hoặc đơn hàng không ở trạng thái phù hợp." });
-
-            return Ok(new { success = true, message = "Đã hủy đơn hàng thành công." });
-        }
-
-        [HttpGet("my-stats")]
-        [Authorize]
-        public async Task<IActionResult> GetMyStats()
-        {
-            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(proxyShopperId))
-                return Unauthorized(new { success = false, message = "Không xác định được ProxyShopper." });
-
-            var stats = await _service.GetMyStatsAsync(proxyShopperId);
-            return Ok(new { success = true, data = stats });
+                return Unauthorized("Không tìm thấy userId trong token.");
+            var ok = await _proxyShopperService.CancelOrderAsync(orderId, proxyShopperId, dto.Reason);
+            return ok ? Ok() : BadRequest("Không thể hủy đơn hàng này.");
         }
     }
 }

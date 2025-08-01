@@ -135,6 +135,11 @@ namespace LocalMartOnline.Services
                 var mongoService = sp.GetRequiredService<MongoDBService>();
                 return new Repository<Review>(mongoService, "Reviews");
             });
+            services.AddScoped<IRepository<ProxyRequest>>(sp =>
+            {
+                var mongoService = sp.GetRequiredService<MongoDBService>();
+                return new Repository<ProxyRequest>(mongoService, "ProxyRequests");
+            });
             return services;
         }
 

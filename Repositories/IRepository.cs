@@ -14,5 +14,6 @@ namespace LocalMartOnline.Repositories
         Task DeleteAsync(string id);
         Task<T?> FindOneAsync(Expression<Func<T, bool>> filter);
         Task<IEnumerable<T>> FindManyAsync(Expression<Func<T, bool>> filter);
+        Task<bool> UpdateIfAsync(string id, Expression<Func<T, bool>> filter, T entity);
     }
 }

@@ -5,13 +5,15 @@ using LocalMartOnline.Models.DTOs.Product;
 
 namespace LocalMartOnline.Models
 {
-    public enum Status
+    public enum ProxyOrderStatus
     {
-        Pending,    // Người mua mới đặt hàng
-        Confirmed,  // Người bán xác nhận còn hàng
-        Paid,       // Người bán xác nhận đã nhận được tiền
-        Completed,  // Người mua xác nhận đã nhận đúng hàng
-        Cancelled   // Đơn hàng bị hủy
+        Draft,      // Proxy đang soạn đơn
+        Proposed,   // Đã gửi đề xuất cho Buyer
+        Paid,       // Buyer thanh toán
+        InProgress, // Proxy đi mua
+        Completed,  // Đã giao và xác nhận
+        Cancelled,  // Bị hủy
+        Expired     // Quá hạn xử lý
     }
     [BsonIgnoreExtraElements]
     public class ProxyShoppingOrder
@@ -19,7 +21,8 @@ namespace LocalMartOnline.Models
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string? Id { get; set; }
-
+        [BsonElement("proxy_request_id"), BsonRepresentation(BsonType.ObjectId)]
+        public string ProxyRequestId { get; set; } = string.Empty;
         [BsonElement("buyer_id")]
         [BsonRepresentation(BsonType.ObjectId)]
         public string BuyerId { get; set; } = string.Empty;
@@ -27,7 +30,6 @@ namespace LocalMartOnline.Models
         [BsonElement("proxy_shopper_id")]
         [BsonRepresentation(BsonType.ObjectId)]
         public string? ProxyShopperId { get; set; }
-
         [BsonElement("delivery_address")]
         public string DeliveryAddress { get; set; } = string.Empty;
         [BsonElement("items")]
@@ -36,8 +38,7 @@ namespace LocalMartOnline.Models
         public decimal? TotalAmount { get; set; }
 
         [BsonElement("status")]
-        public Status Status { get; set; } = Status.Pending; // 'Pending', 'Confirmed', 'Completed', 'Cancelled'
-
+        public ProxyOrderStatus Status { get; set; } = ProxyOrderStatus.Draft;
         [BsonElement("proxy_fee")]
         public decimal? ProxyFee { get; set; }
 

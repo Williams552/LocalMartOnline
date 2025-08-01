@@ -60,5 +60,14 @@ namespace LocalMartOnline.Repositories
         {
             return _collection;
         }
+
+        public async Task<bool> UpdateIfAsync(string id, Expression<System.Func<T, bool>> filter, T entity)
+        {
+            var idFilter = Builders<T>.Filter.Eq("_id", ObjectId.Parse(id));
+            var customFilter = Builders<T>.Filter.Where(filter);
+            var combined = Builders<T>.Filter.And(idFilter, customFilter);
+            var result = await _collection.ReplaceOneAsync(combined, entity);
+            return result.ModifiedCount > 0;
+        }
     }
 }
