@@ -663,7 +663,7 @@ namespace LocalMartOnline.Services.Implement
                 {
                     Id = store.Id,
                     StoreName = store.Name,
-                    SellerName = seller.Username,
+                    SellerName = seller.FullName,
                     SellerPhone = seller.PhoneNumber ?? string.Empty,
                     MarketName = market.Name,
                     FeeTypeName = monthlyRentFeeType.FeeType,
@@ -696,16 +696,15 @@ namespace LocalMartOnline.Services.Implement
             };
         }
 
-        public async Task<bool> UpdateStorePaymentStatusAsync(UpdateStorePaymentStatusDto dto)
+        public async Task<bool> UpdateStorePaymentStatusAsync(string paymentId, UpdateStorePaymentStatusDto dto)
         {
-            var payment = await _paymentRepo.GetByIdAsync(dto.PaymentId);
+            var payment = await _paymentRepo.GetByIdAsync(paymentId);
             if (payment == null) return false;
 
             if (Enum.TryParse<MarketFeePaymentStatus>(dto.PaymentStatus, out var newStatus))
             {
                 payment.PaymentStatus = newStatus;
                 payment.PaymentDate = dto.PaymentDate;
-                payment.AdminNotes = dto.AdminNote;
 
                 await _paymentRepo.UpdateAsync(payment.PaymentId, payment);
                 return true;

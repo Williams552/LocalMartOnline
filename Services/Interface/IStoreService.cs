@@ -41,6 +41,6 @@ namespace LocalMartOnline.Services.Interface
         
         // Admin store management with payment information
         Task<GetAllStoresWithPaymentResponseDto> GetAllStoresWithPaymentInfoAsync(GetAllStoresWithPaymentRequestDto request);
-        Task<bool> UpdateStorePaymentStatusAsync(UpdateStorePaymentStatusDto dto);
+        Task<bool> UpdateStorePaymentStatusAsync(string paymentId, UpdateStorePaymentStatusDto dto);
     }
 }

@@ -702,13 +702,12 @@ namespace LocalMartOnline.Controllers
 
         // Admin endpoint: Update store payment status
         [HttpPatch("admin/payment/{paymentId}/update-status")]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        // [Authorize(Roles = "Admin,MarketStaff")]
         public async Task<IActionResult> UpdateStorePaymentStatus(string paymentId, [FromBody] UpdateStorePaymentStatusDto dto)
         {
             try
             {
-                dto.PaymentId = paymentId; // Ensure consistency
-                var result = await _storeService.UpdateStorePaymentStatusAsync(dto);
+                var result = await _storeService.UpdateStorePaymentStatusAsync(paymentId, dto);
                 
                 if (!result)
                     return NotFound(new

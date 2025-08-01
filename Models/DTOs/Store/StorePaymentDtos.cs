@@ -41,9 +41,7 @@ namespace LocalMartOnline.Models.DTOs.Store
 
     public class UpdateStorePaymentStatusDto
     {
-        public string PaymentId { get; set; } = string.Empty;
-        public string PaymentStatus { get; set; } = string.Empty; // Pending, Completed, Failed
-        public string? AdminNote { get; set; }
+        public string PaymentStatus { get; set; } = string.Empty;
         public DateTime? PaymentDate { get; set; }
     }
 }
