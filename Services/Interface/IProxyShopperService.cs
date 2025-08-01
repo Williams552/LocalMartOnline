@@ -10,32 +10,20 @@ namespace LocalMartOnline.Services.Interface
 {
     public interface IProxyShopperService
     {
-        // Registration management
         Task RegisterProxyShopperAsync(ProxyShopperRegistrationRequestDTO dto, string userId);
         Task<ProxyShopperRegistrationResponseDTO?> GetMyRegistrationAsync(string userId);
         Task<List<ProxyShopperRegistrationResponseDTO>> GetAllRegistrationsAsync();
         Task<bool> ApproveRegistrationAsync(ProxyShopperRegistrationApproveDTO dto);
-        
-        // Order workflow
-        Task<List<ProxyShoppingOrder>> GetAvailableOrdersAsync();
-        Task<bool> AcceptOrderAsync(string orderId, string proxyShopperId);
+
+        Task<string> CreateProxyRequestAsync(string buyerId, ProxyRequestDto dto);
+        Task<List<ProxyRequest>> GetAvailableRequestsAsync();
+        Task<string?> AcceptRequestAndCreateOrderAsync(string requestId, string proxyShopperId);
         Task<bool> SendProposalAsync(string orderId, ProxyShoppingProposalDTO proposal);
-        Task<bool> ConfirmOrderAsync(string orderId, string proxyShopperId);
-        Task<bool> UploadBoughtItemsAsync(string orderId, List<string> imageUrls, string note);
-        Task<bool> ConfirmFinalPriceAsync(string orderId, decimal finalPrice);
-        Task<bool> ConfirmDeliveryAsync(string orderId);
-        Task<bool> ReplaceOrRemoveProductAsync(string orderId, string productId, ProductDto? replacementItem);
-        
-        // Order management for ProxyShopper
-        Task<List<ProxyShoppingOrder>> GetMyOrdersAsync(string proxyShopperId, string? status = null);
-        Task<ProxyShoppingOrder?> GetOrderDetailAsync(string orderId, string proxyShopperId);
-        Task<List<ProxyShoppingOrder>> GetOrderHistoryAsync(string proxyShopperId, int page = 1, int pageSize = 20);
+        Task<bool> BuyerApproveAndPayAsync(string orderId, string buyerId);
+        Task<bool> StartShoppingAsync(string orderId, string proxyShopperId);
+        Task<bool> UploadBoughtItemsAsync(string orderId, List<string> imageUrls, string? note);
+        Task<bool> ConfirmDeliveryAsync(string orderId, string buyerId);
         Task<bool> CancelOrderAsync(string orderId, string proxyShopperId, string reason);
-        
-        // Product search
-        Task<List<ProductDto>> SmartSearchProductsAsync(string query, int limit = 10);
-        
-        // Statistics for ProxyShopper
-        Task<ProxyShopperStatsDTO> GetMyStatsAsync(string proxyShopperId);
+        Task<List<ProxyRequest>> GetMyAcceptedRequestsAsync(string proxyShopperId);
     }
 }

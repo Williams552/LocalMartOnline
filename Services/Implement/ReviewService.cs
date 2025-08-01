@@ -354,7 +354,7 @@ namespace LocalMartOnline.Services
             var filter = Builders<ProxyShoppingOrder>.Filter.And(
                 Builders<ProxyShoppingOrder>.Filter.Eq(o => o.BuyerId, userId),
                 Builders<ProxyShoppingOrder>.Filter.Eq(o => o.ProxyShopperId, proxyShopperId),
-                Builders<ProxyShoppingOrder>.Filter.Eq(o => o.Status, Status.Completed)
+                Builders<ProxyShoppingOrder>.Filter.Eq(o => o.Status, ProxyOrderStatus.Completed)
             );
 
             var order = await _proxyOrderCollection.Find(filter).FirstOrDefaultAsync();

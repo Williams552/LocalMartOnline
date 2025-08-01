@@ -19,6 +19,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<User> _userRepo;
         private readonly IRepository<Product> _productRepo;
         private readonly IRepository<Store> _storeRepo;
+        private readonly IRepository<ProxyRequest> _requestRepo;
         private readonly IMapper _mapper;
 
         public ProxyShopperService(
@@ -27,6 +28,7 @@ namespace LocalMartOnline.Services.Implement
             IRepository<User> userRepo,
             IRepository<Product> productRepo,
             IRepository<Store> storeRepo,
+            IRepository<ProxyRequest> requestRepo,
             IMapper mapper)
         {
             _orderRepo = orderRepo;
@@ -34,6 +36,7 @@ namespace LocalMartOnline.Services.Implement
             _userRepo = userRepo;
             _productRepo = productRepo;
             _storeRepo = storeRepo;
+            _requestRepo = requestRepo;
             _mapper = mapper;
         }
 
@@ -94,88 +97,148 @@ namespace LocalMartOnline.Services.Implement
             await _proxyRepo.UpdateAsync(reg.Id!, reg);
             return true;
         }
-
-        public async Task<List<ProxyShoppingOrder>> GetAvailableOrdersAsync()
+        // 1. Buyer tạo request (yêu cầu đi chợ giùm)
+        public async Task<string> CreateProxyRequestAsync(string buyerId, ProxyRequestDto proxyRequest)
         {
-            // Lấy danh sách đơn hàng chưa có proxy shopper nhận
-            var orders = await _orderRepo.FindManyAsync(o => o.Status == Status.Pending && o.ProxyShopperId == null);
-            return orders.ToList();
+            if (proxyRequest == null || !proxyRequest.Items.Any())
+                throw new ArgumentException("Danh sách sản phẩm không được để trống");
+            var request = new ProxyRequest
+            {
+                BuyerId = buyerId,
+                Items = proxyRequest.Items.Select(item => _mapper.Map<ProxyItem>(item)).ToList(),
+                Status = ProxyRequestStatus.Open,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await _requestRepo.CreateAsync(request);
+            return request.Id;
         }
 
-        public async Task<bool> AcceptOrderAsync(string orderId, string proxyShopperId)
+        // 2. Proxy xem các request còn trống (Open)
+        public async Task<List<ProxyRequest>> GetAvailableRequestsAsync()
         {
-            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null || order.Status != Status.Pending) return false;
-            order.ProxyShopperId = proxyShopperId;
-            order.Status = Status.Confirmed; // Sử dụng Confirmed cho trạng thái đã nhận đơn
-            order.UpdatedAt = DateTime.Now;
-            await _orderRepo.UpdateAsync(orderId, order);
-            return true;
+            return (await _requestRepo.FindManyAsync(r => r.Status == ProxyRequestStatus.Open))
+                .OrderByDescending(r => r.CreatedAt)
+                .ToList();
         }
 
+                public async Task<List<ProxyRequest>> GetMyAcceptedRequestsAsync(string proxyShopperId)
+        {
+            var myOrders = await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId);
+            var requestIds = myOrders.Select(o => o.ProxyRequestId).Where(id => !string.IsNullOrEmpty(id)).ToList();
+            if (!requestIds.Any()) return new List<ProxyRequest>();
+            var myRequests = await _requestRepo.FindManyAsync(r => requestIds.Contains(r.Id));
+            return myRequests.ToList();
+        }
+
+        // 3. Proxy nhận request, atomic lock, tạo order (1-1)
+        public async Task<string?> AcceptRequestAndCreateOrderAsync(string requestId, string proxyShopperId)
+        {
+            var req = await _requestRepo.FindOneAsync(r => r.Id == requestId);
+            if (req == null || req.Status != ProxyRequestStatus.Open) return null;
+            // Lock request
+            req.Status = ProxyRequestStatus.Locked;
+            req.UpdatedAt = DateTime.UtcNow;
+            var ok = await _requestRepo.UpdateIfAsync(requestId, r => r.Status == ProxyRequestStatus.Open, req);
+            if (!ok) return null;
+
+            var order = new ProxyShoppingOrder
+            {
+                ProxyRequestId = requestId,
+                BuyerId = req.BuyerId!,
+                ProxyShopperId = proxyShopperId,
+                Items = new List<ProductDto>(),
+                TotalAmount = 0,
+                ProxyFee = 0,
+                Status = ProxyOrderStatus.Draft,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await _orderRepo.CreateAsync(order);
+
+            req.ProxyShoppingOrderId = order.Id;
+            req.UpdatedAt = DateTime.UtcNow;
+            await _requestRepo.UpdateAsync(requestId, req);
+            return order.Id;
+        }
+
+        // 4. Proxy lên đơn, gửi đề xuất (điền sản phẩm thật + phí)
         public async Task<bool> SendProposalAsync(string orderId, ProxyShoppingProposalDTO proposal)
         {
-            // Gửi đề xuất cho người mua: lưu thông tin đề xuất vào đơn hàng
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null || order.Status != Status.Confirmed) return false;
+            if (order == null || order.Status != ProxyOrderStatus.Draft) return false;
+
+            order.Items = proposal.Items;
             order.TotalAmount = proposal.TotalAmount;
             order.ProxyFee = proposal.ProxyFee;
             order.Notes = proposal.Note;
-            order.UpdatedAt = DateTime.Now;
-            // Nếu cần lưu chi tiết sản phẩm, có thể mở rộng model
+            order.Status = ProxyOrderStatus.Proposed;
+            order.UpdatedAt = DateTime.UtcNow;
+
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
         }
 
-        public async Task<bool> ConfirmOrderAsync(string orderId, string proxyShopperId)
+        // 5. Buyer duyệt & thanh toán
+        public async Task<bool> BuyerApproveAndPayAsync(string orderId, string buyerId)
+        {
+            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.BuyerId == buyerId);
+            if (order == null || order.Status != ProxyOrderStatus.Proposed) return false;
+            // Thực hiện thanh toán ở đây (TODO)
+            order.Status = ProxyOrderStatus.Paid;
+            order.UpdatedAt = DateTime.UtcNow;
+            await _orderRepo.UpdateAsync(orderId, order);
+            return true;
+        }
+
+        // 6. Proxy bắt đầu mua hàng (chuyển trạng thái)
+        public async Task<bool> StartShoppingAsync(string orderId, string proxyShopperId)
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.ProxyShopperId == proxyShopperId);
-            if (order == null || order.Status != Status.Confirmed) return false;
-            order.Status = Status.Paid; // Đã xác nhận mua hàng, chuyển sang trạng thái Paid
-            order.UpdatedAt = DateTime.Now;
+            if (order == null || order.Status != ProxyOrderStatus.Paid) return false;
+            order.Status = ProxyOrderStatus.InProgress;
+            order.UpdatedAt = DateTime.UtcNow;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
         }
 
-        public async Task<bool> UploadBoughtItemsAsync(string orderId, List<string> imageUrls, string note)
+        // 7. Proxy upload ảnh hàng hóa, ghi chú...
+        public async Task<bool> UploadBoughtItemsAsync(string orderId, List<string> imageUrls, string? note)
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null || order.Status != Status.Paid) return false;
-            // Nếu cần lưu ảnh, có thể mở rộng model
+            if (order == null || order.Status != ProxyOrderStatus.InProgress) return false;
+            // TODO: lưu imageUrls vào field mới (ProofImages)
             order.Notes = note;
-            order.UpdatedAt = DateTime.Now;
+            order.UpdatedAt = DateTime.UtcNow;
             await _orderRepo.UpdateAsync(orderId, order);
             return true;
         }
 
-        public async Task<bool> ConfirmFinalPriceAsync(string orderId, decimal finalPrice)
+        // 8. Buyer xác nhận nhận hàng (hoàn tất)
+        public async Task<bool> ConfirmDeliveryAsync(string orderId, string buyerId)
         {
-            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null) return false;
-            order.TotalAmount = finalPrice;
-            order.UpdatedAt = DateTime.Now;
-            await _orderRepo.UpdateAsync(orderId, order);
-            return true;
-        }
-
-        public async Task<bool> ConfirmDeliveryAsync(string orderId)
-        {
-            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null || order.Status != Status.Paid) return false;
-
-            // Cập nhật trạng thái đơn hàng
-            order.Status = Status.Completed;
-            order.UpdatedAt = DateTime.Now;
+            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.BuyerId == buyerId);
+            if (order == null || order.Status != ProxyOrderStatus.InProgress) return false;
+            order.Status = ProxyOrderStatus.Completed;
+            order.UpdatedAt = DateTime.UtcNow;
             await _orderRepo.UpdateAsync(orderId, order);
 
-            // Tăng PurchaseCount cho các sản phẩm trong đơn hàng proxy shopping
+            // Đóng request
+            var req = await _requestRepo.FindOneAsync(r => r.Id == order.ProxyRequestId);
+            if (req != null)
+            {
+                req.Status = ProxyRequestStatus.Completed;
+                req.UpdatedAt = DateTime.UtcNow;
+                await _requestRepo.UpdateAsync(req.Id!, req);
+            }
+
+            // Update product purchase count
             if (order.Items != null)
             {
-                var productIds = order.Items.Select(item => item.Id).Distinct().ToList();
-                foreach (var productId in productIds)
+                foreach (var item in order.Items)
                 {
-                    if (string.IsNullOrEmpty(productId)) continue;
-                    var product = await _productRepo.FindOneAsync(p => p.Id == productId);
+                    if (string.IsNullOrEmpty(item.Id)) continue;
+                    var product = await _productRepo.FindOneAsync(p => p.Id == item.Id);
                     if (product != null)
                     {
                         product.PurchaseCount += 1; // Tăng 1 lần mua (không phụ thuộc số lượng)
@@ -183,138 +246,30 @@ namespace LocalMartOnline.Services.Implement
                     }
                 }
             }
-
             return true;
         }
 
-        public async Task<bool> ReplaceOrRemoveProductAsync(string orderId, string productName, ProductDto? replacementItem = null)
-        {
-            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null || order.Items == null) return false;
-            var idx = order.Items.FindIndex(i => i.Name.Equals(productName, StringComparison.OrdinalIgnoreCase));
-            if (idx == -1) return false;
-            if (replacementItem == null)
-            {
-                // Xóa sản phẩm
-                order.Items.RemoveAt(idx);
-            }
-            else
-            {
-                // Thay thế sản phẩm
-                order.Items[idx] = replacementItem;
-            }
-            order.UpdatedAt = DateTime.Now;
-            await _orderRepo.UpdateAsync(orderId, order);
-            return true;
-        }
-
-        public async Task<List<ProductDto>> SmartSearchProductsAsync(string query, int limit = 10)
-        {
-            // Tìm sản phẩm theo từ khóa
-            var products = (await _productRepo.FindManyAsync(p => p.Name.Contains(query) && p.Status == ProductStatus.Active)).ToList();
-            if (!products.Any()) return new List<ProductDto>();
-
-            // Lấy thông tin store cho từng sản phẩm
-            var storeIds = products.Select(p => p.StoreId).Distinct().ToList();
-            var stores = (await _storeRepo.FindManyAsync(s => storeIds.Contains(s.Id!))).ToList();
-
-            // Tìm min/max cho price và purchase_count
-            var minPrice = products.Min(p => p.Price);
-            var maxPrice = products.Max(p => p.Price);
-            var minPurchase = products.Min(p => p.PurchaseCount);
-            var maxPurchase = products.Max(p => p.PurchaseCount);
-
-            // Chuẩn hóa và tính score
-            var result = products.Select(p =>
-            {
-                var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
-                decimal priceNorm = (maxPrice == minPrice) ? 1 : 1 - (p.Price - minPrice) / (maxPrice - minPrice);
-                decimal ratingNorm = store != null ? ((store.Rating - 1m) / 4m) : 0;
-                decimal purchaseNorm = (maxPurchase == minPurchase) ? 1 : (p.PurchaseCount - minPurchase) / (decimal)(maxPurchase - minPurchase);
-                decimal score = 0.5m * priceNorm + 0.3m * ratingNorm + 0.2m * purchaseNorm;
-                return new ProductDto
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Price = p.Price,
-                    PurchaseCount = p.PurchaseCount,
-                    Score = Math.Round(score, 2),
-                    Seller = new SellerDto
-                    {
-                        Name = store?.Name ?? "",
-                        Rating = store?.Rating ?? 0,
-                        Market = store?.MarketId ?? ""
-                    }
-                };
-            })
-            .OrderByDescending(x => x.Score)
-            .Take(limit)
-            .ToList();
-
-            return result;
-        }
-
-        // Order management for ProxyShopper
-        public async Task<List<ProxyShoppingOrder>> GetMyOrdersAsync(string proxyShopperId, string? status = null)
-        {
-            var orders = string.IsNullOrEmpty(status)
-                ? await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId)
-                : await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId && o.Status.ToString() == status);
-
-            return orders.OrderByDescending(o => o.CreatedAt).ToList();
-        }
-
-        public async Task<ProxyShoppingOrder?> GetOrderDetailAsync(string orderId, string proxyShopperId)
-        {
-            return await _orderRepo.FindOneAsync(o => o.Id == orderId && o.ProxyShopperId == proxyShopperId);
-        }
-
-        public async Task<List<ProxyShoppingOrder>> GetOrderHistoryAsync(string proxyShopperId, int page = 1, int pageSize = 20)
-        {
-            var orders = await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId);
-            return orders.OrderByDescending(o => o.CreatedAt)
-                        .Skip((page - 1) * pageSize)
-                        .Take(pageSize)
-                        .ToList();
-        }
-
+        // 9. Hủy đơn – mở lại request (nếu chưa mua hàng)
         public async Task<bool> CancelOrderAsync(string orderId, string proxyShopperId, string reason)
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.ProxyShopperId == proxyShopperId);
-            if (order == null || order.Status == Status.Completed || order.Status == Status.Cancelled) return false;
+            if (order == null || order.Status is ProxyOrderStatus.Completed or ProxyOrderStatus.Cancelled) return false;
 
-            order.Status = Status.Cancelled;
+            order.Status = ProxyOrderStatus.Cancelled;
             order.Notes = $"Hủy bởi ProxyShopper: {reason}";
-            order.UpdatedAt = DateTime.Now;
+            order.UpdatedAt = DateTime.UtcNow;
             await _orderRepo.UpdateAsync(orderId, order);
-            return true;
-        }
 
-        public async Task<ProxyShopperStatsDTO> GetMyStatsAsync(string proxyShopperId)
-        {
-            var orders = await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId);
-            var orderList = orders.ToList();
-
-            var totalOrders = orderList.Count;
-            var completedOrders = orderList.Count(o => o.Status == Status.Completed);
-            var cancelledOrders = orderList.Count(o => o.Status == Status.Cancelled);
-            var pendingOrders = orderList.Count(o => o.Status == Status.Pending);
-            var totalEarnings = orderList.Where(o => o.Status == Status.Completed).Sum(o => o.ProxyFee ?? 0);
-            var firstOrderDate = orderList.Any() ? orderList.Min(o => o.CreatedAt) : (DateTime?)null;
-            var lastOrderDate = orderList.Any() ? orderList.Max(o => o.UpdatedAt) : (DateTime?)null;
-
-            return new ProxyShopperStatsDTO
+            // reopen request nếu order còn ở giai đoạn Draft/Proposed/Paid
+            var req = await _requestRepo.FindOneAsync(r => r.Id == order.ProxyRequestId);
+            if (req != null && req.Status == ProxyRequestStatus.Locked)
             {
-                TotalOrders = totalOrders,
-                CompletedOrders = completedOrders,
-                CancelledOrders = cancelledOrders,
-                PendingOrders = pendingOrders,
-                TotalEarnings = totalEarnings,
-                AverageRating = 0, // TODO: Implement rating system
-                TotalReviews = 0, // TODO: Implement review system
-                FirstOrderDate = firstOrderDate,
-                LastOrderDate = lastOrderDate
-            };
+                req.Status = ProxyRequestStatus.Open;
+                req.ProxyShoppingOrderId = null;
+                req.UpdatedAt = DateTime.UtcNow;
+                await _requestRepo.UpdateAsync(req.Id!, req);
+            }
+            return true;
         }
     }
 }
