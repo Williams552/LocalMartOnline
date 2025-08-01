@@ -58,7 +58,6 @@ namespace LocalMartOnline.Models.DTOs
         public string SellerId { get; set; } = string.Empty;
         public string MarketId { get; set; } = string.Empty;
         public string PaymentStatus { get; set; } = string.Empty; // Pending, Completed, Failed
-        public string? AdminNote { get; set; }
         public int Month { get; set; } = DateTime.Now.Month;
         public int Year { get; set; } = DateTime.Now.Year;
     }
@@ -99,7 +98,6 @@ namespace LocalMartOnline.Models.DTOs
         public string PaymentStatus { get; set; } = "Pending";
         public DateTime? PaymentDate { get; set; }
         public DateTime CreatedAt { get; set; }
-        public string? AdminNotes { get; set; }
         public bool IsOverdue { get; set; }
         public int DaysOverdue { get; set; }
     }
@@ -107,7 +105,6 @@ namespace LocalMartOnline.Models.DTOs
     public class UpdatePaymentStatusByIdDto
     {
         public string PaymentStatus { get; set; } = string.Empty; // Pending, Completed, Failed
-        public string? AdminNote { get; set; }
         public DateTime? PaymentDate { get; set; }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using LocalMartOnline.Models.DTOs.Common;
 using LocalMartOnline.Models.DTOs.Store;
+using LocalMartOnline.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -42,5 +43,8 @@ namespace LocalMartOnline.Services.Interface
         // Admin store management with payment information
         Task<GetAllStoresWithPaymentResponseDto> GetAllStoresWithPaymentInfoAsync(GetAllStoresWithPaymentRequestDto request);
         Task<bool> UpdateStorePaymentStatusAsync(string paymentId, UpdateStorePaymentStatusDto dto);
+        
+        // Monthly payment management
+        Task<int> GenerateMonthlyPaymentsAsync(int? month = null, int? year = null);
     }
 }

@@ -168,7 +168,6 @@ namespace LocalMartOnline.Services
                     {
                         payment.PaymentStatus = MarketFeePaymentStatus.Completed;
                         payment.PaymentDate = DateTime.Now;
-                        payment.AdminNotes = $"Thanh toán online thành công - Transaction ID: {transactionId}";
 
                         await _paymentRepo.UpdateAsync(paymentId, payment);
                         return true;
