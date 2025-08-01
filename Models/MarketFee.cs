@@ -13,6 +13,9 @@ namespace LocalMartOnline.Models
         [BsonElement("market_id")]
         public string MarketId { get; set; } = string.Empty;
 
+        [BsonElement("market_fee_type_id")]
+        public string MarketFeeTypeId { get; set; } = string.Empty;
+
         [BsonElement("name")]
         public string Name { get; set; } = string.Empty;
 
@@ -26,9 +29,11 @@ namespace LocalMartOnline.Models
         public int PaymentDay { get; set; }
 
         [BsonElement("created_at")]
-        public DateTime CreatedAt { get; set; }
+        [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         [BsonElement("updated_at")]
-        public DateTime UpdatedAt { get; set; }
+        [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }
