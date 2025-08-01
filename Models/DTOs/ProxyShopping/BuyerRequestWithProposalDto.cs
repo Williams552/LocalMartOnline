@@ -21,7 +21,7 @@ namespace LocalMartOnline.Models.DTOs.ProxyShopping
 
     public class ProposalInfo
     {
-        public List<ProductDto> ProposedItems { get; set; } = new();
+        public List<ProductStorePageDto> ProposedItems { get; set; } = new();
         public decimal? TotalAmount { get; set; }
         public decimal? ProxyFee { get; set; }
         public string? Notes { get; set; }
