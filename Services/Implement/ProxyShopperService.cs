@@ -20,6 +20,8 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<Product> _productRepo;
         private readonly IRepository<Store> _storeRepo;
         private readonly IRepository<ProxyRequest> _requestRepo;
+        private readonly IRepository<ProductUnit> _productUnitRepo;
+        private readonly IRepository<ProductImage> _productImageRepo;
         private readonly IMapper _mapper;
 
         public ProxyShopperService(
@@ -29,6 +31,8 @@ namespace LocalMartOnline.Services.Implement
             IRepository<Product> productRepo,
             IRepository<Store> storeRepo,
             IRepository<ProxyRequest> requestRepo,
+            IRepository<ProductUnit> productUnitRepo,
+            IRepository<ProductImage> productImageRepo,
             IMapper mapper)
         {
             _orderRepo = orderRepo;
@@ -37,6 +41,8 @@ namespace LocalMartOnline.Services.Implement
             _productRepo = productRepo;
             _storeRepo = storeRepo;
             _requestRepo = requestRepo;
+            _productUnitRepo = productUnitRepo;
+            _productImageRepo = productImageRepo;
             _mapper = mapper;
         }
 
@@ -122,7 +128,7 @@ namespace LocalMartOnline.Services.Implement
                 .ToList();
         }
 
-                public async Task<List<ProxyRequest>> GetMyAcceptedRequestsAsync(string proxyShopperId)
+        public async Task<List<ProxyRequest>> GetMyAcceptedRequestsAsync(string proxyShopperId)
         {
             var myOrders = await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId);
             var requestIds = myOrders.Select(o => o.ProxyRequestId).Where(id => !string.IsNullOrEmpty(id)).ToList();
@@ -156,27 +162,162 @@ namespace LocalMartOnline.Services.Implement
             };
             await _orderRepo.CreateAsync(order);
 
+            Console.WriteLine($"[DEBUG] AcceptRequestAndCreateOrderAsync - Created Order with ID: {order.Id}");
+            Console.WriteLine($"[DEBUG] AcceptRequestAndCreateOrderAsync - RequestId: {requestId}");
+
             req.ProxyShoppingOrderId = order.Id;
             req.UpdatedAt = DateTime.UtcNow;
             await _requestRepo.UpdateAsync(requestId, req);
             return order.Id;
         }
 
-        // 4. Proxy lên đơn, gửi đề xuất (điền sản phẩm thật + phí)
-        public async Task<bool> SendProposalAsync(string orderId, ProxyShoppingProposalDTO proposal)
+        // Advanced product search with weights
+        public async Task<List<object>> AdvancedProductSearchAsync(string query, double wPrice, double wReputation, double wSold, double wStock)
         {
-            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
-            if (order == null || order.Status != ProxyOrderStatus.Draft) return false;
+            var products = (await _productRepo.FindManyAsync(p => p.Name.ToLower().Contains(query.ToLower())))?.ToList() ?? new List<Product>();
+            if (!products.Any()) return new List<object>();
 
-            order.Items = proposal.Items;
-            order.TotalAmount = proposal.TotalAmount;
-            order.ProxyFee = proposal.ProxyFee;
-            order.Notes = proposal.Note;
-            order.Status = ProxyOrderStatus.Proposed;
-            order.UpdatedAt = DateTime.UtcNow;
+            // Lấy thông tin các cửa hàng
+            var storeIds = products.Where(p => !string.IsNullOrEmpty(p.StoreId)).Select(p => p.StoreId!).Distinct().ToList();
+            var stores = storeIds.Any() ? await _storeRepo.FindManyAsync(s => storeIds.Contains(s.Id!)) : new List<Store>();
+            var storeDict = stores.Where(s => s.Id != null).ToDictionary(s => s.Id!, s => s);
 
-            await _orderRepo.UpdateAsync(orderId, order);
-            return true;
+            // Lấy thông tin các đơn vị sản phẩm
+            var unitIds = products.Where(p => !string.IsNullOrEmpty(p.UnitId)).Select(p => p.UnitId!).Distinct().ToList();
+            var units = unitIds.Any() ? await _productUnitRepo.FindManyAsync(u => unitIds.Contains(u.Id!)) : new List<ProductUnit>();
+            var unitDict = units.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
+
+            // Lấy thông tin hình ảnh sản phẩm
+            var productIds = products.Select(p => p.Id!).ToList();
+            var productImages = productIds.Any() ? await _productImageRepo.FindManyAsync(img => productIds.Contains(img.ProductId)) : new List<ProductImage>();
+            var imageDict = productImages.GroupBy(img => img.ProductId).ToDictionary(g => g.Key, g => g.Select(img => img.ImageUrl).ToList());
+
+            // Chuẩn hóa các giá trị dựa trên các trường có sẵn
+            double minPrice = products.Min(p => (double)p.Price);
+            double maxPrice = products.Max(p => (double)p.Price);
+            // Sử dụng rating trung bình từ store thay vì SellerReputation
+            double minRep = 0; // Tạm thời đặt = 0 vì chưa có trường reputation
+            double maxRep = 5; // Giả định thang điểm 0-5
+            double minSold = products.Min(p => (double)p.PurchaseCount);
+            double maxSold = products.Max(p => (double)p.PurchaseCount);
+
+            var result = products.Select(p =>
+            {
+                double priceScore = (maxPrice - minPrice) > 0 ? 1 - ((double)p.Price - minPrice) / (maxPrice - minPrice) : 1;
+                // Sử dụng giá trị cố định cho reputation score tạm thời
+                double reputationScore = 0.5; // Giá trị trung bình tạm thời
+                double soldScore = (maxSold - minSold) > 0 ? ((double)p.PurchaseCount - minSold) / (maxSold - minSold) : 1;
+                // Sử dụng ProductStatus thay vì InStock
+                double stockScore = p.Status == ProductStatus.Active ? 1 : 0;
+                double score = wPrice * priceScore + wReputation * reputationScore + wSold * soldScore + wStock * stockScore;
+                
+                string? storeName = null;
+                if (!string.IsNullOrEmpty(p.StoreId) && storeDict.TryGetValue(p.StoreId, out var store))
+                {
+                    storeName = store.Name;
+                }
+
+                // Lấy thông tin đơn vị
+                string? unitName = null;
+                if (!string.IsNullOrEmpty(p.UnitId) && unitDict.TryGetValue(p.UnitId, out var unit))
+                {
+                    unitName = unit.DisplayName;
+                }
+
+                // Lấy danh sách hình ảnh
+                var images = new List<string>();
+                if (!string.IsNullOrEmpty(p.Id) && imageDict.TryGetValue(p.Id, out var productImages))
+                {
+                    images = productImages;
+                }
+
+                return new
+                {
+                    p.Id,
+                    p.Name,
+                    p.Price,
+                    SellerReputation = reputationScore * 5, // Chuyển về thang điểm 0-5
+                    p.PurchaseCount,
+                    InStock = p.Status == ProductStatus.Active,
+                    StoreName = storeName,
+                    UnitName = unitName,
+                    Images = images,
+                    p.Status,
+                    Score = score
+                };
+            })
+            .OrderByDescending(x => x.Score)
+            .Cast<object>()
+            .ToList();
+            return result;
+        }
+
+        // 4. Proxy lên đơn, gửi đề xuất (điền sản phẩm thật + phí)
+        public async Task<bool> SendProposalAsync(string requestId, ProxyShoppingProposalDTO proposal)
+        {
+            try
+            {
+                Console.WriteLine($"[DEBUG] SendProposalAsync - Starting with RequestId: {requestId}");
+                
+                // Tìm order từ requestId
+                var order = await _orderRepo.FindOneAsync(o => o.ProxyRequestId == requestId);
+                if (order == null)
+                {
+                    Console.WriteLine($"[DEBUG] SendProposalAsync - Order not found for RequestId: {requestId}");
+                    return false;
+                }
+
+                Console.WriteLine($"[DEBUG] SendProposalAsync - Order found. OrderId: {order.Id}, Status: {order.Status}");
+                Console.WriteLine($"[DEBUG] SendProposalAsync - Order BuyerId: {order.BuyerId}");
+                Console.WriteLine($"[DEBUG] SendProposalAsync - Order ProxyShopperId: {order.ProxyShopperId}");
+
+                // Kiểm tra order phải ở trạng thái Draft
+                if (order.Status != ProxyOrderStatus.Draft)
+                {
+                    Console.WriteLine($"[DEBUG] SendProposalAsync - Order not in Draft status. Current status: {order.Status}");
+                    return false;
+                }
+
+                // Chuyển đổi từ ProxyShoppingProposalItemDto sang ProductDto
+                Console.WriteLine($"[DEBUG] SendProposalAsync - Converting {proposal.Items.Count} items");
+                var productDtos = proposal.Items.Select((item, index) => 
+                {
+                    Console.WriteLine($"[DEBUG] SendProposalAsync - Item {index + 1}: Id={item.Id}, Name={item.Name}, Quantity={item.Quantity}, Unit={item.Unit}, Price={item.Price}");
+                    return new ProductDto
+                    {
+                        Id = item.Id,
+                        Name = item.Name,
+                        Price = item.Price,
+                        UnitName = item.Unit,
+                        MinimumQuantity = item.Quantity
+                    };
+                }).ToList();
+
+                Console.WriteLine($"[DEBUG] SendProposalAsync - Updating order with {productDtos.Count} items");
+                order.Items = productDtos;
+                order.TotalAmount = proposal.TotalAmount;
+                order.ProxyFee = proposal.ProxyFee;
+                order.Notes = proposal.Note;
+                order.Status = ProxyOrderStatus.Proposed;
+                order.UpdatedAt = DateTime.UtcNow;
+
+                Console.WriteLine($"[DEBUG] SendProposalAsync - Order before update:");
+                Console.WriteLine($"[DEBUG] SendProposalAsync - TotalAmount: {order.TotalAmount}");
+                Console.WriteLine($"[DEBUG] SendProposalAsync - ProxyFee: {order.ProxyFee}");
+                Console.WriteLine($"[DEBUG] SendProposalAsync - Notes: {order.Notes}");
+                Console.WriteLine($"[DEBUG] SendProposalAsync - Status: {order.Status}");
+
+                await _orderRepo.UpdateAsync(order.Id!, order);
+                Console.WriteLine($"[DEBUG] SendProposalAsync - Order updated successfully");
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] SendProposalAsync - Exception: {ex.Message}");
+                Console.WriteLine($"[ERROR] SendProposalAsync - StackTrace: {ex.StackTrace}");
+                return false;
+            }
         }
 
         // 5. Buyer duyệt & thanh toán
@@ -270,6 +411,91 @@ namespace LocalMartOnline.Services.Implement
                 await _requestRepo.UpdateAsync(req.Id!, req);
             }
             return true;
+        }
+
+        // Lấy thông tin chi tiết của một request theo ID
+        public async Task<ProxyRequestResponseDto?> GetRequestByIdAsync(string requestId)
+        {
+            var request = await _requestRepo.FindOneAsync(r => r.Id == requestId);
+            if (request == null) return null;
+
+            // Lấy thông tin buyer
+            var buyer = await _userRepo.FindOneAsync(u => u.Id == request.BuyerId);
+            
+            return new ProxyRequestResponseDto
+            {
+                Id = request.Id,
+                Items = request.Items,
+                Status = request.Status.ToString(),
+                CreatedAt = request.CreatedAt,
+                UpdatedAt = request.UpdatedAt,
+                BuyerName = buyer?.FullName,
+                BuyerEmail = buyer?.Email,
+                BuyerPhone = buyer?.PhoneNumber
+            };
+        }
+
+        // Lấy OrderId từ RequestId
+        public async Task<string?> GetOrderIdByRequestIdAsync(string requestId)
+        {
+            var order = await _orderRepo.FindOneAsync(o => o.ProxyRequestId == requestId);
+            return order?.Id;
+        }
+
+        // Lấy danh sách yêu cầu của buyer với thông tin đề xuất
+        public async Task<List<BuyerRequestWithProposalDto>> GetMyRequestsWithProposalsAsync(string buyerId)
+        {
+            // Lấy tất cả requests của buyer
+            var requests = await _requestRepo.FindManyAsync(r => r.BuyerId == buyerId);
+            var result = new List<BuyerRequestWithProposalDto>();
+
+            foreach (var request in requests)
+            {
+                var dto = new BuyerRequestWithProposalDto
+                {
+                    Id = request.Id!,
+                    Items = request.Items,
+                    Status = request.Status.ToString(),
+                    CreatedAt = request.CreatedAt,
+                    UpdatedAt = request.UpdatedAt
+                };
+
+                // Tìm order tương ứng (nếu có)
+                var order = await _orderRepo.FindOneAsync(o => o.ProxyRequestId == request.Id);
+                if (order != null)
+                {
+                    dto.ProxyShopperId = order.ProxyShopperId;
+
+                    // Lấy thông tin proxy shopper
+                    if (!string.IsNullOrEmpty(order.ProxyShopperId))
+                    {
+                        var proxyUser = await _userRepo.FindOneAsync(u => u.Id == order.ProxyShopperId);
+                        if (proxyUser != null)
+                        {
+                            dto.ProxyShopperName = proxyUser.FullName;
+                            dto.ProxyShopperPhone = proxyUser.PhoneNumber;
+                        }
+                    }
+
+                    // Nếu có đề xuất (order status != Draft)
+                    if (order.Status != ProxyOrderStatus.Draft)
+                    {
+                        dto.Proposal = new ProposalInfo
+                        {
+                            ProposedItems = order.Items ?? new List<ProductDto>(),
+                            TotalAmount = order.TotalAmount,
+                            ProxyFee = order.ProxyFee,
+                            Notes = order.Notes,
+                            ProposedAt = order.UpdatedAt,
+                            OrderStatus = order.Status.ToString()
+                        };
+                    }
+                }
+
+                result.Add(dto);
+            }
+
+            return result.OrderByDescending(r => r.CreatedAt).ToList();
         }
     }
 }
