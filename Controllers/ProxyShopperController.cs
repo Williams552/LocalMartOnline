@@ -28,38 +28,10 @@ namespace LocalMartOnline.Controllers
             var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(proxyShopperId))
                 return Unauthorized("Không tìm thấy userId trong token.");
-            var requests = await _proxyShopperService.GetMyAcceptedRequestsAsync(proxyShopperId);
-            // Lấy danh sách userId
-            var buyerIds = requests.Select(r => r.BuyerId).Distinct().ToList();
-            var users = await _userRepo.FindManyAsync(u => u.Id != null && buyerIds.Contains(u.Id!));
-            var userDict = users.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
-            var result = requests.Select(r => new ProxyRequestResponseDto
-            {
-                Id = r.Id,
-                Items = r.Items,
-                Status = r.Status.ToString(),
-                CreatedAt = r.CreatedAt,
-                UpdatedAt = r.UpdatedAt,
-                BuyerName = userDict.TryGetValue(r.BuyerId, out var user) ? user.FullName : null,
-                BuyerEmail = userDict.TryGetValue(r.BuyerId, out var user2) ? user2.Email : null,
-                BuyerPhone = userDict.TryGetValue(r.BuyerId, out var user3) ? user3.PhoneNumber : null
-            }).ToList();
-            return Ok(result);
-        }
-
-        // API cho Buyer xem danh sách yêu cầu của mình
-        [HttpGet("requests/my-requests")]
-        [Authorize(Roles = "Buyer")]
-        public async Task<IActionResult> GetMyRequests()
-        {
-            var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(buyerId))
-                return Unauthorized("Không tìm thấy userId trong token.");
             
-            var result = await _proxyShopperService.GetMyRequestsWithProposalsAsync(buyerId);
+            var result = await _proxyShopperService.GetMyAcceptedRequestsAsync(proxyShopperId);
             return Ok(result);
         }
-
         // 1. Buyer tạo request
         [HttpPost("requests")]
         [Authorize(Roles = "Buyer")]
@@ -112,15 +84,15 @@ namespace LocalMartOnline.Controllers
         }
 
         // 4. Proxy gửi đề xuất đơn hàng (products + tổng giá + phí)
-        [HttpPost("requests/{requestId}/proposal")]
+        [HttpPost("orders/{orderId}/proposal")]
         [Authorize(Roles = "Proxy Shopper")]
-        public async Task<IActionResult> SendProposal(string requestId, [FromBody] ProxyShoppingProposalDTO dto)
+        public async Task<IActionResult> SendProposal(string orderId, [FromBody] ProxyShoppingProposalDTO dto)
         {
             try
             {
                 // Validate input
-                if (string.IsNullOrEmpty(requestId))
-                    return BadRequest("RequestId không được để trống.");
+                if (string.IsNullOrEmpty(orderId))
+                    return BadRequest("OrderId không được để trống.");
 
                 if (dto == null)
                     return BadRequest("Dữ liệu đề xuất không được để trống.");
@@ -160,23 +132,23 @@ namespace LocalMartOnline.Controllers
                     return Unauthorized("Không tìm thấy userId trong token.");
 
                 // Log proposal details
-                Console.WriteLine($"[DEBUG] SendProposal - RequestId: {requestId}");
+                Console.WriteLine($"[DEBUG] SendProposal - OrderId: {orderId}");
                 Console.WriteLine($"[DEBUG] SendProposal - ProxyShopperId: {proxyShopperId}");
                 Console.WriteLine($"[DEBUG] SendProposal - Items Count: {dto.Items.Count}");
                 Console.WriteLine($"[DEBUG] SendProposal - TotalProductPrice: {dto.TotalProductPrice}");
                 Console.WriteLine($"[DEBUG] SendProposal - ProxyFee: {dto.ProxyFee}");
                 Console.WriteLine($"[DEBUG] SendProposal - TotalAmount: {dto.TotalAmount}");
 
-                var ok = await _proxyShopperService.SendProposalAsync(requestId, dto);
+                var ok = await _proxyShopperService.SendProposalAsync(orderId, dto);
                 
                 if (ok)
                 {
-                    Console.WriteLine($"[DEBUG] SendProposal - Success for RequestId: {requestId}");
-                    return Ok(new { message = "Đề xuất đã được gửi thành công.", requestId });
+                    Console.WriteLine($"[DEBUG] SendProposal - Success for OrderId: {orderId}");
+                    return Ok(new { message = "Đề xuất đã được gửi thành công.", orderId });
                 }
                 else
                 {
-                    Console.WriteLine($"[DEBUG] SendProposal - Failed for RequestId: {requestId}");
+                    Console.WriteLine($"[DEBUG] SendProposal - Failed for OrderId: {orderId}");
                     return BadRequest("Không thể gửi đề xuất. Đơn hàng có thể không tồn tại hoặc không ở trạng thái Draft.");
                 }
             }
@@ -186,7 +158,9 @@ namespace LocalMartOnline.Controllers
                 Console.WriteLine($"[ERROR] SendProposal - StackTrace: {ex.StackTrace}");
                 return StatusCode(500, $"Lỗi server: {ex.Message}");
             }
-        }        // 5. Buyer duyệt & thanh toán
+        }
+
+        // 5. Buyer duyệt & thanh toán
         [HttpPost("orders/{orderId}/approve-pay")]
         [Authorize(Roles = "Buyer")]
         public async Task<IActionResult> BuyerApproveAndPay(string orderId)
@@ -215,8 +189,42 @@ namespace LocalMartOnline.Controllers
         [Authorize(Roles = "Proxy Shopper")]
         public async Task<IActionResult> UploadBoughtItems(string orderId, [FromBody] UploadBoughtItemsDTO dto)
         {
-            var ok = await _proxyShopperService.UploadBoughtItemsAsync(orderId, dto.ImageUrls, dto.Note);
-            return ok ? Ok() : BadRequest("Không thể upload ảnh cho đơn này.");
+            try
+            {
+                // Validate input
+                if (string.IsNullOrEmpty(orderId))
+                    return BadRequest("OrderId không được để trống.");
+
+                if (dto == null)
+                    return BadRequest("Dữ liệu upload không được để trống.");
+
+                // Get current proxy shopper ID for authorization check
+                var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(proxyShopperId))
+                    return Unauthorized("Không tìm thấy userId trong token.");
+
+                var ok = await _proxyShopperService.UploadBoughtItemsAsync(orderId, dto.ImageUrls, dto.Note);
+                
+                if (ok)
+                {
+                    return Ok(new 
+                    { 
+                        message = "Upload ảnh chứng từ thành công.",
+                        orderId = orderId,
+                        imageCount = dto.ImageUrls?.Count ?? 0,
+                        uploadedAt = DateTime.UtcNow
+                    });
+                }
+                else
+                {
+                    return BadRequest("Không thể upload ảnh cho đơn này. Đơn hàng có thể không tồn tại hoặc không ở trạng thái đang mua hàng.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] UploadBoughtItems - Exception: {ex.Message}");
+                return StatusCode(500, $"Lỗi server: {ex.Message}");
+            }
         }
 
         // 8. Buyer xác nhận hoàn tất đơn
@@ -256,11 +264,11 @@ namespace LocalMartOnline.Controllers
         [HttpGet("products/advanced-search")]
         [Authorize(Roles = "Proxy Shopper")]
         public async Task<IActionResult> AdvancedProductSearch(
-        string query,
-        double wPrice = 0.25,
-        double wReputation = 0.25,
-        double wSold = 0.25,
-        double wStock = 0.25)
+    string query,
+    double wPrice = 0.25,
+    double wReputation = 0.25,
+    double wSold = 0.25,
+    double wStock = 0.25)
         {
             var result = await _proxyShopperService.AdvancedProductSearchAsync(query, wPrice, wReputation, wSold, wStock);
             return Ok(result);
