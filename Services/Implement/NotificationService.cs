@@ -180,5 +180,32 @@ namespace LocalMartOnline.Services
             }
         }
 
+        public async Task CreateNotificationAsync(string userId, string title, string message, string type)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(userId))
+                    throw new ArgumentException("UserId must not be null or empty", nameof(userId));
+
+                var notification = new LocalMartOnline.Models.Notification
+                {
+                    UserId = userId,
+                    Title = title,
+                    Message = message,
+                    Type = type,
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _notificationRepo.CreateAsync(notification);
+                Console.WriteLine($"[INFO] Created notification for user {userId}: {title}");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to create notification: {ex.Message}");
+                throw;
+            }
+        }
+
     }
 }

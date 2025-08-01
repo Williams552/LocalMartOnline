@@ -198,10 +198,33 @@ namespace LocalMartOnline.Controllers
                 if (dto == null)
                     return BadRequest("Dữ liệu upload không được để trống.");
 
+                // Validate image URLs
+                if (dto.ImageUrls != null && dto.ImageUrls.Any())
+                {
+                    var invalidUrls = dto.ImageUrls.Where(url => string.IsNullOrWhiteSpace(url)).ToList();
+                    if (invalidUrls.Any())
+                    {
+                        return BadRequest("Có URL hình ảnh không hợp lệ (trống hoặc null).");
+                    }
+
+                    // Optional: Basic URL format validation
+                    var malformedUrls = dto.ImageUrls.Where(url => 
+                        !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) || 
+                        (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+                    ).ToList();
+                    
+                    if (malformedUrls.Any())
+                    {
+                        return BadRequest($"Có {malformedUrls.Count} URL hình ảnh không đúng định dạng.");
+                    }
+                }
+
                 // Get current proxy shopper ID for authorization check
                 var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(proxyShopperId))
                     return Unauthorized("Không tìm thấy userId trong token.");
+
+                Console.WriteLine($"[DEBUG] UploadBoughtItems - Proxy {proxyShopperId} uploading {dto.ImageUrls?.Count ?? 0} images for order {orderId}");
 
                 var ok = await _proxyShopperService.UploadBoughtItemsAsync(orderId, dto.ImageUrls, dto.Note);
                 
