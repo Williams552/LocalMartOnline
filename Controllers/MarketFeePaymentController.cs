@@ -2,6 +2,7 @@ using LocalMartOnline.Models.DTOs;
 using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Threading.Tasks;
 
 namespace LocalMartOnline.Controllers
@@ -18,15 +19,30 @@ namespace LocalMartOnline.Controllers
 
         [HttpGet("seller/{sellerId}")]
         [Authorize]
-        public async Task<IActionResult> GetBySeller(long sellerId)
+        public async Task<IActionResult> GetBySeller(string sellerId)
         {
             var result = await _service.GetPaymentsBySellerAsync(sellerId);
             return Ok(result);
         }
 
+        [HttpGet]
+        [Authorize(Roles = "Admin,MarketStaff")]
+        public async Task<IActionResult> GetAllPayments([FromQuery] GetAllMarketFeePaymentsRequestDto request)
+        {
+            try
+            {
+                var result = await _service.GetAllPaymentsAsync(request);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Lỗi khi lấy danh sách thanh toán: {ex.Message}");
+            }
+        }
+
         [HttpGet("{paymentId}")]
         [Authorize]
-        public async Task<IActionResult> GetById(long paymentId)
+        public async Task<IActionResult> GetById(string paymentId)
         {
             var result = await _service.GetPaymentByIdAsync(paymentId);
             if (result is null) return NotFound();
@@ -43,11 +59,61 @@ namespace LocalMartOnline.Controllers
 
         [HttpPatch("{paymentId}/status")]
         [Authorize(Roles = "Admin,MarketStaff")]
-        public async Task<IActionResult> UpdateStatus(long paymentId, [FromQuery] string status)
+        public async Task<IActionResult> UpdateStatus(string paymentId, [FromQuery] string status)
         {
             var result = await _service.UpdatePaymentStatusAsync(paymentId, status);
             if (!result) return BadRequest("Cập nhật trạng thái thất bại");
             return Ok("Cập nhật trạng thái thành công");
+        }
+
+        [HttpPost("market/sellers-payment-status")]
+        [Authorize(Roles = "Admin,MarketStaff")]
+        public async Task<IActionResult> GetSellersPaymentStatus([FromBody] GetSellersPaymentStatusRequestDto request)
+        {
+            try
+            {
+                var result = await _service.GetSellersPaymentStatusAsync(request);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Lỗi khi lấy trạng thái thanh toán: {ex.Message}");
+            }
+        }
+
+        [HttpPost("admin/update-payment-status")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdatePaymentStatusByAdmin([FromBody] UpdatePaymentStatusDto dto)
+        {
+            try
+            {
+                var result = await _service.UpdatePaymentStatusByAdminAsync(dto);
+                if (!result) return BadRequest("Cập nhật trạng thái thanh toán thất bại");
+                return Ok("Cập nhật trạng thái thanh toán thành công");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Lỗi khi cập nhật trạng thái: {ex.Message}");
+            }
+        }
+
+        [HttpPatch("{paymentId}/admin-update-status")]
+        [Authorize(Roles = "Admin,MarketStaff")]
+        public async Task<IActionResult> UpdatePaymentStatusByPaymentId(string paymentId, [FromBody] UpdatePaymentStatusByIdDto dto)
+        {
+            try
+            {
+                var payment = await _service.GetPaymentByIdAsync(paymentId);
+                if (payment == null) return NotFound("Không tìm thấy thanh toán");
+
+                var result = await _service.UpdatePaymentStatusAsync(paymentId, dto.PaymentStatus);
+                if (!result) return BadRequest("Cập nhật trạng thái thất bại");
+                return Ok("Cập nhật trạng thái thành công");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Lỗi khi cập nhật trạng thái: {ex.Message}");
+            }
         }
     }
 }

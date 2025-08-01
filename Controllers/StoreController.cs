@@ -673,5 +673,66 @@ namespace LocalMartOnline.Controllers
                 data = result
             });
         }
+
+        // Admin endpoint: Get all stores with payment information
+        [HttpGet("admin/payment-overview")]
+        // [Authorize(Roles = "Admin,MarketStaff")]
+        public async Task<IActionResult> GetAllStoresWithPaymentInfo([FromQuery] GetAllStoresWithPaymentRequestDto request)
+        {
+            try
+            {
+                var result = await _storeService.GetAllStoresWithPaymentInfoAsync(request);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy thông tin thanh toán của các cửa hàng thành công",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = $"Lỗi khi lấy thông tin thanh toán: {ex.Message}",
+                    data = (object?)null
+                });
+            }
+        }
+
+        // Admin endpoint: Update store payment status
+        [HttpPatch("admin/payment/{paymentId}/update-status")]
+        // [Authorize(Roles = "Admin,MarketStaff")]
+        public async Task<IActionResult> UpdateStorePaymentStatus(string paymentId, [FromBody] UpdateStorePaymentStatusDto dto)
+        {
+            try
+            {
+                var result = await _storeService.UpdateStorePaymentStatusAsync(paymentId, dto);
+                
+                if (!result)
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy thanh toán hoặc cập nhật thất bại",
+                        data = (object?)null
+                    });
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Cập nhật trạng thái thanh toán thành công",
+                    data = (object?)null
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = $"Lỗi khi cập nhật trạng thái thanh toán: {ex.Message}",
+                    data = (object?)null
+                });
+            }
+        }
     }
 }

@@ -47,6 +47,21 @@ namespace LocalMartOnline.Services.Implement
 
         public async Task<MarketFeeTypeDto> CreateMarketFeeTypeAsync(CreateMarketFeeTypeDto createDto)
         {
+            // Check for duplicate fee type (case insensitive)
+            var existingFilter = Builders<MarketFeeType>.Filter.And(
+                Builders<MarketFeeType>.Filter.Regex("fee_type", new MongoDB.Bson.BsonRegularExpression($"^{createDto.FeeType}$", "i")),
+                Builders<MarketFeeType>.Filter.Eq("is_deleted", false)
+            );
+
+            var existingFeeType = await _marketFeeTypeCollection
+                .Find(existingFilter)
+                .FirstOrDefaultAsync();
+
+            if (existingFeeType != null)
+            {
+                throw new InvalidOperationException($"Loại phí '{createDto.FeeType}' đã tồn tại trong hệ thống.");
+            }
+
             var marketFeeType = new MarketFeeType
             {
                 FeeType = createDto.FeeType,
