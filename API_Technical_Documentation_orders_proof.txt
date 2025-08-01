@@ -1,0 +1,197 @@
+================================================================================
+                    THÔNG TIN KỸ THUẬT API orders/{orderId}/proof
+================================================================================
+
+📍 ENDPOINT INFORMATION
+================================================================================
+URL: POST /api/ProxyShopper/orders/{orderId}/proof
+Mục đích: Proxy Shopper upload ảnh chứng từ mua hàng (hóa đơn, sản phẩm thực tế)
+Controller: ProxyShopperController
+Method: UploadBoughtItems
+
+🔐 AUTHORIZATION
+================================================================================
+- Required Role: "Proxy Shopper"
+- Authentication: JWT Bearer Token
+- Authorization Header: Bearer {token}
+
+📋 PARAMETERS
+================================================================================
+
+PATH PARAMETERS:
+- orderId (string, required): ID của đơn hàng proxy shopping
+
+REQUEST BODY (JSON):
+{
+  "imageUrls": [
+    "https://example.com/image1.jpg",
+    "https://example.com/image2.jpg"
+  ],
+  "note": "Đã mua đầy đủ các sản phẩm theo yêu cầu"
+}
+
+DTO STRUCTURE:
+public class UploadBoughtItemsDTO
+{
+    public List<string> ImageUrls { get; set; } = new();
+    public string? Note { get; set; }
+}
+
+🔄 BUSINESS LOGIC
+================================================================================
+
+VALIDATION RULES:
+1. User phải có role "Proxy Shopper"
+2. Order phải tồn tại trong database
+3. Order phải ở trạng thái "InProgress" (đang mua hàng)
+
+PROCESSING FLOW:
+1. Lấy proxyShopperId từ JWT token (hiện tại không validate)
+2. Gọi service method UploadBoughtItemsAsync()
+3. Service tìm order theo orderId
+4. Kiểm tra order.Status == ProxyOrderStatus.InProgress
+5. Cập nhật order.Notes với thông tin từ request
+6. Cập nhật order.UpdatedAt = DateTime.UtcNow
+7. Lưu order vào database
+
+📤 RESPONSE FORMATS
+================================================================================
+
+SUCCESS (200 OK):
+{} 
+// Empty response body
+
+ERROR RESPONSES:
+- 400 Bad Request: "Không thể upload ảnh cho đơn này."
+- 401 Unauthorized: Token không hợp lệ hoặc role không đúng
+
+🚨 CRITICAL ISSUES IDENTIFIED
+================================================================================
+
+1. IMAGE URLS NOT SAVED:
+   - Code hiện tại KHÔNG lưu imageUrls vào database
+   - Chỉ có comment TODO: "lưu imageUrls vào field mới (ProofImages)"
+   - Chỉ lưu Note, bỏ qua ImageUrls hoàn toàn
+
+2. MISSING VALIDATION:
+   - Không validate format của image URLs
+   - Không kiểm tra proxy shopper có quyền với order này không
+   - Không validate số lượng/kích thước ảnh
+
+3. POOR ERROR HANDLING:
+   - Response message không chi tiết
+   - Không phân biệt lỗi do order không tồn tại vs status sai
+
+4. SECURITY ISSUES:
+   - Không validate image URL domains (SSRF risk)
+   - Không kiểm tra ownership của order
+
+📊 CURRENT CODE IMPLEMENTATION
+================================================================================
+
+CONTROLLER CODE:
+[HttpPost("orders/{orderId}/proof")]
+[Authorize(Roles = "Proxy Shopper")]
+public async Task<IActionResult> UploadBoughtItems(string orderId, [FromBody] UploadBoughtItemsDTO dto)
+{
+    var ok = await _proxyShopperService.UploadBoughtItemsAsync(orderId, dto.ImageUrls, dto.Note);
+    return ok ? Ok() : BadRequest("Không thể upload ảnh cho đơn này.");
+}
+
+SERVICE CODE:
+public async Task<bool> UploadBoughtItemsAsync(string orderId, List<string> imageUrls, string? note)
+{
+    var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
+    if (order == null || order.Status != ProxyOrderStatus.InProgress) return false;
+    // TODO: lưu imageUrls vào field mới (ProofImages)
+    order.Notes = note;
+    order.UpdatedAt = DateTime.UtcNow;
+    await _orderRepo.UpdateAsync(orderId, order);
+    return true;
+}
+
+🛠️ RECOMMENDED IMPROVEMENTS
+================================================================================
+
+1. UPDATE PROXYSHOPPINGORDER MODEL:
+   Add new field:
+   [BsonElement("proof_images")]
+   public List<string> ProofImages { get; set; } = new();
+
+2. ENHANCED VALIDATION:
+   - Validate image URL format
+   - Check proxy shopper ownership
+   - Validate image count limits
+   - Add URL security checks
+
+3. IMPROVED ERROR HANDLING:
+   - Detailed error messages
+   - Proper HTTP status codes
+   - Structured error responses
+
+4. ENHANCED RESPONSE:
+   return Ok(new { 
+       message = "Upload thành công",
+       imageCount = dto.ImageUrls?.Count ?? 0,
+       orderId = orderId 
+   });
+
+5. LOGGING:
+   - Add comprehensive logging
+   - Track upload attempts
+   - Monitor failures
+
+📝 SAMPLE REQUEST/RESPONSE
+================================================================================
+
+SAMPLE REQUEST:
+POST /api/ProxyShopper/orders/64f1a2b3c4d5e6f7g8h9i0j1/proof
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "imageUrls": [
+    "https://storage.example.com/receipts/receipt_001.jpg",
+    "https://storage.example.com/products/product_photo_001.jpg"
+  ],
+  "note": "Đã mua đầy đủ các sản phẩm theo yêu cầu. Hóa đơn và ảnh sản phẩm thực tế đã được chụp."
+}
+
+CURRENT RESPONSE (Success):
+HTTP 200 OK
+{}
+
+CURRENT RESPONSE (Error):
+HTTP 400 Bad Request
+"Không thể upload ảnh cho đơn này."
+
+SUGGESTED IMPROVED RESPONSE:
+HTTP 200 OK
+{
+  "message": "Upload thành công",
+  "imageCount": 2,
+  "orderId": "64f1a2b3c4d5e6f7g8h9i0j1",
+  "uploadedAt": "2025-08-01T10:30:00Z"
+}
+
+🔗 INTEGRATION POINTS
+================================================================================
+- File Upload Service: Cần tích hợp để handle file upload thực tế
+- Image Validation Service: URL format, file size, image type validation
+- Storage Service: Cloud storage integration (AWS S3, Azure Blob, etc.)
+- Notification Service: Thông báo cho buyer khi có proof images
+
+🔒 SECURITY CONSIDERATIONS
+================================================================================
+- Validate image URL domains (prevent SSRF attacks)
+- Implement file size limits
+- Check image content type
+- Rate limiting for uploads
+- Audit trail for proof uploads
+- Access control validation
+
+📅 CREATED: August 1, 2025
+📄 FILE: API_Technical_Documentation_orders_proof.txt
+🏗️ PROJECT: LocalMartOnline - Proxy Shopping Module
+
+================================================================================

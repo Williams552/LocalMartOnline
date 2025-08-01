@@ -24,6 +24,8 @@ namespace LocalMartOnline.Services.Interface
         Task<bool> UploadBoughtItemsAsync(string orderId, List<string> imageUrls, string? note);
         Task<bool> ConfirmDeliveryAsync(string orderId, string buyerId);
         Task<bool> CancelOrderAsync(string orderId, string proxyShopperId, string reason);
-        Task<List<ProxyRequest>> GetMyAcceptedRequestsAsync(string proxyShopperId);
+        Task<List<ProxyShopperAcceptedRequestDto>> GetMyAcceptedRequestsAsync(string proxyShopperId);
+        Task<List<object>> AdvancedProductSearchAsync(string query, double wPrice, double wReputation, double wSold, double wStock);
+        Task<ProxyRequestResponseDto?> GetRequestByIdAsync(string requestId);
     }
 }

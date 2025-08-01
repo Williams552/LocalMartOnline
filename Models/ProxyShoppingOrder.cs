@@ -45,6 +45,9 @@ namespace LocalMartOnline.Models
         [BsonElement("notes")]
         public string? Notes { get; set; }
 
+        [BsonElement("proof_images")]
+        public List<string> ProofImages { get; set; } = new();
+
         [BsonElement("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
