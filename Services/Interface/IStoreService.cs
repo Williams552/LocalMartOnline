@@ -39,12 +39,5 @@ namespace LocalMartOnline.Services.Interface
         
         // Get store statistics and featured products
         Task<object> GetStoreStatisticsAsync(string storeId);
-        
-        // Admin store management with payment information
-        Task<GetAllStoresWithPaymentResponseDto> GetAllStoresWithPaymentInfoAsync(GetAllStoresWithPaymentRequestDto request);
-        Task<bool> UpdateStorePaymentStatusAsync(string paymentId, UpdateStorePaymentStatusDto dto);
-        
-        // Monthly payment management
-        Task<int> GenerateMonthlyPaymentsAsync(int? month = null, int? year = null);
     }
 }

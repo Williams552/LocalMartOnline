@@ -24,8 +24,8 @@ public class VnPayLibrary
             }
         }
 
-        var orderId = Convert.ToInt64(GetResponseData("vnp_TxnRef"));
-        var vnPayTranId = Convert.ToInt64(GetResponseData("vnp_TransactionNo"));
+        var orderIdString = GetResponseData("vnp_TxnRef"); // Giữ nguyên string, không parse thành Int64
+        var vnpTransactionNo = GetResponseData("vnp_TransactionNo");
         var vnpResponseCode = GetResponseData("vnp_ResponseCode");
         var vnpSecureHash =
             collection.FirstOrDefault(k => k.Key == "vnp_SecureHash").Value; //hash của dữ liệu trả về
@@ -45,9 +45,9 @@ public class VnPayLibrary
             Success = vnpResponseCode.Equals("00"),
             PaymentMethod = "VnPay",
             OrderDescription = orderInfo,
-            OrderId = orderId.ToString(),
-            PaymentId = vnPayTranId.ToString(),
-            TransactionId = vnPayTranId.ToString(),
+            OrderId = orderIdString, // Sử dụng string thay vì convert
+            PaymentId = vnpTransactionNo,
+            TransactionId = vnpTransactionNo,
             Token = vnpSecureHash,
             VnPayResponseCode = vnpResponseCode
         };
@@ -107,7 +107,8 @@ public class VnPayLibrary
 
         foreach (var (key, value) in _requestData.Where(kv => !string.IsNullOrEmpty(kv.Value)))
         {
-            data.Append(WebUtility.UrlEncode(key) + "=" + WebUtility.UrlEncode(value) + "&");
+            // Chỉ encode value, không encode key theo tài liệu VnPay
+            data.Append(key + "=" + WebUtility.UrlEncode(value) + "&");
         }
 
         var querystring = data.ToString();
@@ -164,7 +165,8 @@ public class VnPayLibrary
 
         foreach (var (key, value) in _responseData.Where(kv => !string.IsNullOrEmpty(kv.Value)))
         {
-            data.Append(WebUtility.UrlEncode(key) + "=" + WebUtility.UrlEncode(value) + "&");
+            // Chỉ encode value, không encode key cho response data
+            data.Append(key + "=" + WebUtility.UrlEncode(value) + "&");
         }
 
         //remove last '&'

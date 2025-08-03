@@ -5,7 +5,6 @@ namespace LocalMartOnline.Models.DTOs.Store
 {
     public class StoreWithPaymentInfoDto
     {
-        public string? Id { get; set; } // Store ID
         public string PaymentId { get; set; } = string.Empty; // Payment ID từ MarketFeePayment
         public string StoreName { get; set; } = string.Empty;
         public string SellerName { get; set; } = string.Empty;
@@ -23,6 +22,7 @@ namespace LocalMartOnline.Models.DTOs.Store
     public class GetAllStoresWithPaymentRequestDto
     {
         public string? MarketId { get; set; }
+        public string? FeeTypeId { get; set; } // Filter by fee type
         public string? PaymentStatus { get; set; } // Pending, Completed, Failed
         public int? Month { get; set; } // Filter by month (1-12)
         public int? Year { get; set; } // Filter by year

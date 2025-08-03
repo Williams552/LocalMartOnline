@@ -142,18 +142,6 @@ namespace LocalMartOnline.Services.Implement
             {
                 feeDto.MarketName = market.Name;
             }
-
-            // Auto-trigger payment generation when new MarketFee is created
-            try
-            {
-                var paymentsCreated = await _storeService.GenerateMonthlyPaymentsAsync(); // Current month
-                // Log success if needed: $"Auto-generated {paymentsCreated} payments for new MarketFee"
-            }
-            catch
-            {
-                // Log error but don't fail MarketFee creation
-                // Consider logging: "Failed to auto-generate payments for new MarketFee"
-            }
             
             return feeDto;
         }
@@ -173,18 +161,6 @@ namespace LocalMartOnline.Services.Implement
             if (market != null)
             {
                 feeDto.MarketName = market.Name;
-            }
-
-            // Auto-trigger payment generation when new MarketFee is created
-            try
-            {
-                var paymentsCreated = await _storeService.GenerateMonthlyPaymentsAsync(); // Current month
-                // Log success if needed: $"Auto-generated {paymentsCreated} payments for new MarketFee"
-            }
-            catch
-            {
-                // Log error but don't fail MarketFee creation
-                // Consider logging: "Failed to auto-generate payments for new MarketFee"
             }
             
             return feeDto;

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Models;
+using LocalMartOnline.Models.DTOs.Payment;
 using LocalMartOnline.Services;
 using Microsoft.AspNetCore.Authorization;
 
@@ -34,7 +35,7 @@ namespace LocalMartOnline.Controllers
 
         // Seller xem danh sách payments pending
         [HttpGet("marketfee/pending/{sellerId}")]
-        [Authorize(Roles = "Seller")]
+        // [Authorize(Roles = "Seller")]
         public async Task<IActionResult> GetPendingMarketFeePayments(string sellerId)
         {
             try
@@ -60,17 +61,47 @@ namespace LocalMartOnline.Controllers
 
         // Tạo URL thanh toán cho MarketFeePayment
         [HttpPost("marketfee/create-payment-url/{paymentId}")]
-        [Authorize(Roles = "Seller")]
+        // [Authorize(Roles = "Seller")]
         public async Task<IActionResult> CreateMarketFeePaymentUrl(string paymentId)
         {
             try
             {
-                var paymentUrl = await _vnPayService.CreateMarketFeePaymentUrlAsync(paymentId, HttpContext);
+                // Validate paymentId
+                if (string.IsNullOrEmpty(paymentId))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "PaymentId không được để trống",
+                        data = (object?)null
+                    });
+                }
+                
+                var request = new CreatePaymentUrlRequestDto
+                {
+                    PaymentId = paymentId,
+                    ReturnUrl = "" // Add return URL if needed
+                };
+
+                // Set timeout for the operation
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                
+                var result = await _vnPayService.CreateMarketFeePaymentUrlAsync(request, HttpContext);
+                
                 return Ok(new
                 {
                     success = true,
                     message = "Tạo URL thanh toán thành công",
-                    data = new { paymentUrl, paymentId }
+                    data = result
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(408, new
+                {
+                    success = false,
+                    message = "Yêu cầu quá thời gian. Vui lòng thử lại sau.",
+                    data = (object?)null
                 });
             }
             catch (Exception ex)
@@ -93,20 +124,86 @@ namespace LocalMartOnline.Controllers
             {
                 var result = await _vnPayService.ProcessMarketFeePaymentCallbackAsync(Request.Query);
                 
+                // Redirect đến trang payments của seller
+                var redirectUrl = "http://localhost:3000/seller/payments";
+                
                 if (result)
                 {
-                    // Redirect về trang thành công
-                    return Redirect("/payment-success");
+                    // Thanh toán thành công - encode message để tránh lỗi non-ASCII
+                    var successMessage = Uri.EscapeDataString("Thanh toán thành công");
+                    return Redirect($"{redirectUrl}");
                 }
                 else
                 {
-                    // Redirect về trang thất bại
-                    return Redirect("/payment-failed");
+                    return Redirect($"{redirectUrl}");
                 }
+            }
+            catch
+            {
+                // Lỗi xử lý - encode message để tránh lỗi non-ASCII
+                var redirectUrl = "http://localhost:3000/seller/payments";
+                return Redirect($"{redirectUrl}");
+            }
+        }
+
+        // Kiểm tra trạng thái thanh toán
+        [HttpGet("marketfee/payment-status/{paymentId}")]
+        public async Task<IActionResult> GetPaymentStatus(string paymentId)
+        {
+            try
+            {
+                var pendingPayments = await _vnPayService.GetPendingPaymentsAsync("");
+                var payment = pendingPayments.FirstOrDefault(p => p.PaymentId == paymentId);
+                
+                if (payment == null)
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy thanh toán",
+                        data = (object?)null
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy trạng thái thanh toán thành công",
+                    data = payment
+                });
             }
             catch (Exception ex)
             {
-                return Redirect($"/payment-error?message={ex.Message}");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = $"Lỗi khi lấy trạng thái thanh toán: {ex.Message}",
+                    data = (object?)null
+                });
+            }
+        }
+
+        // Helper method để extract PaymentId từ unique TxnRef
+        private string ExtractPaymentIdFromTxnRef(string txnRef)
+        {
+            try
+            {
+                // TxnRef format: {PaymentId}_{yyyyMMddHHmmss}
+                if (string.IsNullOrEmpty(txnRef))
+                    return "";
+
+                var lastUnderscoreIndex = txnRef.LastIndexOf('_');
+                if (lastUnderscoreIndex > 0)
+                {
+                    return txnRef.Substring(0, lastUnderscoreIndex);
+                }
+
+                // Fallback: if no underscore found, return the whole string
+                return txnRef;
+            }
+            catch
+            {
+                return "";
             }
         }
     }

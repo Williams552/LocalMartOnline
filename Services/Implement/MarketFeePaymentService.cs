@@ -1,6 +1,7 @@
 using AutoMapper;
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs;
+using LocalMartOnline.Models.DTOs.Store;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Services.Interface;
 using System;
@@ -112,19 +113,6 @@ namespace LocalMartOnline.Services.Implement
             return _mapper.Map<MarketFeePaymentDto>(payment);
         }
 
-        public async Task<bool> UpdatePaymentStatusAsync(string paymentId, string status)
-        {
-            var payment = await _repo.GetByIdAsync(paymentId);
-            if (payment == null) return false;
-            if (Enum.TryParse<MarketFeePaymentStatus>(status, out var newStatus))
-            {
-                payment.PaymentStatus = newStatus;
-                await _repo.UpdateAsync(paymentId, payment);
-                return true;
-            }
-            return false;
-        }
-
         public async Task<GetSellersPaymentStatusResponseDto> GetSellersPaymentStatusAsync(GetSellersPaymentStatusRequestDto request)
         {
             // Get all stores in the market
@@ -222,42 +210,6 @@ namespace LocalMartOnline.Services.Implement
             };
         }
 
-        public async Task<bool> UpdatePaymentStatusByAdminAsync(UpdatePaymentStatusDto dto)
-        {
-            // Get market fees for this market
-            var marketFees = await _marketFeeRepo.FindManyAsync(mf => mf.MarketId == dto.MarketId);
-            var monthlyRentFee = marketFees.FirstOrDefault();
-            if (monthlyRentFee == null) return false;
-
-            var payment = await _repo.FindOneAsync(p => p.SellerId == dto.SellerId && p.FeeId == monthlyRentFee.Id);
-            
-            if (payment == null)
-            {
-                // Create new payment record if doesn't exist
-                payment = new MarketFeePayment
-                {
-                    SellerId = dto.SellerId,
-                    FeeId = monthlyRentFee.Id,
-                    Amount = monthlyRentFee.Amount,
-                    PaymentStatus = MarketFeePaymentStatus.Pending,
-                    CreatedAt = DateTime.Now
-                };
-                await _repo.CreateAsync(payment);
-            }
-
-            // Update payment status
-            if (Enum.TryParse<MarketFeePaymentStatus>(dto.PaymentStatus, out var newStatus))
-            {
-                payment.PaymentStatus = newStatus;
-                payment.CreatedAt = DateTime.Now; // Update timestamp when status changes
-
-                await _repo.UpdateAsync(payment.PaymentId, payment);
-                return true;
-            }
-
-            return false;
-        }
-
         public async Task<GetAllMarketFeePaymentsResponseDto> GetAllPaymentsAsync(GetAllMarketFeePaymentsRequestDto request)
         {
             // Build query filters
@@ -343,6 +295,417 @@ namespace LocalMartOnline.Services.Implement
                 CurrentPage = request.Page,
                 PageSize = request.PageSize
             };
+        }
+
+        // Methods moved from StoreService
+        public async Task<GetAllStoresWithPaymentResponseDto> GetAllStoresWithPaymentInfoAsync(GetAllStoresWithPaymentRequestDto request)
+        {
+            // Determine target month and year
+            var targetMonth = request.Month ?? DateTime.Now.Month;
+            var targetYear = request.Year ?? DateTime.Now.Year;
+            
+            // Generate monthly payments first to ensure data is up-to-date
+            await GenerateMonthlyPaymentsAsync(targetMonth, targetYear);
+
+            // Get all payments for the target month/year first (payment-centric approach)
+            var allPayments = await _repo.GetAllAsync();
+            var filteredPayments = allPayments.Where(p => 
+                p.DueDate.Month == targetMonth && 
+                p.DueDate.Year == targetYear);
+
+            // Apply payment status filter if provided
+            if (!string.IsNullOrEmpty(request.PaymentStatus))
+                filteredPayments = filteredPayments.Where(p => p.PaymentStatus.ToString() == request.PaymentStatus);
+
+            // Get related data
+            var allUsers = await _userRepo.GetAllAsync();
+            var allStores = await _storeRepo.GetAllAsync();
+            var allMarkets = await _marketRepo.GetAllAsync();
+            var allMarketFees = await _marketFeeRepo.GetAllAsync();
+            var allMarketFeeTypes = await _marketFeeTypeRepo.GetAllAsync();
+
+            var storesWithPaymentInfo = new List<StoreWithPaymentInfoDto>();
+
+            foreach (var payment in filteredPayments)
+            {
+                // Get related entities using payment data
+                var seller = allUsers.FirstOrDefault(u => u.Id == payment.SellerId);
+                var store = allStores.FirstOrDefault(s => s.SellerId == payment.SellerId);
+                var marketFee = allMarketFees.FirstOrDefault(mf => mf.Id == payment.FeeId);
+                
+                if (seller == null || store == null || marketFee == null) continue;
+
+                var market = allMarkets.FirstOrDefault(m => m.Id == store.MarketId);
+                var marketFeeType = allMarketFeeTypes.FirstOrDefault(ft => ft.Id == marketFee.MarketFeeTypeId);
+                
+                if (market == null || marketFeeType == null) continue;
+
+                // Apply market filter if provided
+                if (!string.IsNullOrEmpty(request.MarketId) && store.MarketId != request.MarketId)
+                    continue;
+
+                // Apply fee type filter if provided
+                if (!string.IsNullOrEmpty(request.FeeTypeId) && marketFee.MarketFeeTypeId != request.FeeTypeId)
+                    continue;
+
+                // Apply search filter if provided
+                if (!string.IsNullOrEmpty(request.SearchKeyword))
+                {
+                    var keyword = request.SearchKeyword.ToLower();
+                    if (!store.Name.ToLower().Contains(keyword) && 
+                        !seller.Username.ToLower().Contains(keyword))
+                        continue;
+                }
+
+                // Calculate overdue status
+                var isOverdue = payment.DueDate < DateTime.Now && payment.PaymentStatus != MarketFeePaymentStatus.Completed;
+                var daysOverdue = isOverdue ? (DateTime.Now - payment.DueDate).Days : 0;
+
+                var storeInfo = new StoreWithPaymentInfoDto
+                {
+                    PaymentId = payment.PaymentId,
+                    StoreName = store.Name,
+                    SellerName = seller.FullName,
+                    SellerPhone = seller.PhoneNumber ?? string.Empty,
+                    MarketName = market.Name,
+                    FeeTypeName = marketFeeType.FeeType,
+                    MonthlyRentalFee = payment.Amount,
+                    DueDate = payment.DueDate,
+                    PaymentStatus = payment.PaymentStatus.ToString(),
+                    PaymentDate = payment.PaymentDate,
+                    IsOverdue = isOverdue,
+                    DaysOverdue = daysOverdue
+                };
+
+                storesWithPaymentInfo.Add(storeInfo);
+            }
+
+            // Apply pagination
+            var totalCount = storesWithPaymentInfo.Count;
+            var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+            var pagedStores = storesWithPaymentInfo
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToList();
+
+            return new GetAllStoresWithPaymentResponseDto
+            {
+                Stores = pagedStores,
+                TotalCount = totalCount,
+                TotalPages = totalPages,
+                CurrentPage = request.Page,
+                PageSize = request.PageSize
+            };
+        }
+
+        public async Task<bool> UpdateStorePaymentStatusAsync(string paymentId, UpdateStorePaymentStatusDto dto)
+        {
+            var payment = await _repo.GetByIdAsync(paymentId);
+            if (payment == null) return false;
+
+            if (Enum.TryParse<MarketFeePaymentStatus>(dto.PaymentStatus, out var newStatus))
+            {
+                payment.PaymentStatus = newStatus;
+                payment.PaymentDate = dto.PaymentDate;
+
+                await _repo.UpdateAsync(payment.PaymentId, payment);
+                return true;
+            }
+
+            return false;
+        }
+
+        private async Task CreateMonthlyPaymentAsync(string sellerId, string feeId, decimal amount, DateTime dueDate)
+        {
+            var newPayment = new MarketFeePayment
+            {
+                SellerId = sellerId,
+                FeeId = feeId,
+                Amount = amount,
+                DueDate = dueDate,
+                PaymentStatus = MarketFeePaymentStatus.Pending,
+                CreatedAt = DateTime.Now
+            };
+
+            await _repo.CreateAsync(newPayment);
+        }
+
+        public async Task<int> GenerateMonthlyPaymentsAsync(int? month = null, int? year = null)
+        {
+            try
+            {
+                // Auto-detect current month/year if not provided
+                var targetMonth = month ?? DateTime.Now.Month;
+                var targetYear = year ?? DateTime.Now.Year;
+
+                // Get all active stores
+                var allStores = await _storeRepo.FindManyAsync(s => s.Status == "Open" || s.Status == "Closed");
+                if (!allStores.Any()) return 0;
+
+                // Get related data
+                var allMarkets = await _marketRepo.GetAllAsync();
+                var allMarketFees = await _marketFeeRepo.GetAllAsync();
+                var allMarketFeeTypes = await _marketFeeTypeRepo.GetAllAsync();
+                var allPayments = await _repo.GetAllAsync();
+
+                // Find "Phí Thuê Tháng" fee type
+                var monthlyRentFeeType = allMarketFeeTypes.FirstOrDefault(ft => 
+                    ft.FeeType.Equals("Phí Thuê Tháng", StringComparison.OrdinalIgnoreCase) && 
+                    !ft.IsDeleted);
+
+                if (monthlyRentFeeType == null) return 0;
+
+                int createdCount = 0;
+
+                foreach (var store in allStores)
+                {
+                    // Get MarketFee for this market with "Phí Thuê Tháng" type
+                    var monthlyRentMarketFee = allMarketFees.FirstOrDefault(mf => 
+                        mf.MarketId == store.MarketId && 
+                        mf.MarketFeeTypeId == monthlyRentFeeType.Id);
+
+                    if (monthlyRentMarketFee == null) continue;
+
+                    // Check if payment already exists for this month/year - DUPLICATE CHECK
+                    var existingPayment = allPayments.FirstOrDefault(p => 
+                        p.SellerId == store.SellerId && 
+                        p.FeeId == monthlyRentMarketFee.Id &&
+                        p.DueDate.Month == targetMonth &&
+                        p.DueDate.Year == targetYear);
+
+                    if (existingPayment != null) continue; // Skip if already exists - PREVENT DUPLICATE
+
+                    // Calculate due date from PaymentDay in MarketFee
+                    var dueDate = new DateTime(targetYear, targetMonth, monthlyRentMarketFee.PaymentDay);
+                    
+                    // Ensure dueDate is valid (handle cases where PaymentDay > days in month)
+                    var daysInMonth = DateTime.DaysInMonth(targetYear, targetMonth);
+                    if (monthlyRentMarketFee.PaymentDay > daysInMonth)
+                    {
+                        dueDate = new DateTime(targetYear, targetMonth, daysInMonth);
+                    }
+
+                    // Create new payment
+                    await CreateMonthlyPaymentAsync(store.SellerId, monthlyRentMarketFee.Id, monthlyRentMarketFee.Amount, dueDate);
+                    createdCount++;
+                }
+
+                return createdCount;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Lỗi khi tạo thanh toán tháng {month ?? DateTime.Now.Month}/{year ?? DateTime.Now.Year}: {ex.Message}");
+            }
+        }
+
+        public async Task<AdminCreatePaymentResponseDto> CreatePaymentByAdminAsync(AdminCreatePaymentDto dto)
+        {
+            try
+            {
+                // Validate user exists
+                var user = await _userRepo.GetByIdAsync(dto.UserId);
+                if (user == null)
+                    throw new InvalidOperationException("Không tìm thấy người dùng với ID này");
+
+                // Find store by sellerId (UserId is sellerId in this context)
+                var stores = await _storeRepo.FindManyAsync(s => s.SellerId == dto.UserId);
+                var store = stores.FirstOrDefault();
+                if (store == null)
+                    throw new InvalidOperationException("Không tìm thấy cửa hàng nào cho người dùng này");
+
+                // Validate fee type exists
+                var feeType = await _marketFeeTypeRepo.GetByIdAsync(dto.FeeTypeId);
+                if (feeType == null)
+                    throw new InvalidOperationException("Không tìm thấy loại phí với ID này");
+
+                // Find MarketFee by MarketId (from Store) + FeeTypeId
+                var allMarketFees = await _marketFeeRepo.GetAllAsync();
+                var marketFee = allMarketFees.FirstOrDefault(mf => 
+                    mf.MarketId == store.MarketId && 
+                    mf.MarketFeeTypeId == dto.FeeTypeId);
+                
+                if (marketFee == null)
+                    throw new InvalidOperationException($"Không tìm thấy cấu hình phí '{feeType.FeeType}' cho chợ này");
+
+                // Get market info
+                var market = await _marketRepo.GetByIdAsync(store.MarketId);
+                if (market == null)
+                    throw new InvalidOperationException("Không tìm thấy thông tin chợ");
+
+                // Debug: Log tất cả MarketFees để kiểm tra
+                Console.WriteLine($"DEBUG: Total MarketFees: {allMarketFees.Count()}");
+                Console.WriteLine($"DEBUG: Looking for FeeTypeId: {dto.FeeTypeId} in MarketId: {store.MarketId}");
+                
+                foreach (var fee in allMarketFees.Take(5)) // Log 5 fees đầu tiên
+                {
+                    Console.WriteLine($"DEBUG: MarketFee - Id: {fee.Id}, Name: {fee.Name}, MarketId: {fee.MarketId}, FeeTypeId: {fee.MarketFeeTypeId}");
+                }
+
+                // Calculate due date from PaymentDay in MarketFee (current month)
+                var currentDate = DateTime.Now;
+                var dueDate = new DateTime(currentDate.Year, currentDate.Month, marketFee.PaymentDay);
+                
+                // Ensure dueDate is valid (handle cases where PaymentDay > days in month)
+                var daysInMonth = DateTime.DaysInMonth(currentDate.Year, currentDate.Month);
+                if (marketFee.PaymentDay > daysInMonth)
+                {
+                    dueDate = new DateTime(currentDate.Year, currentDate.Month, daysInMonth);
+                }
+
+                // Check for duplicate payment for this user + fee in current month/year
+                var existingPayment = await _repo.FindOneAsync(p => 
+                    p.SellerId == dto.UserId && 
+                    p.FeeId == marketFee.Id &&
+                    p.DueDate.Month == currentDate.Month &&
+                    p.DueDate.Year == currentDate.Year);
+                
+                if (existingPayment != null)
+                    throw new InvalidOperationException($"Phí '{marketFee.Name}' tháng {currentDate.Month}/{currentDate.Year} cho người dùng này đã tồn tại");
+
+                // Create new payment
+                var newPayment = new MarketFeePayment
+                {
+                    SellerId = dto.UserId,
+                    FeeId = marketFee.Id, // Sử dụng MarketFee.Id tìm được
+                    Amount = marketFee.Amount,
+                    DueDate = dueDate,
+                    PaymentStatus = MarketFeePaymentStatus.Pending,
+                    CreatedAt = DateTime.Now
+                };
+
+                await _repo.CreateAsync(newPayment);
+
+                // Return response DTO
+                return new AdminCreatePaymentResponseDto
+                {
+                    PaymentId = newPayment.PaymentId,
+                    UserName = user.Username,
+                    FeeName = marketFee.Name,
+                    FeeTypeName = feeType.FeeType,
+                    MarketName = market.Name,
+                    Amount = newPayment.Amount,
+                    DueDate = newPayment.DueDate,
+                    PaymentStatus = newPayment.PaymentStatus.ToString(),
+                    CreatedAt = newPayment.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Lỗi khi tạo thanh toán: {ex.Message}");
+            }
+        }
+
+        public async Task<AdminCreatePaymentForMarketResponseDto> CreatePaymentForMarketAsync(AdminCreatePaymentForMarketDto dto)
+        {
+            try
+            {
+                // Validate market exists
+                var market = await _marketRepo.GetByIdAsync(dto.MarketId);
+                if (market == null)
+                    throw new InvalidOperationException("Không tìm thấy chợ với ID này");
+
+                // Validate fee type exists
+                var feeType = await _marketFeeTypeRepo.GetByIdAsync(dto.FeeTypeId);
+                if (feeType == null)
+                    throw new InvalidOperationException("Không tìm thấy loại phí với ID này");
+
+                // Find MarketFee by MarketId + FeeTypeId
+                var allMarketFees = await _marketFeeRepo.GetAllAsync();
+                var marketFee = allMarketFees.FirstOrDefault(mf => 
+                    mf.MarketId == dto.MarketId && 
+                    mf.MarketFeeTypeId == dto.FeeTypeId);
+                
+                if (marketFee == null)
+                    throw new InvalidOperationException($"Không tìm thấy cấu hình phí '{feeType.FeeType}' cho chợ '{market.Name}'");
+
+                Console.WriteLine($"DEBUG: Found MarketFee: {marketFee.Id}, Name: {marketFee.Name}");
+
+                // Calculate due date from PaymentDay in MarketFee (current month)
+                var currentDate = DateTime.Now;
+                var dueDate = new DateTime(currentDate.Year, currentDate.Month, marketFee.PaymentDay);
+                
+                // Ensure dueDate is valid (handle cases where PaymentDay > days in month)
+                var daysInMonth = DateTime.DaysInMonth(currentDate.Year, currentDate.Month);
+                if (marketFee.PaymentDay > daysInMonth)
+                {
+                    dueDate = new DateTime(currentDate.Year, currentDate.Month, daysInMonth);
+                }
+
+                // Get existing payments to avoid duplicates for this fee in current month/year
+                var existingPayments = await _repo.FindManyAsync(p => p.FeeId == marketFee.Id &&
+                    p.DueDate.Month == currentDate.Month &&
+                    p.DueDate.Year == currentDate.Year);
+
+                // Get all active stores in the market
+                var stores = await _storeRepo.FindManyAsync(s => s.MarketId == dto.MarketId && 
+                    (s.Status == "Open" || s.Status == "Closed"));
+                var storesList = stores.ToList();
+
+                if (!storesList.Any())
+                    throw new InvalidOperationException("Không tìm thấy cửa hàng nào trong chợ này");
+                var existingPaymentSellerIds = existingPayments.Select(p => p.SellerId).ToHashSet();
+
+                var failedSellerIds = new List<string>();
+                var skippedSellerIds = new List<string>();
+                int successfulCount = 0;
+
+                foreach (var store in storesList)
+                {
+                    try
+                    {
+                        // Skip if payment already exists for this seller and fee on the same due date
+                        if (existingPaymentSellerIds.Contains(store.SellerId))
+                        {
+                            skippedSellerIds.Add(store.SellerId);
+                            continue;
+                        }
+
+                        // Validate seller exists
+                        var seller = await _userRepo.GetByIdAsync(store.SellerId);
+                        if (seller == null)
+                        {
+                            failedSellerIds.Add(store.SellerId);
+                            continue;
+                        }
+
+                        // Create new payment for this seller
+                        var newPayment = new MarketFeePayment
+                        {
+                            SellerId = store.SellerId,
+                            FeeId = marketFee.Id,
+                            Amount = marketFee.Amount, // Lấy amount từ MarketFee
+                            DueDate = dueDate,
+                            PaymentStatus = MarketFeePaymentStatus.Pending,
+                            CreatedAt = DateTime.Now
+                        };
+
+                        await _repo.CreateAsync(newPayment);
+                        successfulCount++;
+                    }
+                    catch (Exception)
+                    {
+                        failedSellerIds.Add(store.SellerId);
+                    }
+                }
+
+                return new AdminCreatePaymentForMarketResponseDto
+                {
+                    MarketName = market.Name,
+                    FeeName = marketFee.Name,
+                    FeeTypeName = feeType.FeeType,
+                    Amount = marketFee.Amount, // Lấy amount từ MarketFee
+                    DueDate = dueDate,
+                    TotalSellersAffected = storesList.Count,
+                    SuccessfulPaymentsCreated = successfulCount,
+                    FailedSellerIds = failedSellerIds,
+                    SkippedSellerIds = skippedSellerIds,
+                    CreatedAt = DateTime.Now
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Lỗi khi tạo thanh toán cho chợ: {ex.Message}");
+            }
         }
     }
 }

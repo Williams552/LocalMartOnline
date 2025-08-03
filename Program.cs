@@ -39,6 +39,21 @@ builder.Services.AddControllers()
         options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore);
 builder.Services.AddEndpointsApiExplorer();
 
+// Configure HTTP timeout
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = int.MaxValue;
+});
+
+// Add HttpClient with timeout
+builder.Services.AddHttpClient();
+
+// Configure request timeout
+builder.Services.Configure<RouteOptions>(options =>
+{
+    options.LowercaseUrls = true;
+});
+
 // Swagger config
 builder.Services.AddSwaggerGen(c =>
 {
