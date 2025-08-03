@@ -75,7 +75,7 @@ namespace LocalMartOnline.Controllers
 
         // Admin endpoint: Get all stores with payment information
         [HttpGet("admin/stores-payment-overview")]
-        // [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin,MarketStaff")]
         public async Task<IActionResult> GetAllStoresWithPaymentInfo([FromQuery] GetAllStoresWithPaymentRequestDto request)
         {
             try
@@ -135,7 +135,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("admin/create-payment")]
-        // [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreatePaymentByAdmin([FromBody] AdminCreatePaymentDto dto)
         {
             try
@@ -160,7 +160,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("admin/create-payment-for-market")]
-        // [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreatePaymentForMarket([FromBody] AdminCreatePaymentForMarketDto dto)
         {
             try

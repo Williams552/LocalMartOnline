@@ -113,77 +113,179 @@ namespace LocalMartOnline.Services
 
         public async Task<CreatePaymentUrlResponseDto> CreateMarketFeePaymentUrlAsync(CreatePaymentUrlRequestDto request, HttpContext context)
         {
-            // Tìm payment record
-            var payment = await _paymentRepo.GetByIdAsync(request.PaymentId);
-            if (payment == null)
-                throw new InvalidOperationException("Không tìm thấy thanh toán");
-
-            if (payment.PaymentStatus != MarketFeePaymentStatus.Pending)
-                throw new InvalidOperationException("Thanh toán này đã được xử lý");
-
-            var timeZoneId = _configuration["TimeZoneId"] ?? "UTC";
-            var timeZoneById = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            var timeNow = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Local);
-            var convertedTime = TimeZoneInfo.ConvertTime(timeNow, timeZoneById);
-            
-            var pay = new VnPayLibrary();
-            var httpRequest = context.Request;
-            var domain = $"{httpRequest.Scheme}://{httpRequest.Host}";
-            var urlCallBack = domain + "/api/VnPay/marketfee-callback";
-
-            pay.AddRequestData("vnp_Version", _configuration["Vnpay:Version"] ?? "");
-            pay.AddRequestData("vnp_Command", _configuration["Vnpay:Command"] ?? "");
-            pay.AddRequestData("vnp_TmnCode", _configuration["Vnpay:TmnCode"] ?? "");
-            pay.AddRequestData("vnp_Amount", ((int)(payment.Amount * 100)).ToString());
-            pay.AddRequestData("vnp_CreateDate", convertedTime.ToString("yyyyMMddHHmmss"));
-            pay.AddRequestData("vnp_CurrCode", _configuration["Vnpay:CurrCode"] ?? "");
-            pay.AddRequestData("vnp_IpAddr", pay.GetIpAddress(context));
-            pay.AddRequestData("vnp_Locale", _configuration["Vnpay:Locale"] ?? "");
-            pay.AddRequestData("vnp_OrderInfo", $"Thanh toan phi thue thang - {payment.Amount} VND");
-            pay.AddRequestData("vnp_OrderType", "other");
-            pay.AddRequestData("vnp_ReturnUrl", urlCallBack);
-            pay.AddRequestData("vnp_TxnRef", request.PaymentId);
-
-            var paymentUrl = pay.CreateRequestUrl(_configuration["Vnpay:BaseUrl"] ?? "", _configuration["Vnpay:HashSecret"] ?? "");
-
-            return new CreatePaymentUrlResponseDto
+            try
             {
-                PaymentUrl = paymentUrl,
-                PaymentId = request.PaymentId
-            };
+                // Tìm payment record
+                var payment = await _paymentRepo.GetByIdAsync(request.PaymentId);
+                if (payment == null)
+                {
+                    throw new InvalidOperationException("Không tìm thấy thanh toán");
+                }
+
+                if (payment.PaymentStatus != MarketFeePaymentStatus.Pending)
+                {
+                    throw new InvalidOperationException("Thanh toán này đã được xử lý");
+                }
+
+                // Optimize timezone handling
+                var timeZoneId = _configuration["TimeZoneId"] ?? "SE Asia Standard Time";
+                TimeZoneInfo timeZoneById;
+                try
+                {
+                    timeZoneById = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                }
+                catch
+                {
+                    // Fallback to UTC if timezone not found
+                    timeZoneById = TimeZoneInfo.Utc;
+                }
+
+                var timeNow = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Local);
+                var convertedTime = TimeZoneInfo.ConvertTime(timeNow, timeZoneById);
+                
+                var pay = new VnPayLibrary();
+                var httpRequest = context.Request;
+                var domain = $"{httpRequest.Scheme}://{httpRequest.Host}";
+                var urlCallBack = domain + "/api/VnPay/marketfee-callback";
+
+                // Build VnPay request efficiently
+                // Tạo unique TxnRef để tránh duplicate transaction trên VnPay
+                var uniqueTxnRef = $"{request.PaymentId}_{DateTime.Now:yyyyMMddHHmmss}";
+                
+                var vnpData = new Dictionary<string, string>
+                {
+                    ["vnp_Version"] = _configuration["Vnpay:Version"] ?? "2.1.0",
+                    ["vnp_Command"] = _configuration["Vnpay:Command"] ?? "pay",
+                    ["vnp_TmnCode"] = _configuration["Vnpay:TmnCode"] ?? "",
+                    ["vnp_Amount"] = ((int)(payment.Amount * 100)).ToString(),
+                    ["vnp_CreateDate"] = convertedTime.ToString("yyyyMMddHHmmss"),
+                    ["vnp_CurrCode"] = _configuration["Vnpay:CurrCode"] ?? "VND",
+                    ["vnp_IpAddr"] = pay.GetIpAddress(context),
+                    ["vnp_Locale"] = _configuration["Vnpay:Locale"] ?? "vn",
+                    ["vnp_OrderInfo"] = "Thanh toan phi cho thue", // Đơn giản hóa, tránh ký tự đặc biệt
+                    ["vnp_OrderType"] = "other",
+                    ["vnp_ReturnUrl"] = urlCallBack,
+                    ["vnp_TxnRef"] = uniqueTxnRef // Sử dụng unique TxnRef
+                };
+
+                foreach (var item in vnpData)
+                {
+                    pay.AddRequestData(item.Key, item.Value);
+                }
+
+                var hashSecret = _configuration["Vnpay:HashSecret"] ?? "";
+                var baseUrl = _configuration["Vnpay:BaseUrl"] ?? "";
+                
+                var paymentUrl = pay.CreateRequestUrl(baseUrl, hashSecret);
+
+                Console.WriteLine($"DEBUG: Generated payment URL: {paymentUrl}");
+                Console.WriteLine($"DEBUG: Successfully created payment URL for PaymentId: {request.PaymentId}");
+
+                return new CreatePaymentUrlResponseDto
+                {
+                    PaymentUrl = paymentUrl,
+                    PaymentId = request.PaymentId
+                };
+            }
+            catch
+            {
+                throw;
+            }
         }
 
         public async Task<bool> ProcessMarketFeePaymentCallbackAsync(IQueryCollection collections)
         {
             try
             {
+                var hashSecret = _configuration["Vnpay:HashSecret"] ?? string.Empty;
+                
                 var pay = new VnPayLibrary();
-                var response = pay.GetFullResponseData(collections, _configuration["Vnpay:HashSecret"] ?? string.Empty);
+                var response = pay.GetFullResponseData(collections, hashSecret);
 
                 if (response.Success && response.VnPayResponseCode == "00")
                 {
-                    // Lấy paymentId từ TxnRef
-                    var paymentId = collections["vnp_TxnRef"].ToString();
+                    // Lấy paymentId từ TxnRef - parse từ unique format
+                    var txnRef = collections["vnp_TxnRef"].ToString();
+                    var paymentId = ExtractPaymentIdFromTxnRef(txnRef);
                     var transactionId = collections["vnp_TransactionNo"].ToString();
-                    var amount = decimal.Parse(collections["vnp_Amount"].ToString()) / 100;
+                    var amountString = collections["vnp_Amount"].ToString();
+                    
+                    if (!decimal.TryParse(amountString, out var amountInCents))
+                    {
+                        return false;
+                    }
+                    
+                    var amount = amountInCents / 100;
 
                     // Cập nhật payment status
                     var payment = await _paymentRepo.GetByIdAsync(paymentId);
                     if (payment != null)
                     {
-                        payment.PaymentStatus = MarketFeePaymentStatus.Completed;
-                        payment.PaymentDate = DateTime.Now;
+                        if (payment.PaymentStatus == MarketFeePaymentStatus.Pending)
+                        {
+                            payment.PaymentStatus = MarketFeePaymentStatus.Completed;
+                            payment.PaymentDate = DateTime.Now;
 
-                        await _paymentRepo.UpdateAsync(paymentId, payment);
-                        return true;
+                            await _paymentRepo.UpdateAsync(paymentId, payment);
+                            return true;
+                        }
+                        else
+                        {
+                            return true; // Already processed, consider as success
+                        }
+                    }
+                    else
+                    {
+                        return false;
                     }
                 }
-
-                return false;
+                else
+                {
+                    // Update payment status to Failed for non-successful payments
+                    var txnRef = collections["vnp_TxnRef"].ToString();
+                    var paymentId = ExtractPaymentIdFromTxnRef(txnRef);
+                    if (!string.IsNullOrEmpty(paymentId))
+                    {
+                        var payment = await _paymentRepo.GetByIdAsync(paymentId);
+                        if (payment != null && payment.PaymentStatus == MarketFeePaymentStatus.Pending)
+                        {
+                            payment.PaymentStatus = MarketFeePaymentStatus.Failed;
+                            payment.PaymentDate = DateTime.Now;
+                            await _paymentRepo.UpdateAsync(paymentId, payment);
+                        }
+                    }
+                    
+                    return false;
+                }
             }
-            catch (Exception)
+            catch
             {
                 return false;
+            }
+        }
+
+        // Helper method để extract PaymentId từ unique TxnRef
+        private string ExtractPaymentIdFromTxnRef(string txnRef)
+        {
+            try
+            {
+                // TxnRef format: {PaymentId}_{yyyyMMddHHmmss}
+                if (string.IsNullOrEmpty(txnRef))
+                    return "";
+
+                var lastUnderscoreIndex = txnRef.LastIndexOf('_');
+                if (lastUnderscoreIndex > 0)
+                {
+                    var paymentId = txnRef.Substring(0, lastUnderscoreIndex);
+                    return paymentId;
+                }
+
+                // Fallback: if no underscore found, return the whole string
+                return txnRef;
+            }
+            catch
+            {
+                return "";
             }
         }
     }
