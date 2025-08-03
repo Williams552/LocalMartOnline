@@ -542,5 +542,67 @@ namespace LocalMartOnline.Services.Implement
                 throw new InvalidOperationException($"Lỗi khi tạo thanh toán tháng {month ?? DateTime.Now.Month}/{year ?? DateTime.Now.Year}: {ex.Message}");
             }
         }
+
+        public async Task<AdminCreatePaymentResponseDto> CreatePaymentByAdminAsync(AdminCreatePaymentDto dto)
+        {
+            try
+            {
+                // Validate user exists
+                var user = await _userRepo.GetByIdAsync(dto.UserId);
+                if (user == null)
+                    throw new InvalidOperationException("Không tìm thấy người dùng với ID này");
+
+                // Validate market fee exists
+                var marketFee = await _marketFeeRepo.GetByIdAsync(dto.FeeId);
+                if (marketFee == null)
+                    throw new InvalidOperationException("Không tìm thấy loại phí với ID này");
+
+                // Get market info
+                var market = await _marketRepo.GetByIdAsync(marketFee.MarketId);
+                if (market == null)
+                    throw new InvalidOperationException("Không tìm thấy thông tin chợ");
+
+                // Get fee type info
+                var feeType = await _marketFeeTypeRepo.GetByIdAsync(marketFee.MarketFeeTypeId);
+                if (feeType == null)
+                    throw new InvalidOperationException("Không tìm thấy thông tin loại phí");
+
+                // Check if this is monthly rent fee (not allowed for this API)
+                if (feeType.FeeType.Equals("Phí Thuê Tháng", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Không thể tạo Phí Thuê Tháng qua API này. Vui lòng sử dụng GenerateMonthlyPayments");
+
+                // Create new payment
+                var newPayment = new MarketFeePayment
+                {
+                    SellerId = dto.UserId, // Using UserId as SellerId (can be any user)
+                    FeeId = dto.FeeId,
+                    Amount = dto.Amount,
+                    DueDate = dto.DueDate,
+                    PaymentStatus = MarketFeePaymentStatus.Pending,
+                    CreatedAt = DateTime.Now
+                };
+
+                await _repo.CreateAsync(newPayment);
+
+                // Return response DTO
+                return new AdminCreatePaymentResponseDto
+                {
+                    PaymentId = newPayment.PaymentId,
+                    UserName = user.Username,
+                    FeeName = marketFee.Name,
+                    FeeTypeName = feeType.FeeType,
+                    MarketName = market.Name,
+                    Amount = newPayment.Amount,
+                    DueDate = newPayment.DueDate,
+                    PaymentStatus = newPayment.PaymentStatus.ToString(),
+                    Notes = dto.Notes,
+                    CreatedAt = newPayment.CreatedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Lỗi khi tạo thanh toán: {ex.Message}");
+            }
+        }
     }
 }

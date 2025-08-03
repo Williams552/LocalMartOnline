@@ -23,5 +23,8 @@ namespace LocalMartOnline.Services.Interface
         // Methods moved from StoreService
         Task<GetAllStoresWithPaymentResponseDto> GetAllStoresWithPaymentInfoAsync(GetAllStoresWithPaymentRequestDto request);
         Task<bool> UpdateStorePaymentStatusAsync(string paymentId, UpdateStorePaymentStatusDto dto);
+        
+        // Admin method to create payment for any user with any fee type
+        Task<AdminCreatePaymentResponseDto> CreatePaymentByAdminAsync(AdminCreatePaymentDto dto);
     }
 }

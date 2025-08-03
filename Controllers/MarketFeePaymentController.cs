@@ -177,5 +177,30 @@ namespace LocalMartOnline.Controllers
                 });
             }
         }
+
+        [HttpPost("admin/create-payment")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreatePaymentByAdmin([FromBody] AdminCreatePaymentDto dto)
+        {
+            try
+            {
+                var result = await _service.CreatePaymentByAdminAsync(dto);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Tạo thanh toán thành công",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message,
+                    data = (object?)null
+                });
+            }
+        }
     }
 }

@@ -107,4 +107,27 @@ namespace LocalMartOnline.Models.DTOs
         public string PaymentStatus { get; set; } = string.Empty; // Pending, Completed, Failed
         public DateTime? PaymentDate { get; set; }
     }
+
+    public class AdminCreatePaymentDto
+    {
+        public string UserId { get; set; } = string.Empty; // User ID (không nhất thiết phải là seller)
+        public string FeeId { get; set; } = string.Empty; // Market Fee ID
+        public decimal Amount { get; set; }
+        public DateTime DueDate { get; set; }
+        public string? Notes { get; set; } // Ghi chú từ Admin
+    }
+
+    public class AdminCreatePaymentResponseDto
+    {
+        public string PaymentId { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        public string FeeName { get; set; } = string.Empty;
+        public string FeeTypeName { get; set; } = string.Empty;
+        public string MarketName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public DateTime DueDate { get; set; }
+        public string PaymentStatus { get; set; } = "Pending";
+        public string? Notes { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
 }
