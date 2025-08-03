@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Models.DTOs.ProxyShopping;
 using LocalMartOnline.Models.DTOs.Seller;
+using LocalMartOnline.Services;
 namespace LocalMartOnline.Services.Implement
 {
     public class ProxyShopperService : IProxyShopperService
@@ -23,6 +24,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<ProductUnit> _productUnitRepo;
         private readonly IRepository<ProductImage> _productImageRepo;
         private readonly IMapper _mapper;
+        private readonly INotificationService _notificationService;
 
         public ProxyShopperService(
             IRepository<ProxyShoppingOrder> orderRepo,
@@ -33,7 +35,8 @@ namespace LocalMartOnline.Services.Implement
             IRepository<ProxyRequest> requestRepo,
             IRepository<ProductUnit> productUnitRepo,
             IRepository<ProductImage> productImageRepo,
-            IMapper mapper)
+            IMapper mapper,
+            INotificationService notificationService)
         {
             _orderRepo = orderRepo;
             _proxyRepo = proxyRepo;
@@ -44,6 +47,7 @@ namespace LocalMartOnline.Services.Implement
             _productUnitRepo = productUnitRepo;
             _productImageRepo = productImageRepo;
             _mapper = mapper;
+            _notificationService = notificationService;
         }
 
         public async Task RegisterProxyShopperAsync(ProxyShopperRegistrationRequestDTO dto, string userId)
@@ -472,19 +476,60 @@ namespace LocalMartOnline.Services.Implement
                     return false;
                 }
 
-                // Lưu imageUrls vào ProofImages field
-                order.ProofImages = imageUrls ?? new List<string>();
+                // Validate và lưu imageUrls vào ProofImages field
+                var validImageUrls = new List<string>();
+                if (imageUrls != null && imageUrls.Any())
+                {
+                    foreach (var imageUrl in imageUrls)
+                    {
+                        if (!string.IsNullOrWhiteSpace(imageUrl))
+                        {
+                            validImageUrls.Add(imageUrl.Trim());
+                            Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Valid image URL: {imageUrl.Trim()}");
+                        }
+                    }
+                }
+
+                order.ProofImages = validImageUrls;
                 order.Notes = note;
                 order.UpdatedAt = DateTime.UtcNow;
                 
-                Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Saving {order.ProofImages.Count} images");
-                foreach (var img in order.ProofImages)
-                {
-                    Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Image URL: {img}");
-                }
+                Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Saving {order.ProofImages.Count} valid images to database");
+                Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Note: {note}");
                 
                 await _orderRepo.UpdateAsync(orderId, order);
                 Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Successfully updated order {orderId}");
+
+                // Tạo notification cho buyer
+                try
+                {
+                    var buyerName = "Khách hàng";
+                    var buyer = await _userRepo.FindOneAsync(u => u.Id == order.BuyerId);
+                    if (buyer != null)
+                    {
+                        buyerName = buyer.FullName ?? "Khách hàng";
+                    }
+
+                    var title = "🛍️ Proxy đã mua hàng thành công!";
+                    var message = $"Proxy shopper đã hoàn tất việc mua sản phẩm của bạn và đã upload ảnh chứng từ. " +
+                                $"Đơn hàng #{orderId.Substring(orderId.Length - 8)} sẵn sàng để giao. " +
+                                $"Hãy kiểm tra ảnh chứng từ và xác nhận đã nhận hàng.";
+                    
+                    await _notificationService.CreateNotificationAsync(
+                        order.BuyerId,
+                        title,
+                        message,
+                        "PROXY_SHOPPING_PROOF_UPLOADED"
+                    );
+
+                    Console.WriteLine($"[INFO] UploadBoughtItemsAsync - Created notification for buyer {order.BuyerId}");
+                }
+                catch (Exception notifEx)
+                {
+                    Console.WriteLine($"[ERROR] UploadBoughtItemsAsync - Failed to create notification: {notifEx.Message}");
+                    // Không throw exception vì notification không phải critical operation
+                }
+
                 return true;
             }
             catch (Exception ex)

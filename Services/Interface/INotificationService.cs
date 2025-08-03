@@ -11,5 +11,6 @@ namespace LocalMartOnline.Services
         Task<int> GetUnreadCountAsync(string userId);
         Task<bool> MarkAsReadAsync(string notificationId, string userId);
         Task<int> MarkAllAsReadAsync(string userId);
+        Task CreateNotificationAsync(string userId, string title, string message, string type);
     }
 }
