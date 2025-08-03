@@ -111,8 +111,7 @@ namespace LocalMartOnline.Models.DTOs
     public class AdminCreatePaymentDto
     {
         public string UserId { get; set; } = string.Empty; // User ID (không nhất thiết phải là seller)
-        public string FeeId { get; set; } = string.Empty; // Market Fee ID
-        public DateTime DueDate { get; set; }
+        public string FeeTypeId { get; set; } = string.Empty; // Market Fee Type ID thay vì Fee ID
     }
 
     public class AdminCreatePaymentResponseDto
@@ -131,8 +130,7 @@ namespace LocalMartOnline.Models.DTOs
     public class AdminCreatePaymentForMarketDto
     {
         public string MarketId { get; set; } = string.Empty; // Market ID để tạo phí cho tất cả seller trong chợ
-        public string FeeId { get; set; } = string.Empty; // Market Fee ID
-        public DateTime DueDate { get; set; }
+        public string FeeTypeId { get; set; } = string.Empty; // Market Fee Type ID thay vì Fee ID
     }
 
     public class AdminCreatePaymentForMarketResponseDto

@@ -507,32 +507,68 @@ namespace LocalMartOnline.Services.Implement
                 if (user == null)
                     throw new InvalidOperationException("Không tìm thấy người dùng với ID này");
 
-                // Validate market fee exists
-                var marketFee = await _marketFeeRepo.GetByIdAsync(dto.FeeId);
-                if (marketFee == null)
+                // Find store by sellerId (UserId is sellerId in this context)
+                var stores = await _storeRepo.FindManyAsync(s => s.SellerId == dto.UserId);
+                var store = stores.FirstOrDefault();
+                if (store == null)
+                    throw new InvalidOperationException("Không tìm thấy cửa hàng nào cho người dùng này");
+
+                // Validate fee type exists
+                var feeType = await _marketFeeTypeRepo.GetByIdAsync(dto.FeeTypeId);
+                if (feeType == null)
                     throw new InvalidOperationException("Không tìm thấy loại phí với ID này");
 
+                // Find MarketFee by MarketId (from Store) + FeeTypeId
+                var allMarketFees = await _marketFeeRepo.GetAllAsync();
+                var marketFee = allMarketFees.FirstOrDefault(mf => 
+                    mf.MarketId == store.MarketId && 
+                    mf.MarketFeeTypeId == dto.FeeTypeId);
+                
+                if (marketFee == null)
+                    throw new InvalidOperationException($"Không tìm thấy cấu hình phí '{feeType.FeeType}' cho chợ này");
+
                 // Get market info
-                var market = await _marketRepo.GetByIdAsync(marketFee.MarketId);
+                var market = await _marketRepo.GetByIdAsync(store.MarketId);
                 if (market == null)
                     throw new InvalidOperationException("Không tìm thấy thông tin chợ");
 
-                // Get fee type info
-                var feeType = await _marketFeeTypeRepo.GetByIdAsync(marketFee.MarketFeeTypeId);
-                if (feeType == null)
-                    throw new InvalidOperationException("Không tìm thấy thông tin loại phí");
+                // Debug: Log tất cả MarketFees để kiểm tra
+                Console.WriteLine($"DEBUG: Total MarketFees: {allMarketFees.Count()}");
+                Console.WriteLine($"DEBUG: Looking for FeeTypeId: {dto.FeeTypeId} in MarketId: {store.MarketId}");
+                
+                foreach (var fee in allMarketFees.Take(5)) // Log 5 fees đầu tiên
+                {
+                    Console.WriteLine($"DEBUG: MarketFee - Id: {fee.Id}, Name: {fee.Name}, MarketId: {fee.MarketId}, FeeTypeId: {fee.MarketFeeTypeId}");
+                }
 
-                // Check if this is monthly rent fee (not allowed for this API)
-                if (feeType.FeeType.Equals("Phí Thuê Tháng", StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("Không thể tạo Phí Thuê Tháng qua API này. Vui lòng sử dụng GenerateMonthlyPayments");
+                // Calculate due date from PaymentDay in MarketFee (current month)
+                var currentDate = DateTime.Now;
+                var dueDate = new DateTime(currentDate.Year, currentDate.Month, marketFee.PaymentDay);
+                
+                // Ensure dueDate is valid (handle cases where PaymentDay > days in month)
+                var daysInMonth = DateTime.DaysInMonth(currentDate.Year, currentDate.Month);
+                if (marketFee.PaymentDay > daysInMonth)
+                {
+                    dueDate = new DateTime(currentDate.Year, currentDate.Month, daysInMonth);
+                }
+
+                // Check for duplicate payment for this user + fee in current month/year
+                var existingPayment = await _repo.FindOneAsync(p => 
+                    p.SellerId == dto.UserId && 
+                    p.FeeId == marketFee.Id &&
+                    p.DueDate.Month == currentDate.Month &&
+                    p.DueDate.Year == currentDate.Year);
+                
+                if (existingPayment != null)
+                    throw new InvalidOperationException($"Phí '{marketFee.Name}' tháng {currentDate.Month}/{currentDate.Year} cho người dùng này đã tồn tại");
 
                 // Create new payment
                 var newPayment = new MarketFeePayment
                 {
-                    SellerId = dto.UserId, // Using UserId as SellerId (can be any user)
-                    FeeId = dto.FeeId,
-                    Amount = marketFee.Amount, // Lấy amount từ MarketFee
-                    DueDate = dto.DueDate,
+                    SellerId = dto.UserId,
+                    FeeId = marketFee.Id, // Sử dụng MarketFee.Id tìm được
+                    Amount = marketFee.Amount,
+                    DueDate = dueDate,
                     PaymentStatus = MarketFeePaymentStatus.Pending,
                     CreatedAt = DateTime.Now
                 };
@@ -568,23 +604,37 @@ namespace LocalMartOnline.Services.Implement
                 if (market == null)
                     throw new InvalidOperationException("Không tìm thấy chợ với ID này");
 
-                // Validate market fee exists
-                var marketFee = await _marketFeeRepo.GetByIdAsync(dto.FeeId);
-                if (marketFee == null)
+                // Validate fee type exists
+                var feeType = await _marketFeeTypeRepo.GetByIdAsync(dto.FeeTypeId);
+                if (feeType == null)
                     throw new InvalidOperationException("Không tìm thấy loại phí với ID này");
 
-                // Check if the fee belongs to the specified market
-                if (marketFee.MarketId != dto.MarketId)
-                    throw new InvalidOperationException("Loại phí này không thuộc về chợ được chỉ định");
+                // Find MarketFee by MarketId + FeeTypeId
+                var allMarketFees = await _marketFeeRepo.GetAllAsync();
+                var marketFee = allMarketFees.FirstOrDefault(mf => 
+                    mf.MarketId == dto.MarketId && 
+                    mf.MarketFeeTypeId == dto.FeeTypeId);
+                
+                if (marketFee == null)
+                    throw new InvalidOperationException($"Không tìm thấy cấu hình phí '{feeType.FeeType}' cho chợ '{market.Name}'");
 
-                // Get fee type info
-                var feeType = await _marketFeeTypeRepo.GetByIdAsync(marketFee.MarketFeeTypeId);
-                if (feeType == null)
-                    throw new InvalidOperationException("Không tìm thấy thông tin loại phí");
+                Console.WriteLine($"DEBUG: Found MarketFee: {marketFee.Id}, Name: {marketFee.Name}");
 
-                // Check if this is monthly rent fee (not allowed for this API)
-                if (feeType.FeeType.Equals("Phí Thuê Tháng", StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("Không thể tạo Phí Thuê Tháng qua API này. Vui lòng sử dụng GenerateMonthlyPayments");
+                // Calculate due date from PaymentDay in MarketFee (current month)
+                var currentDate = DateTime.Now;
+                var dueDate = new DateTime(currentDate.Year, currentDate.Month, marketFee.PaymentDay);
+                
+                // Ensure dueDate is valid (handle cases where PaymentDay > days in month)
+                var daysInMonth = DateTime.DaysInMonth(currentDate.Year, currentDate.Month);
+                if (marketFee.PaymentDay > daysInMonth)
+                {
+                    dueDate = new DateTime(currentDate.Year, currentDate.Month, daysInMonth);
+                }
+
+                // Get existing payments to avoid duplicates for this fee in current month/year
+                var existingPayments = await _repo.FindManyAsync(p => p.FeeId == marketFee.Id &&
+                    p.DueDate.Month == currentDate.Month &&
+                    p.DueDate.Year == currentDate.Year);
 
                 // Get all active stores in the market
                 var stores = await _storeRepo.FindManyAsync(s => s.MarketId == dto.MarketId && 
@@ -593,10 +643,6 @@ namespace LocalMartOnline.Services.Implement
 
                 if (!storesList.Any())
                     throw new InvalidOperationException("Không tìm thấy cửa hàng nào trong chợ này");
-
-                // Get existing payments to avoid duplicates
-                var existingPayments = await _repo.FindManyAsync(p => p.FeeId == dto.FeeId &&
-                    p.DueDate.Date == dto.DueDate.Date);
                 var existingPaymentSellerIds = existingPayments.Select(p => p.SellerId).ToHashSet();
 
                 var failedSellerIds = new List<string>();
@@ -626,9 +672,9 @@ namespace LocalMartOnline.Services.Implement
                         var newPayment = new MarketFeePayment
                         {
                             SellerId = store.SellerId,
-                            FeeId = dto.FeeId,
+                            FeeId = marketFee.Id,
                             Amount = marketFee.Amount, // Lấy amount từ MarketFee
-                            DueDate = dto.DueDate,
+                            DueDate = dueDate,
                             PaymentStatus = MarketFeePaymentStatus.Pending,
                             CreatedAt = DateTime.Now
                         };
@@ -648,7 +694,7 @@ namespace LocalMartOnline.Services.Implement
                     FeeName = marketFee.Name,
                     FeeTypeName = feeType.FeeType,
                     Amount = marketFee.Amount, // Lấy amount từ MarketFee
-                    DueDate = dto.DueDate,
+                    DueDate = dueDate,
                     TotalSellersAffected = storesList.Count,
                     SuccessfulPaymentsCreated = successfulCount,
                     FailedSellerIds = failedSellerIds,

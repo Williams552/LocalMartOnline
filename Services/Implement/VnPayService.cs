@@ -32,7 +32,8 @@ namespace LocalMartOnline.Services
         {
             var timeZoneId = _configuration["TimeZoneId"] ?? "UTC";
             var timeZoneById = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            var timeNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.Now, timeZoneById);
+            var timeNow = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Local);
+            var convertedTime = TimeZoneInfo.ConvertTime(timeNow, timeZoneById);
             var tick = DateTime.Now.Ticks.ToString();
             var pay = new VnPayLibrary();
             var request = context.Request;
@@ -43,7 +44,7 @@ namespace LocalMartOnline.Services
             pay.AddRequestData("vnp_Command", _configuration["Vnpay:Command"] ?? "");
             pay.AddRequestData("vnp_TmnCode", _configuration["Vnpay:TmnCode"] ?? "");
             pay.AddRequestData("vnp_Amount", ((int)model.Amount * 100).ToString());
-            pay.AddRequestData("vnp_CreateDate", timeNow.ToString("yyyyMMddHHmmss"));
+            pay.AddRequestData("vnp_CreateDate", convertedTime.ToString("yyyyMMddHHmmss"));
             pay.AddRequestData("vnp_CurrCode", _configuration["Vnpay:CurrCode"] ?? "");
             pay.AddRequestData("vnp_IpAddr", pay.GetIpAddress(context));
             pay.AddRequestData("vnp_Locale", _configuration["Vnpay:Locale"] ?? "");
@@ -74,10 +75,8 @@ namespace LocalMartOnline.Services
             var store = stores.FirstOrDefault();
             if (store == null) return new List<PendingPaymentDto>();
 
-            // Lấy các payments pending của seller
-            var allPayments = await _paymentRepo.FindManyAsync(p => 
-                p.SellerId == sellerId && 
-                p.PaymentStatus == MarketFeePaymentStatus.Pending);
+            // Lấy tất cả payments của seller (không chỉ pending để có thể thấy các status khác)
+            var allPayments = await _paymentRepo.FindManyAsync(p => p.SellerId == sellerId);
 
             var allMarketFees = await _marketFeeRepo.GetAllAsync();
             var allMarketFeeTypes = await _marketFeeTypeRepo.GetAllAsync();
@@ -103,6 +102,7 @@ namespace LocalMartOnline.Services
                     MarketName = market?.Name ?? "Unknown",
                     Amount = payment.Amount,
                     DueDate = payment.DueDate,
+                    PaymentStatus = payment.PaymentStatus.ToString(), // Thêm PaymentStatus
                     IsOverdue = isOverdue,
                     DaysOverdue = daysOverdue
                 });
@@ -123,7 +123,8 @@ namespace LocalMartOnline.Services
 
             var timeZoneId = _configuration["TimeZoneId"] ?? "UTC";
             var timeZoneById = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-            var timeNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.Now, timeZoneById);
+            var timeNow = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Local);
+            var convertedTime = TimeZoneInfo.ConvertTime(timeNow, timeZoneById);
             
             var pay = new VnPayLibrary();
             var httpRequest = context.Request;
@@ -134,7 +135,7 @@ namespace LocalMartOnline.Services
             pay.AddRequestData("vnp_Command", _configuration["Vnpay:Command"] ?? "");
             pay.AddRequestData("vnp_TmnCode", _configuration["Vnpay:TmnCode"] ?? "");
             pay.AddRequestData("vnp_Amount", ((int)(payment.Amount * 100)).ToString());
-            pay.AddRequestData("vnp_CreateDate", timeNow.ToString("yyyyMMddHHmmss"));
+            pay.AddRequestData("vnp_CreateDate", convertedTime.ToString("yyyyMMddHHmmss"));
             pay.AddRequestData("vnp_CurrCode", _configuration["Vnpay:CurrCode"] ?? "");
             pay.AddRequestData("vnp_IpAddr", pay.GetIpAddress(context));
             pay.AddRequestData("vnp_Locale", _configuration["Vnpay:Locale"] ?? "");

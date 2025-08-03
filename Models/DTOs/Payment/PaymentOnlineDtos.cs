@@ -17,6 +17,7 @@ namespace LocalMartOnline.Models.DTOs.Payment
         public string MarketName { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public DateTime DueDate { get; set; }
+        public string PaymentStatus { get; set; } = "Pending"; // Trạng thái từ MarketFeePayment
         public bool IsOverdue { get; set; }
         public int DaysOverdue { get; set; }
     }

@@ -35,7 +35,7 @@ namespace LocalMartOnline.Controllers
 
         // Seller xem danh sách payments pending
         [HttpGet("marketfee/pending/{sellerId}")]
-        [Authorize(Roles = "Seller")]
+        // [Authorize(Roles = "Seller")]
         public async Task<IActionResult> GetPendingMarketFeePayments(string sellerId)
         {
             try
@@ -61,7 +61,7 @@ namespace LocalMartOnline.Controllers
 
         // Tạo URL thanh toán cho MarketFeePayment
         [HttpPost("marketfee/create-payment-url/{paymentId}")]
-        [Authorize(Roles = "Seller")]
+        // [Authorize(Roles = "Seller")]
         public async Task<IActionResult> CreateMarketFeePaymentUrl(string paymentId)
         {
             try
