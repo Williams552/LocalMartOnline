@@ -34,6 +34,9 @@ namespace LocalMartOnline.Models
         [BsonElement("buyer_id"), BsonRepresentation(BsonType.ObjectId)]
         public string BuyerId { get; set; } = string.Empty;
 
+        [BsonElement("store_id"), BsonRepresentation(BsonType.ObjectId)]
+        public string StoreId { get; set; } = string.Empty;
+
         [BsonElement("items")]
         public List<ProxyItem> Items { get; set; } = new();
 

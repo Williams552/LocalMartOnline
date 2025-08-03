@@ -17,6 +17,7 @@ namespace LocalMartOnline.Services.Interface
 
         Task<string> CreateProxyRequestAsync(string buyerId, ProxyRequestDto dto);
         Task<List<ProxyRequest>> GetAvailableRequestsAsync();
+        Task<List<ProxyRequest>> GetAvailableRequestsForProxyAsync(string proxyShopperId);
         Task<string?> AcceptRequestAndCreateOrderAsync(string requestId, string proxyShopperId);
         Task<bool> SendProposalAsync(string orderId, ProxyShoppingProposalDTO proposal);
         Task<bool> BuyerApproveAndPayAsync(string orderId, string buyerId);
@@ -26,7 +27,7 @@ namespace LocalMartOnline.Services.Interface
         Task<bool> CancelOrderAsync(string orderId, string proxyShopperId, string reason);
         Task<List<ProxyShopperAcceptedRequestDto>> GetMyAcceptedRequestsAsync(string proxyShopperId);
         Task<List<MyRequestsResponseDto>> GetMyRequestsAsync(string userId, string userRole);
-        Task<List<object>> AdvancedProductSearchAsync(string query, double wPrice, double wReputation, double wSold, double wStock);
+        Task<List<object>> AdvancedProductSearchAsync(string proxyShopperId, string query, double wPrice, double wReputation, double wSold, double wStock);
         Task<ProxyRequestResponseDto?> GetRequestByIdAsync(string requestId);
     }
 }

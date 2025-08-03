@@ -7,7 +7,8 @@ namespace LocalMartOnline.Models.DTOs.ProxyShopping
 {
     public class ProxyRequestDto
     {   
-        public string BuyerId { get; set; } = string.Empty;        
+        public string BuyerId { get; set; } = string.Empty;
+        public string StoreId { get; set; } = string.Empty;
         public List<ProxyItem> Items { get; set; } = new();
     }
 }

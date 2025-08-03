@@ -10,6 +10,8 @@ namespace LocalMartOnline.Models.DTOs.ProxyShopping
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        public string? StoreId { get; set; }
+        public string? StoreName { get; set; }
 
         // Partner Information (Buyer info for Proxy, Proxy info for Buyer)
         public string? PartnerName { get; set; }
