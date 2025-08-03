@@ -531,7 +531,7 @@ namespace LocalMartOnline.Services.Implement
                 {
                     SellerId = dto.UserId, // Using UserId as SellerId (can be any user)
                     FeeId = dto.FeeId,
-                    Amount = dto.Amount,
+                    Amount = marketFee.Amount, // Lấy amount từ MarketFee
                     DueDate = dto.DueDate,
                     PaymentStatus = MarketFeePaymentStatus.Pending,
                     CreatedAt = DateTime.Now
@@ -550,7 +550,6 @@ namespace LocalMartOnline.Services.Implement
                     Amount = newPayment.Amount,
                     DueDate = newPayment.DueDate,
                     PaymentStatus = newPayment.PaymentStatus.ToString(),
-                    Notes = dto.Notes,
                     CreatedAt = newPayment.CreatedAt
                 };
             }
@@ -628,7 +627,7 @@ namespace LocalMartOnline.Services.Implement
                         {
                             SellerId = store.SellerId,
                             FeeId = dto.FeeId,
-                            Amount = dto.Amount,
+                            Amount = marketFee.Amount, // Lấy amount từ MarketFee
                             DueDate = dto.DueDate,
                             PaymentStatus = MarketFeePaymentStatus.Pending,
                             CreatedAt = DateTime.Now
@@ -648,9 +647,8 @@ namespace LocalMartOnline.Services.Implement
                     MarketName = market.Name,
                     FeeName = marketFee.Name,
                     FeeTypeName = feeType.FeeType,
-                    Amount = dto.Amount,
+                    Amount = marketFee.Amount, // Lấy amount từ MarketFee
                     DueDate = dto.DueDate,
-                    Notes = dto.Notes,
                     TotalSellersAffected = storesList.Count,
                     SuccessfulPaymentsCreated = successfulCount,
                     FailedSellerIds = failedSellerIds,

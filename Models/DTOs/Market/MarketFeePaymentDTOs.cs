@@ -112,9 +112,7 @@ namespace LocalMartOnline.Models.DTOs
     {
         public string UserId { get; set; } = string.Empty; // User ID (không nhất thiết phải là seller)
         public string FeeId { get; set; } = string.Empty; // Market Fee ID
-        public decimal Amount { get; set; }
         public DateTime DueDate { get; set; }
-        public string? Notes { get; set; } // Ghi chú từ Admin
     }
 
     public class AdminCreatePaymentResponseDto
@@ -127,7 +125,6 @@ namespace LocalMartOnline.Models.DTOs
         public decimal Amount { get; set; }
         public DateTime DueDate { get; set; }
         public string PaymentStatus { get; set; } = "Pending";
-        public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -135,9 +132,7 @@ namespace LocalMartOnline.Models.DTOs
     {
         public string MarketId { get; set; } = string.Empty; // Market ID để tạo phí cho tất cả seller trong chợ
         public string FeeId { get; set; } = string.Empty; // Market Fee ID
-        public decimal Amount { get; set; }
         public DateTime DueDate { get; set; }
-        public string? Notes { get; set; } // Ghi chú từ Admin
     }
 
     public class AdminCreatePaymentForMarketResponseDto
@@ -147,7 +142,6 @@ namespace LocalMartOnline.Models.DTOs
         public string FeeTypeName { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public DateTime DueDate { get; set; }
-        public string? Notes { get; set; }
         public int TotalSellersAffected { get; set; }
         public int SuccessfulPaymentsCreated { get; set; }
         public List<string> FailedSellerIds { get; set; } = new List<string>();
