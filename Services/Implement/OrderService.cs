@@ -17,12 +17,15 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<Order> _orderRepo;
         private readonly IRepository<OrderItem> _orderItemRepo;
         private readonly IRepository<Product> _productRepo;
+        private readonly ICartService _cartService;
         private readonly IMapper _mapper;
         private readonly IMongoCollection<User> _userCollection;
         private readonly IMongoCollection<Product> _productCollection;
         private readonly IMongoCollection<ProductUnit> _productUnitCollection;
         private readonly IMongoCollection<ProductImage> _productImageCollection;
         private readonly IMongoCollection<Store> _storeCollection;
+        private readonly IMongoCollection<Cart> _cartCollection;
+        private readonly IMongoCollection<CartItem> _cartItemCollection;
         private readonly IRepository<Notification> _notificationRepo;
 
         public OrderService(
@@ -31,18 +34,22 @@ namespace LocalMartOnline.Services.Implement
             IRepository<OrderItem> orderItemRepo,
             IRepository<Product> productRepo,
             IRepository<Notification> notificationRepo,
+            ICartService cartService,
             IMapper mapper)
         {
             _orderRepo = orderRepo;
             _orderItemRepo = orderItemRepo;
             _productRepo = productRepo;
             _notificationRepo = notificationRepo;
+            _cartService = cartService;
             _mapper = mapper;
             _userCollection = database.GetCollection<User>("Users");
             _productCollection = database.GetCollection<Product>("Products");
             _productUnitCollection = database.GetCollection<ProductUnit>("ProductUnits");
             _productImageCollection = database.GetCollection<ProductImage>("ProductImages");
             _storeCollection = database.GetCollection<Store>("Stores");
+            _cartCollection = database.GetCollection<Cart>("Carts");
+            _cartItemCollection = database.GetCollection<CartItem>("CartItems");
         }
 
         // UC070: Place Order
@@ -88,6 +95,10 @@ namespace LocalMartOnline.Services.Implement
             var storeName = store?.Name ?? "Cửa hàng";
             
             await CreateNewOrderNotification(dto.SellerId, order, buyerName, storeName);
+
+            // Xóa các sản phẩm đã đặt hàng khỏi giỏ hàng
+            var productIds = dto.Items.Select(i => i.ProductId).ToList();
+            await RemoveOrderedItemsFromCartAsync(dto.BuyerId, productIds);
 
             return orderDto;
         }
@@ -496,6 +507,11 @@ namespace LocalMartOnline.Services.Implement
                 // Tạo notification nội bộ cho seller
                 await CreateNewOrderNotification(store.SellerId, order, buyerName, store.Name);
             }
+
+            // Xóa tất cả các sản phẩm đã đặt hàng khỏi giỏ hàng
+            var allOrderedProductIds = dto.CartItems.Select(item => item.ProductId).ToList();
+            await RemoveOrderedItemsFromCartAsync(dto.BuyerId, allOrderedProductIds);
+
             return orders;
         }
 
@@ -709,6 +725,35 @@ namespace LocalMartOnline.Services.Implement
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Failed to create status notification: {ex.Message}");
+            }
+        }
+
+        // Helper method để xóa các sản phẩm đã đặt hàng khỏi giỏ hàng
+        private async Task RemoveOrderedItemsFromCartAsync(string userId, List<string> productIds)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(userId) || productIds == null || !productIds.Any())
+                    return;
+
+                // Lấy cart của user
+                var cart = await _cartCollection
+                    .Find(c => c.UserId == userId)
+                    .FirstOrDefaultAsync();
+
+                if (cart == null) return;
+
+                // Xóa tất cả cart items có ProductId nằm trong danh sách productIds
+                var cartItemFilter = Builders<CartItem>.Filter.And(
+                    Builders<CartItem>.Filter.Eq(ci => ci.CartId, cart.Id),
+                    Builders<CartItem>.Filter.In(ci => ci.ProductId, productIds)
+                );
+
+                await _cartItemCollection.DeleteManyAsync(cartItemFilter);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to remove ordered items from cart: {ex.Message}");
             }
         }
     }
