@@ -112,13 +112,13 @@ namespace LocalMartOnline.Services.Implement
         {
             if (proxyRequest == null || !proxyRequest.Items.Any())
                 throw new ArgumentException("Danh sách sản phẩm không được để trống");
-            if (string.IsNullOrEmpty(proxyRequest.StoreId))
+            if (string.IsNullOrEmpty(proxyRequest.MarketId))
                 throw new ArgumentException("Bạn phải chọn chợ trước khi tạo yêu cầu đi chợ giùm.");
 
             var request = new ProxyRequest
             {
                 BuyerId = buyerId,
-                StoreId = proxyRequest.StoreId,
+                MarketId = proxyRequest.MarketId,
                 Items = proxyRequest.Items.Select(item => _mapper.Map<ProxyItem>(item)).ToList(),
                 Status = ProxyRequestStatus.Open,
                 CreatedAt = DateTime.UtcNow,
@@ -143,7 +143,7 @@ namespace LocalMartOnline.Services.Implement
             {
                 Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - Starting for ProxyShopperId: {proxyShopperId}");
                 
-                // Lấy thông tin proxy shopper registration để biết StoreId
+                // Lấy thông tin proxy shopper registration để biết MarketId
                 var proxyRegistration = await _proxyRepo.FindOneAsync(p => p.UserId == proxyShopperId && p.Status == "Approved");
                 if (proxyRegistration == null)
                 {
@@ -151,12 +151,12 @@ namespace LocalMartOnline.Services.Implement
                     return new List<ProxyRequest>();
                 }
 
-                Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - Proxy registered for StoreId: {proxyRegistration.StoreId}");
+                Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - Proxy registered for MarketId: {proxyRegistration.MarketId}");
 
                 // Lấy các request Open trong chợ mà proxy đã đăng ký
                 var availableRequests = await _requestRepo.FindManyAsync(r => 
                     r.Status == ProxyRequestStatus.Open && 
-                    r.StoreId == proxyRegistration.StoreId);
+                    r.MarketId == proxyRegistration.MarketId);
 
                 var result = availableRequests.OrderByDescending(r => r.CreatedAt).ToList();
                 Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - Found {result.Count} available requests");
@@ -346,7 +346,7 @@ namespace LocalMartOnline.Services.Implement
                 Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Found {partners.Count()} partners");
 
                 // Lấy thông tin stores
-                var storeIds = myRequests.Select(r => r.StoreId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+                var storeIds = myRequests.Select(r => r.MarketId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
                 var stores = storeIds.Any() 
                     ? await _storeRepo.FindManyAsync(s => s.Id != null && storeIds.Contains(s.Id))
                     : new List<Store>();
@@ -421,8 +421,8 @@ namespace LocalMartOnline.Services.Implement
                         Status = request.Status.ToString(),
                         CreatedAt = request.CreatedAt,
                         UpdatedAt = request.UpdatedAt,
-                        StoreId = request.StoreId,
-                        StoreName = !string.IsNullOrEmpty(request.StoreId) && storeDict.TryGetValue(request.StoreId, out var store) ? store.Name : null,
+                        StoreId = request.MarketId,
+                        StoreName = !string.IsNullOrEmpty(request.MarketId) && storeDict.TryGetValue(request.MarketId, out var store) ? store.Name : null,
                         
                         // Partner Information
                         PartnerName = partnerName,
@@ -521,7 +521,7 @@ namespace LocalMartOnline.Services.Implement
             {
                 Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Starting for ProxyShopperId: {proxyShopperId}, Query: {query}");
                 
-                // Lấy thông tin proxy shopper registration để biết StoreId
+                // Lấy thông tin proxy shopper registration để biết MarketId
                 var proxyRegistration = await _proxyRepo.FindOneAsync(p => p.UserId == proxyShopperId && p.Status == "Approved");
                 if (proxyRegistration == null)
                 {
@@ -529,12 +529,18 @@ namespace LocalMartOnline.Services.Implement
                     return new List<object>();
                 }
 
-                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Proxy registered for StoreId: {proxyRegistration.StoreId}");
+                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Proxy registered for MarketId: {proxyRegistration.MarketId}");
 
-                // Tìm sản phẩm theo tên trong chợ mà proxy đã đăng ký
+                // Lấy tất cả stores trong market mà proxy đã đăng ký
+                var storesInMarket = await _storeRepo.FindManyAsync(s => s.MarketId == proxyRegistration.MarketId);
+                var storeIdsInMarket = storesInMarket.Select(s => s.Id!).ToList();
+                
+                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Found {storeIdsInMarket.Count} stores in market");
+
+                // Tìm sản phẩm theo tên trong các cửa hàng thuộc chợ mà proxy đã đăng ký
                 var products = (await _productRepo.FindManyAsync(p => 
                     p.Name.ToLower().Contains(query.ToLower()) && 
-                    p.StoreId == proxyRegistration.StoreId))?.ToList() ?? new List<Product>();
+                    storeIdsInMarket.Contains(p.StoreId)))?.ToList() ?? new List<Product>();
                 
                 Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Found {products.Count} products in store");
                 
