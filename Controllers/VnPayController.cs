@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using LocalMartOnline.Models;
+using LocalMartOnline.Models.DTOs.Payment;
 using LocalMartOnline.Services;
 using Microsoft.AspNetCore.Authorization;
 
@@ -65,12 +66,17 @@ namespace LocalMartOnline.Controllers
         {
             try
             {
-                var paymentUrl = await _vnPayService.CreateMarketFeePaymentUrlAsync(paymentId, HttpContext);
+                var request = new CreatePaymentUrlRequestDto
+                {
+                    PaymentId = paymentId,
+                    ReturnUrl = "" // Add return URL if needed
+                };
+                var result = await _vnPayService.CreateMarketFeePaymentUrlAsync(request, HttpContext);
                 return Ok(new
                 {
                     success = true,
                     message = "Tạo URL thanh toán thành công",
-                    data = new { paymentUrl, paymentId }
+                    data = result
                 });
             }
             catch (Exception ex)

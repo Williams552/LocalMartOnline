@@ -7,8 +7,8 @@ public interface IVnPayService
     string CreatePaymentUrl(PaymentInformationModel model, HttpContext context);
     PaymentResponseModel PaymentExecute(IQueryCollection collections);
     
-    // Methods for MarketFeePayment
-    Task<IEnumerable<PendingPaymentDto>> GetPendingPaymentsAsync(string sellerId);
-    Task<string> CreateMarketFeePaymentUrlAsync(string paymentId, HttpContext context);
+    // New methods for MarketFeePayment
+    Task<List<PendingPaymentDto>> GetPendingPaymentsAsync(string sellerId);
+    Task<CreatePaymentUrlResponseDto> CreateMarketFeePaymentUrlAsync(CreatePaymentUrlRequestDto request, HttpContext context);
     Task<bool> ProcessMarketFeePaymentCallbackAsync(IQueryCollection collections);
 }

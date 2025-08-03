@@ -67,12 +67,12 @@ namespace LocalMartOnline.Services
         }
 
         // MarketFeePayment methods
-        public async Task<IEnumerable<PendingPaymentDto>> GetPendingPaymentsAsync(string sellerId)
+        public async Task<List<PendingPaymentDto>> GetPendingPaymentsAsync(string sellerId)
         {
             // Lấy store của seller
             var stores = await _storeRepo.FindManyAsync(s => s.SellerId == sellerId);
             var store = stores.FirstOrDefault();
-            if (store == null) return Enumerable.Empty<PendingPaymentDto>();
+            if (store == null) return new List<PendingPaymentDto>();
 
             // Lấy các payments pending của seller
             var allPayments = await _paymentRepo.FindManyAsync(p => 
@@ -108,13 +108,13 @@ namespace LocalMartOnline.Services
                 });
             }
 
-            return pendingPayments.OrderBy(p => p.DueDate);
+            return pendingPayments.OrderBy(p => p.DueDate).ToList();
         }
 
-        public async Task<string> CreateMarketFeePaymentUrlAsync(string paymentId, HttpContext context)
+        public async Task<CreatePaymentUrlResponseDto> CreateMarketFeePaymentUrlAsync(CreatePaymentUrlRequestDto request, HttpContext context)
         {
             // Tìm payment record
-            var payment = await _paymentRepo.GetByIdAsync(paymentId);
+            var payment = await _paymentRepo.GetByIdAsync(request.PaymentId);
             if (payment == null)
                 throw new InvalidOperationException("Không tìm thấy thanh toán");
 
@@ -126,8 +126,8 @@ namespace LocalMartOnline.Services
             var timeNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.Now, timeZoneById);
             
             var pay = new VnPayLibrary();
-            var request = context.Request;
-            var domain = $"{request.Scheme}://{request.Host}";
+            var httpRequest = context.Request;
+            var domain = $"{httpRequest.Scheme}://{httpRequest.Host}";
             var urlCallBack = domain + "/api/VnPay/marketfee-callback";
 
             pay.AddRequestData("vnp_Version", _configuration["Vnpay:Version"] ?? "");
@@ -141,11 +141,15 @@ namespace LocalMartOnline.Services
             pay.AddRequestData("vnp_OrderInfo", $"Thanh toan phi thue thang - {payment.Amount} VND");
             pay.AddRequestData("vnp_OrderType", "other");
             pay.AddRequestData("vnp_ReturnUrl", urlCallBack);
-            pay.AddRequestData("vnp_TxnRef", paymentId);
+            pay.AddRequestData("vnp_TxnRef", request.PaymentId);
 
             var paymentUrl = pay.CreateRequestUrl(_configuration["Vnpay:BaseUrl"] ?? "", _configuration["Vnpay:HashSecret"] ?? "");
 
-            return paymentUrl;
+            return new CreatePaymentUrlResponseDto
+            {
+                PaymentUrl = paymentUrl,
+                PaymentId = request.PaymentId
+            };
         }
 
         public async Task<bool> ProcessMarketFeePaymentCallbackAsync(IQueryCollection collections)

@@ -5,7 +5,6 @@ namespace LocalMartOnline.Models.DTOs.Store
 {
     public class StoreWithPaymentInfoDto
     {
-        public string? Id { get; set; } // Store ID
         public string PaymentId { get; set; } = string.Empty; // Payment ID từ MarketFeePayment
         public string StoreName { get; set; } = string.Empty;
         public string SellerName { get; set; } = string.Empty;

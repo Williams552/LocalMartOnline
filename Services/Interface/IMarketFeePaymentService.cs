@@ -1,5 +1,6 @@
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs;
+using LocalMartOnline.Models.DTOs.Store;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -18,5 +19,9 @@ namespace LocalMartOnline.Services.Interface
         
         // New method for admin to get all payments with filtering
         Task<GetAllMarketFeePaymentsResponseDto> GetAllPaymentsAsync(GetAllMarketFeePaymentsRequestDto request);
+        
+        // Methods moved from StoreService
+        Task<GetAllStoresWithPaymentResponseDto> GetAllStoresWithPaymentInfoAsync(GetAllStoresWithPaymentRequestDto request);
+        Task<bool> UpdateStorePaymentStatusAsync(string paymentId, UpdateStorePaymentStatusDto dto);
     }
 }

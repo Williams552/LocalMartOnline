@@ -15,6 +15,7 @@ namespace LocalMartOnline.Controllers
     {
         private readonly IStoreService _storeService;
         private readonly IProductService _productService;
+        
         public StoreController(IStoreService storeService, IProductService productService)
         {
             _storeService = storeService;
@@ -673,114 +674,6 @@ namespace LocalMartOnline.Controllers
                 message = "Lấy danh sách sản phẩm trong gian hàng của bạn thành công",
                 data = result
             });
-        }
-
-        // Admin endpoint: Get all stores with payment information
-        [HttpGet("admin/payment-overview")]
-        // [Authorize(Roles = "Admin,MarketStaff")]
-        public async Task<IActionResult> GetAllStoresWithPaymentInfo([FromQuery] GetAllStoresWithPaymentRequestDto request)
-        {
-            try
-            {
-                var result = await _storeService.GetAllStoresWithPaymentInfoAsync(request);
-                return Ok(new
-                {
-                    success = true,
-                    message = "Lấy thông tin thanh toán của các cửa hàng thành công",
-                    data = result
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = $"Lỗi khi lấy thông tin thanh toán: {ex.Message}",
-                    data = (object?)null
-                });
-            }
-        }
-
-        // Admin endpoint: Update store payment status
-        [HttpPatch("admin/payment/{paymentId}/update-status")]
-        // [Authorize(Roles = "Admin,MarketStaff")]
-        public async Task<IActionResult> UpdateStorePaymentStatus(string paymentId, [FromBody] UpdateStorePaymentStatusDto dto)
-        {
-            try
-            {
-                var result = await _storeService.UpdateStorePaymentStatusAsync(paymentId, dto);
-                
-                if (!result)
-                    return NotFound(new
-                    {
-                        success = false,
-                        message = "Không tìm thấy thanh toán hoặc cập nhật thất bại",
-                        data = (object?)null
-                    });
-
-                return Ok(new
-                {
-                    success = true,
-                    message = "Cập nhật trạng thái thanh toán thành công",
-                    data = (object?)null
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = $"Lỗi khi cập nhật trạng thái thanh toán: {ex.Message}",
-                    data = (object?)null
-                });
-            }
-        }
-
-        // Admin endpoint: Generate monthly payments for all stores
-        [HttpPost("admin/generate-monthly-payments")]
-        // [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GenerateMonthlyPayments([FromQuery] int? month = null, [FromQuery] int? year = null)
-        {
-            try
-            {
-                // Use current month/year if not provided
-                var targetMonth = month ?? DateTime.Now.Month;
-                var targetYear = year ?? DateTime.Now.Year;
-
-                if (targetMonth < 1 || targetMonth > 12)
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = "Tháng phải từ 1 đến 12",
-                        data = (object?)null
-                    });
-
-                if (targetYear < 2020 || targetYear > 2030)
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = "Năm phải từ 2020 đến 2030",
-                        data = (object?)null
-                    });
-
-                var createdCount = await _storeService.GenerateMonthlyPaymentsAsync(month, year);
-                
-                return Ok(new
-                {
-                    success = true,
-                    message = $"Đã tạo thành công {createdCount} bản ghi thanh toán cho tháng {targetMonth}/{targetYear}",
-                    data = new { createdCount, month = targetMonth, year = targetYear }
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = ex.Message,
-                    data = (object?)null
-                });
-            }
         }
     }
 }
