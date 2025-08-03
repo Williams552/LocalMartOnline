@@ -27,7 +27,7 @@ namespace LocalMartOnline.Models.DTOs.ProxyShopping
         public decimal? ProxyFee { get; set; }
         public string? DeliveryAddress { get; set; }
         public string? Notes { get; set; }
-        public List<string> ProofImages { get; set; } = new();
+        public string? ProofImages { get; set; }
         public DateTime? OrderCreatedAt { get; set; }
         public DateTime? OrderUpdatedAt { get; set; }
         

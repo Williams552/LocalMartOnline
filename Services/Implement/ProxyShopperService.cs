@@ -112,9 +112,13 @@ namespace LocalMartOnline.Services.Implement
         {
             if (proxyRequest == null || !proxyRequest.Items.Any())
                 throw new ArgumentException("Danh sách sản phẩm không được để trống");
+            if (string.IsNullOrEmpty(proxyRequest.StoreId))
+                throw new ArgumentException("Bạn phải chọn chợ trước khi tạo yêu cầu đi chợ giùm.");
+
             var request = new ProxyRequest
             {
                 BuyerId = buyerId,
+                StoreId = proxyRequest.StoreId,
                 Items = proxyRequest.Items.Select(item => _mapper.Map<ProxyItem>(item)).ToList(),
                 Status = ProxyRequestStatus.Open,
                 CreatedAt = DateTime.UtcNow,
@@ -124,12 +128,46 @@ namespace LocalMartOnline.Services.Implement
             return request.Id;
         }
 
-        // 2. Proxy xem các request còn trống (Open)
+        // 2. Proxy xem các request còn trống (Open) trong chợ đã đăng ký
         public async Task<List<ProxyRequest>> GetAvailableRequestsAsync()
         {
             return (await _requestRepo.FindManyAsync(r => r.Status == ProxyRequestStatus.Open))
                 .OrderByDescending(r => r.CreatedAt)
                 .ToList();
+        }
+
+        // 2a. Proxy xem các request còn trống (Open) trong chợ đã đăng ký
+        public async Task<List<ProxyRequest>> GetAvailableRequestsForProxyAsync(string proxyShopperId)
+        {
+            try
+            {
+                Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - Starting for ProxyShopperId: {proxyShopperId}");
+                
+                // Lấy thông tin proxy shopper registration để biết StoreId
+                var proxyRegistration = await _proxyRepo.FindOneAsync(p => p.UserId == proxyShopperId && p.Status == "Approved");
+                if (proxyRegistration == null)
+                {
+                    Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - No approved registration found for proxy: {proxyShopperId}");
+                    return new List<ProxyRequest>();
+                }
+
+                Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - Proxy registered for StoreId: {proxyRegistration.StoreId}");
+
+                // Lấy các request Open trong chợ mà proxy đã đăng ký
+                var availableRequests = await _requestRepo.FindManyAsync(r => 
+                    r.Status == ProxyRequestStatus.Open && 
+                    r.StoreId == proxyRegistration.StoreId);
+
+                var result = availableRequests.OrderByDescending(r => r.CreatedAt).ToList();
+                Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - Found {result.Count} available requests");
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] GetAvailableRequestsForProxyAsync - Exception: {ex.Message}");
+                return new List<ProxyRequest>();
+            }
         }
 
         public async Task<List<ProxyShopperAcceptedRequestDto>> GetMyAcceptedRequestsAsync(string proxyShopperId)
@@ -209,7 +247,7 @@ namespace LocalMartOnline.Services.Implement
                         ProxyFee = order?.ProxyFee,
                         DeliveryAddress = order?.DeliveryAddress,
                         Notes = order?.Notes,
-                        ProofImages = order?.ProofImages ?? new List<string>(),
+                        ProofImages = order?.ProofImages,
                         OrderCreatedAt = order?.CreatedAt,
                         OrderUpdatedAt = order?.UpdatedAt,
                         
@@ -236,6 +274,190 @@ namespace LocalMartOnline.Services.Implement
                 Console.WriteLine($"[ERROR] GetMyAcceptedRequestsAsync - Exception: {ex.Message}");
                 Console.WriteLine($"[ERROR] GetMyAcceptedRequestsAsync - StackTrace: {ex.StackTrace}");
                 return new List<ProxyShopperAcceptedRequestDto>();
+            }
+        }
+
+        public async Task<List<MyRequestsResponseDto>> GetMyRequestsAsync(string userId, string userRole)
+        {
+            try
+            {
+                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Starting for UserId: {userId}, Role: {userRole}");
+
+                List<ProxyRequest> myRequests;
+                List<ProxyShoppingOrder> relatedOrders;
+
+                if (userRole == "Buyer")
+                {
+                    // Buyer: Lấy các request mà họ đã tạo
+                    myRequests = (await _requestRepo.FindManyAsync(r => r.BuyerId == userId)).ToList();
+                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Buyer found {myRequests.Count} requests");
+
+                    // Lấy các order tương ứng với requests của buyer
+                    var requestIds = myRequests.Select(r => r.Id).ToList();
+                    relatedOrders = requestIds.Any() 
+                        ? (await _orderRepo.FindManyAsync(o => o.ProxyRequestId != null && requestIds.Contains(o.ProxyRequestId))).ToList()
+                        : new List<ProxyShoppingOrder>();
+                }
+                else // Proxy Shopper
+                {
+                    // Proxy Shopper: Lấy các order mà họ đã nhận, rồi lấy request tương ứng
+                    relatedOrders = (await _orderRepo.FindManyAsync(o => o.ProxyShopperId == userId)).ToList();
+                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - ProxyShopper found {relatedOrders.Count} orders");
+
+                    var requestIds = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyRequestId))
+                                                  .Select(o => o.ProxyRequestId!)
+                                                  .Distinct()
+                                                  .ToList();
+                    
+                    myRequests = requestIds.Any() 
+                        ? (await _requestRepo.FindManyAsync(r => r.Id != null && requestIds.Contains(r.Id))).ToList()
+                        : new List<ProxyRequest>();
+                }
+
+                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Found {myRequests.Count} requests and {relatedOrders.Count} orders");
+
+                if (!myRequests.Any())
+                {
+                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - No requests found");
+                    return new List<MyRequestsResponseDto>();
+                }
+
+                // Lấy thông tin partners (đối tác)
+                var partnerIds = new List<string>();
+                if (userRole == "Buyer")
+                {
+                    // Lấy danh sách ProxyShopperId từ orders
+                    partnerIds = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyShopperId))
+                                              .Select(o => o.ProxyShopperId!)
+                                              .Distinct()
+                                              .ToList();
+                }
+                else
+                {
+                    // Lấy danh sách BuyerId từ requests
+                    partnerIds = myRequests.Select(r => r.BuyerId).Distinct().ToList();
+                }
+
+                var partners = partnerIds.Any() 
+                    ? await _userRepo.FindManyAsync(u => u.Id != null && partnerIds.Contains(u.Id))
+                    : new List<User>();
+                var partnerDict = partners.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
+
+                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Found {partners.Count()} partners");
+
+                // Lấy thông tin stores
+                var storeIds = myRequests.Select(r => r.StoreId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+                var stores = storeIds.Any() 
+                    ? await _storeRepo.FindManyAsync(s => s.Id != null && storeIds.Contains(s.Id))
+                    : new List<Store>();
+                var storeDict = stores.Where(s => s.Id != null).ToDictionary(s => s.Id!, s => s);
+
+                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Found {stores.Count()} stores");
+
+                // Tạo dictionary để map request -> order
+                var orderDict = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyRequestId))
+                                             .ToDictionary(o => o.ProxyRequestId!, o => o);
+
+                var result = new List<MyRequestsResponseDto>();
+
+                foreach (var request in myRequests)
+                {
+                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Processing request: {request.Id}");
+
+                    // Lấy thông tin order tương ứng
+                    var order = orderDict.TryGetValue(request.Id, out var ord) ? ord : null;
+
+                    // Lấy thông tin partner
+                    string? partnerName = null;
+                    string? partnerEmail = null;
+                    string? partnerPhone = null;
+                    string partnerRole = "Unknown";
+
+                    if (userRole == "Buyer" && order != null && !string.IsNullOrEmpty(order.ProxyShopperId))
+                    {
+                        // Buyer xem thông tin Proxy Shopper
+                        if (partnerDict.TryGetValue(order.ProxyShopperId, out var proxy))
+                        {
+                            partnerName = proxy.FullName;
+                            partnerEmail = proxy.Email;
+                            partnerPhone = proxy.PhoneNumber;
+                            partnerRole = "Proxy Shopper";
+                        }
+                    }
+                    else if (userRole == "Proxy Shopper")
+                    {
+                        // Proxy Shopper xem thông tin Buyer
+                        if (partnerDict.TryGetValue(request.BuyerId, out var buyer))
+                        {
+                            partnerName = buyer.FullName;
+                            partnerEmail = buyer.Email;
+                            partnerPhone = buyer.PhoneNumber;
+                            partnerRole = "Buyer";
+                        }
+                    }
+
+                    // Tính toán current phase
+                    string currentPhase = "Chưa có Proxy nhận";
+                    if (order != null)
+                    {
+                        currentPhase = order.Status switch
+                        {
+                            ProxyOrderStatus.Draft => "Đang soạn đơn",
+                            ProxyOrderStatus.Proposed => "Chờ duyệt",
+                            ProxyOrderStatus.Paid => "Đã thanh toán",
+                            ProxyOrderStatus.InProgress => "Đang mua hàng",
+                            ProxyOrderStatus.Completed => "Đã hoàn thành",
+                            ProxyOrderStatus.Cancelled => "Đã hủy",
+                            ProxyOrderStatus.Expired => "Đã hết hạn",
+                            _ => "Không xác định"
+                        };
+                    }
+
+                    var dto = new MyRequestsResponseDto
+                    {
+                        // Request Information
+                        Id = request.Id,
+                        Items = request.Items ?? new List<ProxyItem>(),
+                        Status = request.Status.ToString(),
+                        CreatedAt = request.CreatedAt,
+                        UpdatedAt = request.UpdatedAt,
+                        StoreId = request.StoreId,
+                        StoreName = !string.IsNullOrEmpty(request.StoreId) && storeDict.TryGetValue(request.StoreId, out var store) ? store.Name : null,
+                        
+                        // Partner Information
+                        PartnerName = partnerName,
+                        PartnerEmail = partnerEmail,
+                        PartnerPhone = partnerPhone,
+                        PartnerRole = partnerRole,
+                        
+                        // Order Information
+                        OrderId = order?.Id,
+                        OrderStatus = order?.Status.ToString(),
+                        OrderItems = order?.Items,
+                        TotalAmount = order?.TotalAmount,
+                        ProxyFee = order?.ProxyFee,
+                        DeliveryAddress = order?.DeliveryAddress,
+                        Notes = order?.Notes,
+                        ProofImages = order?.ProofImages,
+                        OrderCreatedAt = order?.CreatedAt,
+                        OrderUpdatedAt = order?.UpdatedAt,
+                        
+                        // UI Helpers
+                        CurrentPhase = currentPhase
+                    };
+
+                    result.Add(dto);
+                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Added DTO for request {request.Id} with phase {currentPhase}");
+                }
+
+                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Returning {result.Count} results");
+                return result.OrderByDescending(r => r.CreatedAt).ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] GetMyRequestsAsync - Exception: {ex.Message}");
+                Console.WriteLine($"[ERROR] GetMyRequestsAsync - StackTrace: {ex.StackTrace}");
+                return new List<MyRequestsResponseDto>();
             }
         }
 
@@ -292,85 +514,114 @@ namespace LocalMartOnline.Services.Implement
             return order.Id;
         }
 
-        // Advanced product search with weights
-        public async Task<List<object>> AdvancedProductSearchAsync(string query, double wPrice, double wReputation, double wSold, double wStock)
+        // Advanced product search with weights - chỉ tìm trong chợ mà proxy đã đăng ký
+        public async Task<List<object>> AdvancedProductSearchAsync(string proxyShopperId, string query, double wPrice, double wReputation, double wSold, double wStock)
         {
-            var products = (await _productRepo.FindManyAsync(p => p.Name.ToLower().Contains(query.ToLower())))?.ToList() ?? new List<Product>();
-            if (!products.Any()) return new List<object>();
-
-            // Lấy thông tin các cửa hàng
-            var storeIds = products.Where(p => !string.IsNullOrEmpty(p.StoreId)).Select(p => p.StoreId!).Distinct().ToList();
-            var stores = storeIds.Any() ? await _storeRepo.FindManyAsync(s => storeIds.Contains(s.Id!)) : new List<Store>();
-            var storeDict = stores.Where(s => s.Id != null).ToDictionary(s => s.Id!, s => s);
-
-            // Lấy thông tin các đơn vị sản phẩm
-            var unitIds = products.Where(p => !string.IsNullOrEmpty(p.UnitId)).Select(p => p.UnitId!).Distinct().ToList();
-            var units = unitIds.Any() ? await _productUnitRepo.FindManyAsync(u => unitIds.Contains(u.Id!)) : new List<ProductUnit>();
-            var unitDict = units.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
-
-            // Lấy thông tin hình ảnh sản phẩm
-            var productIds = products.Select(p => p.Id!).ToList();
-            var productImages = productIds.Any() ? await _productImageRepo.FindManyAsync(img => productIds.Contains(img.ProductId)) : new List<ProductImage>();
-            var imageDict = productImages.GroupBy(img => img.ProductId).ToDictionary(g => g.Key, g => g.Select(img => img.ImageUrl).ToList());
-
-            // Chuẩn hóa các giá trị dựa trên các trường có sẵn
-            double minPrice = products.Min(p => (double)p.Price);
-            double maxPrice = products.Max(p => (double)p.Price);
-            // Sử dụng rating trung bình từ store thay vì SellerReputation
-            // double minRep = 0; // Tạm thời đặt = 0 vì chưa có trường reputation
-            // double maxRep = 5; // Giả định thang điểm 0-5
-            double minSold = products.Min(p => (double)p.PurchaseCount);
-            double maxSold = products.Max(p => (double)p.PurchaseCount);
-
-            var result = products.Select(p =>
+            try
             {
-                double priceScore = (maxPrice - minPrice) > 0 ? 1 - ((double)p.Price - minPrice) / (maxPrice - minPrice) : 1;
-                // Sử dụng giá trị cố định cho reputation score tạm thời
-                double reputationScore = 0.5; // Giá trị trung bình tạm thời
-                double soldScore = (maxSold - minSold) > 0 ? ((double)p.PurchaseCount - minSold) / (maxSold - minSold) : 1;
-                // Sử dụng ProductStatus thay vì InStock
-                double stockScore = p.Status == ProductStatus.Active ? 1 : 0;
-                double score = wPrice * priceScore + wReputation * reputationScore + wSold * soldScore + wStock * stockScore;
+                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Starting for ProxyShopperId: {proxyShopperId}, Query: {query}");
                 
-                string? storeName = null;
-                if (!string.IsNullOrEmpty(p.StoreId) && storeDict.TryGetValue(p.StoreId, out var store))
+                // Lấy thông tin proxy shopper registration để biết StoreId
+                var proxyRegistration = await _proxyRepo.FindOneAsync(p => p.UserId == proxyShopperId && p.Status == "Approved");
+                if (proxyRegistration == null)
                 {
-                    storeName = store.Name;
+                    Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - No approved registration found for proxy: {proxyShopperId}");
+                    return new List<object>();
                 }
 
-                // Lấy thông tin đơn vị
-                string? unitName = null;
-                if (!string.IsNullOrEmpty(p.UnitId) && unitDict.TryGetValue(p.UnitId, out var unit))
-                {
-                    unitName = unit.DisplayName;
-                }
+                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Proxy registered for StoreId: {proxyRegistration.StoreId}");
 
-                // Lấy danh sách hình ảnh
-                var images = new List<string>();
-                if (!string.IsNullOrEmpty(p.Id) && imageDict.TryGetValue(p.Id, out var productImages))
-                {
-                    images = productImages;
-                }
+                // Tìm sản phẩm theo tên trong chợ mà proxy đã đăng ký
+                var products = (await _productRepo.FindManyAsync(p => 
+                    p.Name.ToLower().Contains(query.ToLower()) && 
+                    p.StoreId == proxyRegistration.StoreId))?.ToList() ?? new List<Product>();
+                
+                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Found {products.Count} products in store");
+                
+                if (!products.Any()) return new List<object>();
 
-                return new
+                // Lấy thông tin các cửa hàng
+                var storeIds = products.Where(p => !string.IsNullOrEmpty(p.StoreId)).Select(p => p.StoreId!).Distinct().ToList();
+                var stores = storeIds.Any() ? await _storeRepo.FindManyAsync(s => storeIds.Contains(s.Id!)) : new List<Store>();
+                var storeDict = stores.Where(s => s.Id != null).ToDictionary(s => s.Id!, s => s);
+
+                // Lấy thông tin các đơn vị sản phẩm
+                var unitIds = products.Where(p => !string.IsNullOrEmpty(p.UnitId)).Select(p => p.UnitId!).Distinct().ToList();
+                var units = unitIds.Any() ? await _productUnitRepo.FindManyAsync(u => unitIds.Contains(u.Id!)) : new List<ProductUnit>();
+                var unitDict = units.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
+
+                // Lấy thông tin hình ảnh sản phẩm
+                var productIds = products.Select(p => p.Id!).ToList();
+                var productImages = productIds.Any() ? await _productImageRepo.FindManyAsync(img => productIds.Contains(img.ProductId)) : new List<ProductImage>();
+                var imageDict = productImages.GroupBy(img => img.ProductId).ToDictionary(g => g.Key, g => g.Select(img => img.ImageUrl).ToList());
+
+                // Chuẩn hóa các giá trị dựa trên các trường có sẵn
+                double minPrice = products.Min(p => (double)p.Price);
+                double maxPrice = products.Max(p => (double)p.Price);
+                // Sử dụng rating trung bình từ store thay vì SellerReputation
+                // double minRep = 0; // Tạm thời đặt = 0 vì chưa có trường reputation
+                // double maxRep = 5; // Giả định thang điểm 0-5
+                double minSold = products.Min(p => (double)p.PurchaseCount);
+                double maxSold = products.Max(p => (double)p.PurchaseCount);
+
+                var result = products.Select(p =>
                 {
-                    p.Id,
-                    p.Name,
-                    p.Price,
-                    SellerReputation = reputationScore * 5, // Chuyển về thang điểm 0-5
-                    p.PurchaseCount,
-                    InStock = p.Status == ProductStatus.Active,
-                    StoreName = storeName,
-                    UnitName = unitName,
-                    Images = images,
-                    p.Status,
-                    Score = score
-                };
-            })
-            .OrderByDescending(x => x.Score)
-            .Cast<object>()
-            .ToList();
-            return result;
+                    double priceScore = (maxPrice - minPrice) > 0 ? 1 - ((double)p.Price - minPrice) / (maxPrice - minPrice) : 1;
+                    // Sử dụng giá trị cố định cho reputation score tạm thời
+                    double reputationScore = 0.5; // Giá trị trung bình tạm thời
+                    double soldScore = (maxSold - minSold) > 0 ? ((double)p.PurchaseCount - minSold) / (maxSold - minSold) : 1;
+                    // Sử dụng ProductStatus thay vì InStock
+                    double stockScore = p.Status == ProductStatus.Active ? 1 : 0;
+                    double score = wPrice * priceScore + wReputation * reputationScore + wSold * soldScore + wStock * stockScore;
+                    
+                    string? storeName = null;
+                    if (!string.IsNullOrEmpty(p.StoreId) && storeDict.TryGetValue(p.StoreId, out var store))
+                    {
+                        storeName = store.Name;
+                    }
+
+                    // Lấy thông tin đơn vị
+                    string? unitName = null;
+                    if (!string.IsNullOrEmpty(p.UnitId) && unitDict.TryGetValue(p.UnitId, out var unit))
+                    {
+                        unitName = unit.DisplayName;
+                    }
+
+                    // Lấy danh sách hình ảnh
+                    var images = new List<string>();
+                    if (!string.IsNullOrEmpty(p.Id) && imageDict.TryGetValue(p.Id, out var productImages))
+                    {
+                        images = productImages;
+                    }
+
+                    return new
+                    {
+                        p.Id,
+                        p.Name,
+                        p.Price,
+                        SellerReputation = reputationScore * 5, // Chuyển về thang điểm 0-5
+                        p.PurchaseCount,
+                        InStock = p.Status == ProductStatus.Active,
+                        StoreName = storeName,
+                        UnitName = unitName,
+                        Images = images,
+                        p.Status,
+                        Score = score
+                    };
+                })
+                .OrderByDescending(x => x.Score)
+                .Cast<object>()
+                .ToList();
+                
+                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Returning {result.Count} products");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] AdvancedProductSearchAsync - Exception: {ex.Message}");
+                Console.WriteLine($"[ERROR] AdvancedProductSearchAsync - StackTrace: {ex.StackTrace}");
+                return new List<object>();
+            }
         }
 
         // 4. Proxy lên đơn, gửi đề xuất (điền sản phẩm thật + phí)
@@ -476,25 +727,25 @@ namespace LocalMartOnline.Services.Implement
                     return false;
                 }
 
-                // Validate và lưu imageUrls vào ProofImages field
-                var validImageUrls = new List<string>();
-                if (imageUrls != null && imageUrls.Any())
+                // Validate và lưu imageUrl (chỉ 1 ảnh) vào ProofImages field
+                if (string.IsNullOrEmpty(order.ProofImages))
                 {
-                    foreach (var imageUrl in imageUrls)
+                    string? validImageUrl = null;
+                    if (imageUrls != null && imageUrls.Any())
                     {
-                        if (!string.IsNullOrWhiteSpace(imageUrl))
+                        // Lấy ảnh đầu tiên không null/empty
+                        validImageUrl = imageUrls.FirstOrDefault(url => !string.IsNullOrWhiteSpace(url))?.Trim();
+                        if (!string.IsNullOrEmpty(validImageUrl))
                         {
-                            validImageUrls.Add(imageUrl.Trim());
-                            Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Valid image URL: {imageUrl.Trim()}");
+                            Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Using first valid image URL: {validImageUrl}");
+                            order.ProofImages = validImageUrl;
                         }
                     }
                 }
-
-                order.ProofImages = validImageUrls;
                 order.Notes = note;
                 order.UpdatedAt = DateTime.UtcNow;
                 
-                Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Saving {order.ProofImages.Count} valid images to database");
+                Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Saving proof image to database: {order.ProofImages ?? "null"}");
                 Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Note: {note}");
                 
                 await _orderRepo.UpdateAsync(orderId, order);

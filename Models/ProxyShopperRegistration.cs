@@ -14,6 +14,10 @@ namespace LocalMartOnline.Models
         [BsonRepresentation(BsonType.ObjectId)]
         public string UserId { get; set; } = string.Empty;
 
+        [BsonElement("store_id")]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string? StoreId { get; set; }
+
         [BsonElement("operating_area")]
         public string OperatingArea { get; set; } = string.Empty;
 

@@ -14,10 +14,12 @@ namespace LocalMartOnline.Controllers
     {
         private readonly IProxyShopperService _proxyShopperService;
         private readonly IRepository<User> _userRepo;
-        public ProxyShopperController(IProxyShopperService proxyShopperService, IRepository<User> userRepo)
+        private readonly IRepository<Store> _storeRepo;
+        public ProxyShopperController(IProxyShopperService proxyShopperService, IRepository<User> userRepo, IRepository<Store> storeRepo)
         {
             _proxyShopperService = proxyShopperService;
             _userRepo = userRepo;
+            _storeRepo = storeRepo;
         }
 
         // Proxy lấy các request đã nhận
@@ -28,10 +30,28 @@ namespace LocalMartOnline.Controllers
             var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(proxyShopperId))
                 return Unauthorized("Không tìm thấy userId trong token.");
-            
+
             var result = await _proxyShopperService.GetMyAcceptedRequestsAsync(proxyShopperId);
             return Ok(result);
         }
+
+        // Lấy danh sách requests cho cả Buyer và Proxy Shopper
+        [HttpGet("requests/my-requests")]
+        [Authorize(Roles = "Proxy Shopper,Buyer")]
+        public async Task<IActionResult> GetMyRequests()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+
+            var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (string.IsNullOrEmpty(userRole))
+                return Unauthorized("Không tìm thấy role trong token.");
+
+            var result = await _proxyShopperService.GetMyRequestsAsync(userId, userRole);
+            return Ok(result);
+        }
+
         // 1. Buyer tạo request
         [HttpPost("requests")]
         [Authorize(Roles = "Buyer")]
@@ -44,18 +64,28 @@ namespace LocalMartOnline.Controllers
             return Ok(new { requestId });
         }
 
-        // 2. Proxy lấy danh sách request còn Open
+        // 2. Proxy lấy danh sách request còn Open trong chợ đã đăng ký
         [HttpGet("requests/available")]
         [Authorize(Roles = "Proxy Shopper")]
         public async Task<IActionResult> GetAvailableRequests()
         {
-            var requests = await _proxyShopperService.GetAvailableRequestsAsync();
-            // Lấy danh sách userId
+            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(proxyShopperId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+
+            var requests = await _proxyShopperService.GetAvailableRequestsForProxyAsync(proxyShopperId);
+            
+            // Lấy danh sách buyerId và storeId
             var buyerIds = requests.Select(r => r.BuyerId).Distinct().ToList();
-            // Giả sử bạn có _userService hoặc _userRepo, ở đây dùng _userRepo
-            // Nếu không có, inject thêm vào controller
+            var storeIds = requests.Select(r => r.StoreId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+            
+            // Lấy thông tin users và stores
             var users = await _userRepo.FindManyAsync(u => u.Id != null && buyerIds.Contains(u.Id!));
+            var stores = await _storeRepo.FindManyAsync(s => s.Id != null && storeIds.Contains(s.Id!));
+            
             var userDict = users.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
+            var storeDict = stores.Where(s => s.Id != null).ToDictionary(s => s.Id!, s => s);
+            
             var result = requests.Select(r => new ProxyRequestResponseDto
             {
                 Id = r.Id,
@@ -65,7 +95,9 @@ namespace LocalMartOnline.Controllers
                 UpdatedAt = r.UpdatedAt,
                 BuyerName = userDict.TryGetValue(r.BuyerId, out var user) ? user.FullName : null,
                 BuyerEmail = userDict.TryGetValue(r.BuyerId, out var user2) ? user2.Email : null,
-                BuyerPhone = userDict.TryGetValue(r.BuyerId, out var user3) ? user3.PhoneNumber : null
+                BuyerPhone = userDict.TryGetValue(r.BuyerId, out var user3) ? user3.PhoneNumber : null,
+                StoreId = r.StoreId,
+                StoreName = !string.IsNullOrEmpty(r.StoreId) && storeDict.TryGetValue(r.StoreId, out var store) ? store.Name : null
             }).ToList();
             return Ok(result);
         }
@@ -112,16 +144,16 @@ namespace LocalMartOnline.Controllers
                     var item = dto.Items[i];
                     if (string.IsNullOrEmpty(item.Id))
                         return BadRequest($"Sản phẩm thứ {i + 1}: ID không được để trống.");
-                    
+
                     if (string.IsNullOrEmpty(item.Name))
                         return BadRequest($"Sản phẩm thứ {i + 1}: Tên không được để trống.");
-                    
+
                     if (item.Quantity <= 0)
                         return BadRequest($"Sản phẩm thứ {i + 1}: Số lượng phải lớn hơn 0.");
-                    
+
                     if (item.Price <= 0)
                         return BadRequest($"Sản phẩm thứ {i + 1}: Giá phải lớn hơn 0.");
-                    
+
                     if (string.IsNullOrEmpty(item.Unit))
                         return BadRequest($"Sản phẩm thứ {i + 1}: Đơn vị không được để trống.");
                 }
@@ -140,7 +172,7 @@ namespace LocalMartOnline.Controllers
                 Console.WriteLine($"[DEBUG] SendProposal - TotalAmount: {dto.TotalAmount}");
 
                 var ok = await _proxyShopperService.SendProposalAsync(orderId, dto);
-                
+
                 if (ok)
                 {
                     Console.WriteLine($"[DEBUG] SendProposal - Success for OrderId: {orderId}");
@@ -208,11 +240,11 @@ namespace LocalMartOnline.Controllers
                     }
 
                     // Optional: Basic URL format validation
-                    var malformedUrls = dto.ImageUrls.Where(url => 
-                        !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) || 
+                    var malformedUrls = dto.ImageUrls.Where(url =>
+                        !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) ||
                         (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
                     ).ToList();
-                    
+
                     if (malformedUrls.Any())
                     {
                         return BadRequest($"Có {malformedUrls.Count} URL hình ảnh không đúng định dạng.");
@@ -227,11 +259,11 @@ namespace LocalMartOnline.Controllers
                 Console.WriteLine($"[DEBUG] UploadBoughtItems - Proxy {proxyShopperId} uploading {dto.ImageUrls?.Count ?? 0} images for order {orderId}");
 
                 var ok = await _proxyShopperService.UploadBoughtItemsAsync(orderId, dto.ImageUrls, dto.Note);
-                
+
                 if (ok)
                 {
-                    return Ok(new 
-                    { 
+                    return Ok(new
+                    {
                         message = "Upload ảnh chứng từ thành công.",
                         orderId = orderId,
                         imageCount = dto.ImageUrls?.Count ?? 0,
@@ -255,11 +287,25 @@ namespace LocalMartOnline.Controllers
         [Authorize(Roles = "Buyer")]
         public async Task<IActionResult> ConfirmDelivery(string orderId)
         {
-            var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(buyerId))
-                return Unauthorized("Không tìm thấy userId trong token.");
-            var ok = await _proxyShopperService.ConfirmDeliveryAsync(orderId, buyerId);
-            return ok ? Ok() : BadRequest("Không thể xác nhận giao hàng cho đơn này.");
+            try
+            {
+                var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(buyerId))
+                    return Unauthorized("Không tìm thấy userId trong token.");
+                var ok = await _proxyShopperService.ConfirmDeliveryAsync(orderId, buyerId);
+                if (ok)
+                {
+                    return Ok();
+                }
+                else
+                {
+                    return BadRequest("Không thể xác nhận giao hàng cho đơn này.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi server: {ex.Message}");
+            }
         }
 
         // 9. Proxy hủy đơn, mở lại request
@@ -287,13 +333,17 @@ namespace LocalMartOnline.Controllers
         [HttpGet("products/advanced-search")]
         [Authorize(Roles = "Proxy Shopper")]
         public async Task<IActionResult> AdvancedProductSearch(
-    string query,
-    double wPrice = 0.25,
-    double wReputation = 0.25,
-    double wSold = 0.25,
-    double wStock = 0.25)
+            string query,
+            double wPrice = 0.25,
+            double wReputation = 0.25,
+            double wSold = 0.25,
+            double wStock = 0.25)
         {
-            var result = await _proxyShopperService.AdvancedProductSearchAsync(query, wPrice, wReputation, wSold, wStock);
+            var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(proxyShopperId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+
+            var result = await _proxyShopperService.AdvancedProductSearchAsync(proxyShopperId, query, wPrice, wReputation, wSold, wStock);
             return Ok(result);
         }
     }

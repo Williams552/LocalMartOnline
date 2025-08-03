@@ -1,0 +1,86 @@
+API ENDPOINT: GET /api/ProxyShopper/requests/my-requests
+================================================================
+
+DESCRIPTION:
+Endpoint để Proxy Shopper lấy danh sách các request mà họ đã từng nhận và xử lý.
+
+URL: http://localhost:5183/api/ProxyShopper/requests/my-requests
+METHOD: GET
+AUTHENTICATION: Required - JWT Bearer Token
+AUTHORIZATION: Required - Role "Proxy Shopper"
+
+REQUEST HEADERS:
+- Authorization: Bearer {jwt_token}
+- Content-Type: application/json
+
+RESPONSE FORMAT:
+[
+  {
+    "id": "string",
+    "items": [
+      {
+        "name": "string",
+        "quantity": number,
+        "unit": "string"
+      }
+    ],
+    "status": "string", // "Open", "Locked", "Completed", "Cancelled"
+    "createdAt": "datetime",
+    "updatedAt": "datetime",
+    "buyerName": "string",
+    "buyerEmail": "string",  
+    "buyerPhone": "string"
+  }
+]
+
+EXAMPLE RESPONSE:
+[
+  {
+    "id": "672b4f8e7d123456789abcde",
+    "items": [
+      {
+        "name": "Thịt bò úc",
+        "quantity": 2.0,
+        "unit": "kg"
+      },
+      {
+        "name": "Cà chua",
+        "quantity": 1.0,
+        "unit": "kg"
+      }
+    ],
+    "status": "Completed",
+    "createdAt": "2024-11-06T10:30:00Z",
+    "updatedAt": "2024-11-06T15:45:00Z",
+    "buyerName": "Nguyễn Văn A",
+    "buyerEmail": "buyer@example.com",
+    "buyerPhone": "0901234567"
+  }
+]
+
+ERROR RESPONSES:
+- 401 Unauthorized: Missing or invalid JWT token
+- 403 Forbidden: User không có role "Proxy Shopper" 
+- 500 Internal Server Error: Lỗi server
+
+BUSINESS LOGIC:
+1. Lấy ProxyShopperId từ JWT token
+2. Tìm tất cả ProxyShoppingOrder mà proxy shopper này đã nhận
+3. Lấy các ProxyRequest tương ứng với các order đó
+4. Enriched với thông tin buyer (name, email, phone)
+5. Sắp xếp theo thời gian tạo mới nhất trước
+6. Trả về danh sách đầy đủ
+
+KHÁC BIỆT VỚI my-accepted:
+- my-accepted: Trả về dữ liệu chi tiết với order info + UI permissions
+- my-requests: Trả về danh sách request đơn giản để xem lịch sử
+
+USE CASES:
+- Proxy Shopper xem lịch sử các request đã từng nhận
+- Kiểm tra thông tin buyer của các request cũ
+- Theo dõi trạng thái các request đã xử lý
+
+RELATED ENDPOINTS:
+- GET /api/ProxyShopper/requests/my-accepted (detailed view with orders)
+- GET /api/ProxyShopper/requests/available (available requests to accept)
+- GET /api/ProxyShopper/requests/{requestId} (single request details)

@@ -1,0 +1,59 @@
+STORE-BASED PROXY SHOPPING SYSTEM - IMPLEMENTATION SUMMARY
+=================================================================
+
+OVERVIEW:
+Đã hoàn thành việc cập nhật hệ thống proxy shopping để buyer phải chọn chợ trước khi tạo request và chỉ gửi request đến proxy shopper trong chợ đã chọn.
+
+CHANGES IMPLEMENTED:
+
+1. MODEL UPDATES:
+   - ProxyRequest.cs: Thêm trường StoreId để lưu chợ được chọn
+   - ProxyShopperRegistration.cs: Thêm trường StoreId để proxy đăng ký làm việc tại chợ cụ thể
+   - ProxyRequestDto.cs: Thêm StoreId để client gửi khi tạo request
+   - ProxyRequestResponseDto.cs: Thêm StoreId và StoreName để hiển thị thông tin chợ
+   - MyRequestsResponseDto.cs: Thêm StoreId và StoreName
+
+2. SERVICE LAYER UPDATES:
+   - CreateProxyRequestAsync: Bắt buộc phải có StoreId khi tạo request
+   - GetAvailableRequestsForProxyAsync: Method mới để lọc request theo chợ mà proxy đăng ký
+   - GetMyRequestsAsync: Cập nhật để bao gồm thông tin chợ
+
+3. CONTROLLER UPDATES:
+   - ProxyShopperController: 
+     * Thêm IRepository<Store> dependency
+     * Cập nhật GetAvailableRequests để sử dụng GetAvailableRequestsForProxyAsync
+     * Lấy thông tin Store để hiển thị trong response
+
+4. BUSINESS LOGIC:
+   - Buyer PHẢI chọn chợ trước khi tạo request (validation)
+   - Proxy Shopper chỉ thấy request từ chợ mà họ đã đăng ký
+   - Response bao gồm thông tin chợ để user biết đang làm việc với chợ nào
+
+WORKFLOW:
+1. Buyer chọn chợ và tạo request với StoreId
+2. Hệ thống validate StoreId không được trống
+3. Request được lưu với StoreId
+4. Khi Proxy Shopper xem available requests:
+   - Hệ thống kiểm tra registration của proxy để lấy StoreId
+   - Chỉ hiển thị request có StoreId trùng khớp
+5. Response bao gồm thông tin chợ để hiển thị
+
+API ENDPOINTS AFFECTED:
+- POST /api/ProxyShopper/requests: Yêu cầu StoreId trong request body
+- GET /api/ProxyShopper/requests/available: Lọc theo chợ của proxy
+- GET /api/ProxyShopper/requests/my-requests: Bao gồm thông tin chợ
+
+VALIDATION:
+- StoreId bắt buộc khi tạo request
+- Proxy chỉ thấy request từ chợ đã đăng ký
+- Store name được resolve và hiển thị trong response
+
+ERROR HANDLING:
+- "Bạn phải chọn chợ trước khi tạo yêu cầu đi chợ giùm." nếu thiếu StoreId
+- Trả về empty list nếu proxy chưa có registration approved
+
+BENEFITS:
+- Đảm bảo proxy chỉ nhận request trong phạm vi hoạt động
+- Tăng hiệu quả matching giữa buyer và proxy
+- Cải thiện user experience với thông tin chợ rõ ràng
+- Tránh confusion khi có nhiều chợ trong hệ thống
