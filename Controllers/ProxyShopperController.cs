@@ -77,7 +77,7 @@ namespace LocalMartOnline.Controllers
             
             // Lấy danh sách buyerId và storeId
             var buyerIds = requests.Select(r => r.BuyerId).Distinct().ToList();
-            var storeIds = requests.Select(r => r.StoreId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+            var storeIds = requests.Select(r => r.MarketId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
             
             // Lấy thông tin users và stores
             var users = await _userRepo.FindManyAsync(u => u.Id != null && buyerIds.Contains(u.Id!));
@@ -96,8 +96,8 @@ namespace LocalMartOnline.Controllers
                 BuyerName = userDict.TryGetValue(r.BuyerId, out var user) ? user.FullName : null,
                 BuyerEmail = userDict.TryGetValue(r.BuyerId, out var user2) ? user2.Email : null,
                 BuyerPhone = userDict.TryGetValue(r.BuyerId, out var user3) ? user3.PhoneNumber : null,
-                StoreId = r.StoreId,
-                StoreName = !string.IsNullOrEmpty(r.StoreId) && storeDict.TryGetValue(r.StoreId, out var store) ? store.Name : null
+                StoreId = r.MarketId,
+                StoreName = !string.IsNullOrEmpty(r.MarketId) && storeDict.TryGetValue(r.MarketId, out var store) ? store.Name : null
             }).ToList();
             return Ok(result);
         }
