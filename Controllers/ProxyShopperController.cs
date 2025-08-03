@@ -32,6 +32,24 @@ namespace LocalMartOnline.Controllers
             var result = await _proxyShopperService.GetMyAcceptedRequestsAsync(proxyShopperId);
             return Ok(result);
         }
+
+        // Lấy danh sách requests cho cả Buyer và Proxy Shopper
+        [HttpGet("requests/my-requests")]
+        [Authorize(Roles = "Proxy Shopper,Buyer")]
+        public async Task<IActionResult> GetMyRequests()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+
+            var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (string.IsNullOrEmpty(userRole))
+                return Unauthorized("Không tìm thấy role trong token.");
+            
+            var result = await _proxyShopperService.GetMyRequestsAsync(userId, userRole);
+            return Ok(result);
+        }
+
         // 1. Buyer tạo request
         [HttpPost("requests")]
         [Authorize(Roles = "Buyer")]
@@ -255,11 +273,25 @@ namespace LocalMartOnline.Controllers
         [Authorize(Roles = "Buyer")]
         public async Task<IActionResult> ConfirmDelivery(string orderId)
         {
-            var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(buyerId))
-                return Unauthorized("Không tìm thấy userId trong token.");
-            var ok = await _proxyShopperService.ConfirmDeliveryAsync(orderId, buyerId);
-            return ok ? Ok() : BadRequest("Không thể xác nhận giao hàng cho đơn này.");
+            try
+            {
+                var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(buyerId))
+                    return Unauthorized("Không tìm thấy userId trong token.");
+                var ok = await _proxyShopperService.ConfirmDeliveryAsync(orderId, buyerId);
+                if (ok)
+                {
+                    return Ok();
+                }
+                else
+                {
+                    return BadRequest("Không thể xác nhận giao hàng cho đơn này.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi server: {ex.Message}");
+            }
         }
 
         // 9. Proxy hủy đơn, mở lại request

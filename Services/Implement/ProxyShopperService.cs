@@ -209,7 +209,7 @@ namespace LocalMartOnline.Services.Implement
                         ProxyFee = order?.ProxyFee,
                         DeliveryAddress = order?.DeliveryAddress,
                         Notes = order?.Notes,
-                        ProofImages = order?.ProofImages ?? new List<string>(),
+                        ProofImages = order?.ProofImages,
                         OrderCreatedAt = order?.CreatedAt,
                         OrderUpdatedAt = order?.UpdatedAt,
                         
@@ -236,6 +236,179 @@ namespace LocalMartOnline.Services.Implement
                 Console.WriteLine($"[ERROR] GetMyAcceptedRequestsAsync - Exception: {ex.Message}");
                 Console.WriteLine($"[ERROR] GetMyAcceptedRequestsAsync - StackTrace: {ex.StackTrace}");
                 return new List<ProxyShopperAcceptedRequestDto>();
+            }
+        }
+
+        public async Task<List<MyRequestsResponseDto>> GetMyRequestsAsync(string userId, string userRole)
+        {
+            try
+            {
+                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Starting for UserId: {userId}, Role: {userRole}");
+
+                List<ProxyRequest> myRequests;
+                List<ProxyShoppingOrder> relatedOrders;
+
+                if (userRole == "Buyer")
+                {
+                    // Buyer: Lấy các request mà họ đã tạo
+                    myRequests = (await _requestRepo.FindManyAsync(r => r.BuyerId == userId)).ToList();
+                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Buyer found {myRequests.Count} requests");
+
+                    // Lấy các order tương ứng với requests của buyer
+                    var requestIds = myRequests.Select(r => r.Id).ToList();
+                    relatedOrders = requestIds.Any() 
+                        ? (await _orderRepo.FindManyAsync(o => o.ProxyRequestId != null && requestIds.Contains(o.ProxyRequestId))).ToList()
+                        : new List<ProxyShoppingOrder>();
+                }
+                else // Proxy Shopper
+                {
+                    // Proxy Shopper: Lấy các order mà họ đã nhận, rồi lấy request tương ứng
+                    relatedOrders = (await _orderRepo.FindManyAsync(o => o.ProxyShopperId == userId)).ToList();
+                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - ProxyShopper found {relatedOrders.Count} orders");
+
+                    var requestIds = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyRequestId))
+                                                  .Select(o => o.ProxyRequestId!)
+                                                  .Distinct()
+                                                  .ToList();
+                    
+                    myRequests = requestIds.Any() 
+                        ? (await _requestRepo.FindManyAsync(r => r.Id != null && requestIds.Contains(r.Id))).ToList()
+                        : new List<ProxyRequest>();
+                }
+
+                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Found {myRequests.Count} requests and {relatedOrders.Count} orders");
+
+                if (!myRequests.Any())
+                {
+                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - No requests found");
+                    return new List<MyRequestsResponseDto>();
+                }
+
+                // Lấy thông tin partners (đối tác)
+                var partnerIds = new List<string>();
+                if (userRole == "Buyer")
+                {
+                    // Lấy danh sách ProxyShopperId từ orders
+                    partnerIds = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyShopperId))
+                                              .Select(o => o.ProxyShopperId!)
+                                              .Distinct()
+                                              .ToList();
+                }
+                else
+                {
+                    // Lấy danh sách BuyerId từ requests
+                    partnerIds = myRequests.Select(r => r.BuyerId).Distinct().ToList();
+                }
+
+                var partners = partnerIds.Any() 
+                    ? await _userRepo.FindManyAsync(u => u.Id != null && partnerIds.Contains(u.Id))
+                    : new List<User>();
+                var partnerDict = partners.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
+
+                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Found {partners.Count()} partners");
+
+                // Tạo dictionary để map request -> order
+                var orderDict = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyRequestId))
+                                             .ToDictionary(o => o.ProxyRequestId!, o => o);
+
+                var result = new List<MyRequestsResponseDto>();
+
+                foreach (var request in myRequests)
+                {
+                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Processing request: {request.Id}");
+
+                    // Lấy thông tin order tương ứng
+                    var order = orderDict.TryGetValue(request.Id, out var ord) ? ord : null;
+
+                    // Lấy thông tin partner
+                    string? partnerName = null;
+                    string? partnerEmail = null;
+                    string? partnerPhone = null;
+                    string partnerRole = "Unknown";
+
+                    if (userRole == "Buyer" && order != null && !string.IsNullOrEmpty(order.ProxyShopperId))
+                    {
+                        // Buyer xem thông tin Proxy Shopper
+                        if (partnerDict.TryGetValue(order.ProxyShopperId, out var proxy))
+                        {
+                            partnerName = proxy.FullName;
+                            partnerEmail = proxy.Email;
+                            partnerPhone = proxy.PhoneNumber;
+                            partnerRole = "Proxy Shopper";
+                        }
+                    }
+                    else if (userRole == "Proxy Shopper")
+                    {
+                        // Proxy Shopper xem thông tin Buyer
+                        if (partnerDict.TryGetValue(request.BuyerId, out var buyer))
+                        {
+                            partnerName = buyer.FullName;
+                            partnerEmail = buyer.Email;
+                            partnerPhone = buyer.PhoneNumber;
+                            partnerRole = "Buyer";
+                        }
+                    }
+
+                    // Tính toán current phase
+                    string currentPhase = "Chưa có Proxy nhận";
+                    if (order != null)
+                    {
+                        currentPhase = order.Status switch
+                        {
+                            ProxyOrderStatus.Draft => "Đang soạn đơn",
+                            ProxyOrderStatus.Proposed => "Chờ duyệt",
+                            ProxyOrderStatus.Paid => "Đã thanh toán",
+                            ProxyOrderStatus.InProgress => "Đang mua hàng",
+                            ProxyOrderStatus.Completed => "Đã hoàn thành",
+                            ProxyOrderStatus.Cancelled => "Đã hủy",
+                            ProxyOrderStatus.Expired => "Đã hết hạn",
+                            _ => "Không xác định"
+                        };
+                    }
+
+                    var dto = new MyRequestsResponseDto
+                    {
+                        // Request Information
+                        Id = request.Id,
+                        Items = request.Items ?? new List<ProxyItem>(),
+                        Status = request.Status.ToString(),
+                        CreatedAt = request.CreatedAt,
+                        UpdatedAt = request.UpdatedAt,
+                        
+                        // Partner Information
+                        PartnerName = partnerName,
+                        PartnerEmail = partnerEmail,
+                        PartnerPhone = partnerPhone,
+                        PartnerRole = partnerRole,
+                        
+                        // Order Information
+                        OrderId = order?.Id,
+                        OrderStatus = order?.Status.ToString(),
+                        OrderItems = order?.Items,
+                        TotalAmount = order?.TotalAmount,
+                        ProxyFee = order?.ProxyFee,
+                        DeliveryAddress = order?.DeliveryAddress,
+                        Notes = order?.Notes,
+                        ProofImages = order?.ProofImages,
+                        OrderCreatedAt = order?.CreatedAt,
+                        OrderUpdatedAt = order?.UpdatedAt,
+                        
+                        // UI Helpers
+                        CurrentPhase = currentPhase
+                    };
+
+                    result.Add(dto);
+                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Added DTO for request {request.Id} with phase {currentPhase}");
+                }
+
+                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Returning {result.Count} results");
+                return result.OrderByDescending(r => r.CreatedAt).ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] GetMyRequestsAsync - Exception: {ex.Message}");
+                Console.WriteLine($"[ERROR] GetMyRequestsAsync - StackTrace: {ex.StackTrace}");
+                return new List<MyRequestsResponseDto>();
             }
         }
 
@@ -476,25 +649,25 @@ namespace LocalMartOnline.Services.Implement
                     return false;
                 }
 
-                // Validate và lưu imageUrls vào ProofImages field
-                var validImageUrls = new List<string>();
-                if (imageUrls != null && imageUrls.Any())
+                // Validate và lưu imageUrl (chỉ 1 ảnh) vào ProofImages field
+                if (string.IsNullOrEmpty(order.ProofImages))
                 {
-                    foreach (var imageUrl in imageUrls)
+                    string? validImageUrl = null;
+                    if (imageUrls != null && imageUrls.Any())
                     {
-                        if (!string.IsNullOrWhiteSpace(imageUrl))
+                        // Lấy ảnh đầu tiên không null/empty
+                        validImageUrl = imageUrls.FirstOrDefault(url => !string.IsNullOrWhiteSpace(url))?.Trim();
+                        if (!string.IsNullOrEmpty(validImageUrl))
                         {
-                            validImageUrls.Add(imageUrl.Trim());
-                            Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Valid image URL: {imageUrl.Trim()}");
+                            Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Using first valid image URL: {validImageUrl}");
+                            order.ProofImages = validImageUrl;
                         }
                     }
                 }
-
-                order.ProofImages = validImageUrls;
                 order.Notes = note;
                 order.UpdatedAt = DateTime.UtcNow;
                 
-                Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Saving {order.ProofImages.Count} valid images to database");
+                Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Saving proof image to database: {order.ProofImages ?? "null"}");
                 Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Note: {note}");
                 
                 await _orderRepo.UpdateAsync(orderId, order);
