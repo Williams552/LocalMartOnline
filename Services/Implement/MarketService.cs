@@ -308,26 +308,19 @@ public class MarketService : IMarketService
     {
         var markets = await _marketRepo.GetAllAsync();
         var stores = await _storeRepo.GetAllAsync();
-        
-        Console.WriteLine($"[DEBUG] Found {markets.Count()} markets and {stores.Count()} stores");
 
         foreach (var market in markets.Where(m => m.Status == "Active"))
         {
             var isMarketOpen = IsTimeInOperatingHours(market.OperatingHours ?? "", DateTime.Now);
             var marketStores = stores.Where(s => s.MarketId.ToString() == market.Id!.ToString()).ToList();
-            
-            Console.WriteLine($"[DEBUG] Market '{market.Name}' (ID: {market.Id}) - Open: {isMarketOpen}, Hours: {market.OperatingHours}, Stores: {marketStores.Count}");
 
             foreach (var store in marketStores)
             {
-                Console.WriteLine($"[DEBUG] Store '{store.Name}' (ID: {store.Id}) - Status: {store.Status}, MarketId: {store.MarketId}");
-                
                 // Chỉ tự động đóng cửa hàng khi chợ đóng cửa
                 // KHÔNG tự động mở lại cửa hàng khi chợ mở cửa (seller phải tự mở)
-                // Handle cả "Open" và "Active" status (có thể có inconsistent data)
-                if (!isMarketOpen && (store.Status == "Open" || store.Status == "Active"))
+                // Thống nhất trạng thái cửa hàng mở là "Open"
+                if (!isMarketOpen && store.Status == "Open")
                 {
-                    Console.WriteLine($"[DEBUG] Closing store '{store.Name}' because market is closed");
                     store.Status = "Closed";
                     store.UpdatedAt = DateTime.Now;
                     await _storeRepo.UpdateAsync(store.Id!, store);
