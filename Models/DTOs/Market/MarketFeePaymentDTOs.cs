@@ -130,4 +130,28 @@ namespace LocalMartOnline.Models.DTOs
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; }
     }
+
+    public class AdminCreatePaymentForMarketDto
+    {
+        public string MarketId { get; set; } = string.Empty; // Market ID để tạo phí cho tất cả seller trong chợ
+        public string FeeId { get; set; } = string.Empty; // Market Fee ID
+        public decimal Amount { get; set; }
+        public DateTime DueDate { get; set; }
+        public string? Notes { get; set; } // Ghi chú từ Admin
+    }
+
+    public class AdminCreatePaymentForMarketResponseDto
+    {
+        public string MarketName { get; set; } = string.Empty;
+        public string FeeName { get; set; } = string.Empty;
+        public string FeeTypeName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public DateTime DueDate { get; set; }
+        public string? Notes { get; set; }
+        public int TotalSellersAffected { get; set; }
+        public int SuccessfulPaymentsCreated { get; set; }
+        public List<string> FailedSellerIds { get; set; } = new List<string>();
+        public List<string> SkippedSellerIds { get; set; } = new List<string>(); // Seller đã có payment cho fee này
+        public DateTime CreatedAt { get; set; }
+    }
 }

@@ -22,6 +22,7 @@ namespace LocalMartOnline.Models.DTOs.Store
     public class GetAllStoresWithPaymentRequestDto
     {
         public string? MarketId { get; set; }
+        public string? FeeTypeId { get; set; } // Filter by fee type
         public string? PaymentStatus { get; set; } // Pending, Completed, Failed
         public int? Month { get; set; } // Filter by month (1-12)
         public int? Year { get; set; } // Filter by year

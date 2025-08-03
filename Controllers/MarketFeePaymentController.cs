@@ -58,15 +58,6 @@ namespace LocalMartOnline.Controllers
             return CreatedAtAction(nameof(GetById), new { paymentId = created.PaymentId }, created);
         }
 
-        [HttpPatch("{paymentId}/status")]
-        [Authorize(Roles = "Admin,MarketStaff")]
-        public async Task<IActionResult> UpdateStatus(string paymentId, [FromQuery] string status)
-        {
-            var result = await _service.UpdatePaymentStatusAsync(paymentId, status);
-            if (!result) return BadRequest("Cập nhật trạng thái thất bại");
-            return Ok("Cập nhật trạng thái thành công");
-        }
-
         [HttpPost("market/sellers-payment-status")]
         [Authorize(Roles = "Admin,MarketStaff")]
         public async Task<IActionResult> GetSellersPaymentStatus([FromBody] GetSellersPaymentStatusRequestDto request)
@@ -82,44 +73,9 @@ namespace LocalMartOnline.Controllers
             }
         }
 
-        [HttpPost("admin/update-payment-status")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdatePaymentStatusByAdmin([FromBody] UpdatePaymentStatusDto dto)
-        {
-            try
-            {
-                var result = await _service.UpdatePaymentStatusByAdminAsync(dto);
-                if (!result) return BadRequest("Cập nhật trạng thái thanh toán thất bại");
-                return Ok("Cập nhật trạng thái thanh toán thành công");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Lỗi khi cập nhật trạng thái: {ex.Message}");
-            }
-        }
-
-        [HttpPatch("{paymentId}/admin-update-status")]
-        [Authorize(Roles = "Admin,MarketStaff")]
-        public async Task<IActionResult> UpdatePaymentStatusByPaymentId(string paymentId, [FromBody] UpdatePaymentStatusByIdDto dto)
-        {
-            try
-            {
-                var payment = await _service.GetPaymentByIdAsync(paymentId);
-                if (payment == null) return NotFound("Không tìm thấy thanh toán");
-
-                var result = await _service.UpdatePaymentStatusAsync(paymentId, dto.PaymentStatus);
-                if (!result) return BadRequest("Cập nhật trạng thái thất bại");
-                return Ok("Cập nhật trạng thái thành công");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Lỗi khi cập nhật trạng thái: {ex.Message}");
-            }
-        }
-
         // Admin endpoint: Get all stores with payment information
         [HttpGet("admin/stores-payment-overview")]
-        // [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin,MarketStaff")]
         public async Task<IActionResult> GetAllStoresWithPaymentInfo([FromQuery] GetAllStoresWithPaymentRequestDto request)
         {
             try
@@ -189,6 +145,31 @@ namespace LocalMartOnline.Controllers
                 {
                     success = true,
                     message = "Tạo thanh toán thành công",
+                    data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message,
+                    data = (object?)null
+                });
+            }
+        }
+
+        [HttpPost("admin/create-payment-for-market")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreatePaymentForMarket([FromBody] AdminCreatePaymentForMarketDto dto)
+        {
+            try
+            {
+                var result = await _service.CreatePaymentForMarketAsync(dto);
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Tạo thanh toán cho chợ thành công. Đã tạo {result.SuccessfulPaymentsCreated}/{result.TotalSellersAffected} thanh toán",
                     data = result
                 });
             }

@@ -113,19 +113,6 @@ namespace LocalMartOnline.Services.Implement
             return _mapper.Map<MarketFeePaymentDto>(payment);
         }
 
-        public async Task<bool> UpdatePaymentStatusAsync(string paymentId, string status)
-        {
-            var payment = await _repo.GetByIdAsync(paymentId);
-            if (payment == null) return false;
-            if (Enum.TryParse<MarketFeePaymentStatus>(status, out var newStatus))
-            {
-                payment.PaymentStatus = newStatus;
-                await _repo.UpdateAsync(paymentId, payment);
-                return true;
-            }
-            return false;
-        }
-
         public async Task<GetSellersPaymentStatusResponseDto> GetSellersPaymentStatusAsync(GetSellersPaymentStatusRequestDto request)
         {
             // Get all stores in the market
@@ -221,42 +208,6 @@ namespace LocalMartOnline.Services.Implement
                 OverdueCount = overdueCount,
                 TotalAmountDue = totalAmountDue
             };
-        }
-
-        public async Task<bool> UpdatePaymentStatusByAdminAsync(UpdatePaymentStatusDto dto)
-        {
-            // Get market fees for this market
-            var marketFees = await _marketFeeRepo.FindManyAsync(mf => mf.MarketId == dto.MarketId);
-            var monthlyRentFee = marketFees.FirstOrDefault();
-            if (monthlyRentFee == null) return false;
-
-            var payment = await _repo.FindOneAsync(p => p.SellerId == dto.SellerId && p.FeeId == monthlyRentFee.Id);
-            
-            if (payment == null)
-            {
-                // Create new payment record if doesn't exist
-                payment = new MarketFeePayment
-                {
-                    SellerId = dto.SellerId,
-                    FeeId = monthlyRentFee.Id,
-                    Amount = monthlyRentFee.Amount,
-                    PaymentStatus = MarketFeePaymentStatus.Pending,
-                    CreatedAt = DateTime.Now
-                };
-                await _repo.CreateAsync(payment);
-            }
-
-            // Update payment status
-            if (Enum.TryParse<MarketFeePaymentStatus>(dto.PaymentStatus, out var newStatus))
-            {
-                payment.PaymentStatus = newStatus;
-                payment.CreatedAt = DateTime.Now; // Update timestamp when status changes
-
-                await _repo.UpdateAsync(payment.PaymentId, payment);
-                return true;
-            }
-
-            return false;
         }
 
         public async Task<GetAllMarketFeePaymentsResponseDto> GetAllPaymentsAsync(GetAllMarketFeePaymentsRequestDto request)
@@ -391,6 +342,10 @@ namespace LocalMartOnline.Services.Implement
 
                 // Apply market filter if provided
                 if (!string.IsNullOrEmpty(request.MarketId) && store.MarketId != request.MarketId)
+                    continue;
+
+                // Apply fee type filter if provided
+                if (!string.IsNullOrEmpty(request.FeeTypeId) && marketFee.MarketFeeTypeId != request.FeeTypeId)
                     continue;
 
                 // Apply search filter if provided
@@ -602,6 +557,110 @@ namespace LocalMartOnline.Services.Implement
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Lỗi khi tạo thanh toán: {ex.Message}");
+            }
+        }
+
+        public async Task<AdminCreatePaymentForMarketResponseDto> CreatePaymentForMarketAsync(AdminCreatePaymentForMarketDto dto)
+        {
+            try
+            {
+                // Validate market exists
+                var market = await _marketRepo.GetByIdAsync(dto.MarketId);
+                if (market == null)
+                    throw new InvalidOperationException("Không tìm thấy chợ với ID này");
+
+                // Validate market fee exists
+                var marketFee = await _marketFeeRepo.GetByIdAsync(dto.FeeId);
+                if (marketFee == null)
+                    throw new InvalidOperationException("Không tìm thấy loại phí với ID này");
+
+                // Check if the fee belongs to the specified market
+                if (marketFee.MarketId != dto.MarketId)
+                    throw new InvalidOperationException("Loại phí này không thuộc về chợ được chỉ định");
+
+                // Get fee type info
+                var feeType = await _marketFeeTypeRepo.GetByIdAsync(marketFee.MarketFeeTypeId);
+                if (feeType == null)
+                    throw new InvalidOperationException("Không tìm thấy thông tin loại phí");
+
+                // Check if this is monthly rent fee (not allowed for this API)
+                if (feeType.FeeType.Equals("Phí Thuê Tháng", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Không thể tạo Phí Thuê Tháng qua API này. Vui lòng sử dụng GenerateMonthlyPayments");
+
+                // Get all active stores in the market
+                var stores = await _storeRepo.FindManyAsync(s => s.MarketId == dto.MarketId && 
+                    (s.Status == "Open" || s.Status == "Closed"));
+                var storesList = stores.ToList();
+
+                if (!storesList.Any())
+                    throw new InvalidOperationException("Không tìm thấy cửa hàng nào trong chợ này");
+
+                // Get existing payments to avoid duplicates
+                var existingPayments = await _repo.FindManyAsync(p => p.FeeId == dto.FeeId &&
+                    p.DueDate.Date == dto.DueDate.Date);
+                var existingPaymentSellerIds = existingPayments.Select(p => p.SellerId).ToHashSet();
+
+                var failedSellerIds = new List<string>();
+                var skippedSellerIds = new List<string>();
+                int successfulCount = 0;
+
+                foreach (var store in storesList)
+                {
+                    try
+                    {
+                        // Skip if payment already exists for this seller and fee on the same due date
+                        if (existingPaymentSellerIds.Contains(store.SellerId))
+                        {
+                            skippedSellerIds.Add(store.SellerId);
+                            continue;
+                        }
+
+                        // Validate seller exists
+                        var seller = await _userRepo.GetByIdAsync(store.SellerId);
+                        if (seller == null)
+                        {
+                            failedSellerIds.Add(store.SellerId);
+                            continue;
+                        }
+
+                        // Create new payment for this seller
+                        var newPayment = new MarketFeePayment
+                        {
+                            SellerId = store.SellerId,
+                            FeeId = dto.FeeId,
+                            Amount = dto.Amount,
+                            DueDate = dto.DueDate,
+                            PaymentStatus = MarketFeePaymentStatus.Pending,
+                            CreatedAt = DateTime.Now
+                        };
+
+                        await _repo.CreateAsync(newPayment);
+                        successfulCount++;
+                    }
+                    catch (Exception)
+                    {
+                        failedSellerIds.Add(store.SellerId);
+                    }
+                }
+
+                return new AdminCreatePaymentForMarketResponseDto
+                {
+                    MarketName = market.Name,
+                    FeeName = marketFee.Name,
+                    FeeTypeName = feeType.FeeType,
+                    Amount = dto.Amount,
+                    DueDate = dto.DueDate,
+                    Notes = dto.Notes,
+                    TotalSellersAffected = storesList.Count,
+                    SuccessfulPaymentsCreated = successfulCount,
+                    FailedSellerIds = failedSellerIds,
+                    SkippedSellerIds = skippedSellerIds,
+                    CreatedAt = DateTime.Now
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Lỗi khi tạo thanh toán cho chợ: {ex.Message}");
             }
         }
     }
