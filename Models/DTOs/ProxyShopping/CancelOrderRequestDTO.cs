@@ -3,7 +3,7 @@ namespace LocalMartOnline.Models.DTOs.ProxyShopping
     // DTO cho upload ảnh + ghi chú chứng từ mua hàng
     public class UploadBoughtItemsDTO
     {
-        public List<string> ImageUrls { get; set; } = new();
+        public string ImageUrls { get; set; }
         public string? Note { get; set; }
     }
 

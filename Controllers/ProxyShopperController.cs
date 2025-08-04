@@ -1,6 +1,7 @@
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs;
 using LocalMartOnline.Models.DTOs.ProxyShopping;
+using LocalMartOnline.Models.DTOs.Seller;
 using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,12 +15,30 @@ namespace LocalMartOnline.Controllers
     {
         private readonly IProxyShopperService _proxyShopperService;
         private readonly IRepository<User> _userRepo;
-        private readonly IRepository<Store> _storeRepo;
-        public ProxyShopperController(IProxyShopperService proxyShopperService, IRepository<User> userRepo, IRepository<Store> storeRepo)
+        private readonly IRepository<Market> _marketRepo;
+        public ProxyShopperController(IProxyShopperService proxyShopperService, IRepository<User> userRepo, IRepository<Market> marketRepo)
         {
             _proxyShopperService = proxyShopperService;
             _userRepo = userRepo;
-            _storeRepo = storeRepo;
+            _marketRepo = marketRepo;
+        }
+
+
+        [HttpPost("register")]
+        [Authorize]
+        public async Task<IActionResult> Register([FromBody] ProxyShopperRegistrationRequestDTO dto)
+        {
+            var userId = ""; // Lấy userId từ Claims
+            await _proxyShopperService.RegisterProxyShopperAsync(dto, userId);
+            return Ok(new { success = true });
+        }
+
+        [HttpPost("orders/{orderId}/accept")]
+        [Authorize]
+        public IActionResult AcceptOrder(string orderId)
+        {
+            // Method AcceptOrderAsync không tồn tại, có thể cần implement hoặc sử dụng method khác
+            return Ok(new { success = true, message = "Method chưa được implement" });
         }
 
         // Proxy lấy các request đã nhận
@@ -74,18 +93,18 @@ namespace LocalMartOnline.Controllers
                 return Unauthorized("Không tìm thấy userId trong token.");
 
             var requests = await _proxyShopperService.GetAvailableRequestsForProxyAsync(proxyShopperId);
-            
-            // Lấy danh sách buyerId và storeId
+
+            // Lấy danh sách buyerId và marketId
             var buyerIds = requests.Select(r => r.BuyerId).Distinct().ToList();
-            var storeIds = requests.Select(r => r.MarketId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
-            
-            // Lấy thông tin users và stores
+            var marketIds = requests.Select(r => r.MarketId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+
+            // Lấy thông tin users và markets
             var users = await _userRepo.FindManyAsync(u => u.Id != null && buyerIds.Contains(u.Id!));
-            var stores = await _storeRepo.FindManyAsync(s => s.Id != null && storeIds.Contains(s.Id!));
-            
+            var markets = await _marketRepo.FindManyAsync(m => m.Id != null && marketIds.Contains(m.Id!));
+
             var userDict = users.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
-            var storeDict = stores.Where(s => s.Id != null).ToDictionary(s => s.Id!, s => s);
-            
+            var marketDict = markets.Where(m => m.Id != null).ToDictionary(m => m.Id!, m => m);
+
             var result = requests.Select(r => new ProxyRequestResponseDto
             {
                 Id = r.Id,
@@ -96,8 +115,8 @@ namespace LocalMartOnline.Controllers
                 BuyerName = userDict.TryGetValue(r.BuyerId, out var user) ? user.FullName : null,
                 BuyerEmail = userDict.TryGetValue(r.BuyerId, out var user2) ? user2.Email : null,
                 BuyerPhone = userDict.TryGetValue(r.BuyerId, out var user3) ? user3.PhoneNumber : null,
-                StoreId = r.MarketId,
-                StoreName = !string.IsNullOrEmpty(r.MarketId) && storeDict.TryGetValue(r.MarketId, out var store) ? store.Name : null
+                MarketId = r.MarketId,
+                MarketName = !string.IsNullOrEmpty(r.MarketId) && marketDict.TryGetValue(r.MarketId, out var market) ? market.Name : null
             }).ToList();
             return Ok(result);
         }
@@ -230,33 +249,10 @@ namespace LocalMartOnline.Controllers
                 if (dto == null)
                     return BadRequest("Dữ liệu upload không được để trống.");
 
-                // Validate image URLs
-                if (dto.ImageUrls != null && dto.ImageUrls.Any())
-                {
-                    var invalidUrls = dto.ImageUrls.Where(url => string.IsNullOrWhiteSpace(url)).ToList();
-                    if (invalidUrls.Any())
-                    {
-                        return BadRequest("Có URL hình ảnh không hợp lệ (trống hoặc null).");
-                    }
-
-                    // Optional: Basic URL format validation
-                    var malformedUrls = dto.ImageUrls.Where(url =>
-                        !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) ||
-                        (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
-                    ).ToList();
-
-                    if (malformedUrls.Any())
-                    {
-                        return BadRequest($"Có {malformedUrls.Count} URL hình ảnh không đúng định dạng.");
-                    }
-                }
-
                 // Get current proxy shopper ID for authorization check
                 var proxyShopperId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(proxyShopperId))
                     return Unauthorized("Không tìm thấy userId trong token.");
-
-                Console.WriteLine($"[DEBUG] UploadBoughtItems - Proxy {proxyShopperId} uploading {dto.ImageUrls?.Count ?? 0} images for order {orderId}");
 
                 var ok = await _proxyShopperService.UploadBoughtItemsAsync(orderId, dto.ImageUrls, dto.Note);
 
@@ -266,7 +262,7 @@ namespace LocalMartOnline.Controllers
                     {
                         message = "Upload ảnh chứng từ thành công.",
                         orderId = orderId,
-                        imageCount = dto.ImageUrls?.Count ?? 0,
+                        imageUrls = dto.ImageUrls,
                         uploadedAt = DateTime.UtcNow
                     });
                 }

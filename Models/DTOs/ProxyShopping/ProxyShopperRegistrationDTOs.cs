@@ -9,7 +9,7 @@ namespace LocalMartOnline.Models.DTOs.Seller
     public class ProxyShopperRegistrationRequestDTO
     {
         [Required]
-        public string OperatingArea { get; set; } = string.Empty;
+        public string MarketId { get; set; } = string.Empty;
         [Required]
         public string TransportMethod { get; set; } = string.Empty;
         [Required]

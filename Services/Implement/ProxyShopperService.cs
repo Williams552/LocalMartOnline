@@ -20,6 +20,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<User> _userRepo;
         private readonly IRepository<Product> _productRepo;
         private readonly IRepository<Store> _storeRepo;
+        private readonly IRepository<Market> _marketRepo;
         private readonly IRepository<ProxyRequest> _requestRepo;
         private readonly IRepository<ProductUnit> _productUnitRepo;
         private readonly IRepository<ProductImage> _productImageRepo;
@@ -32,6 +33,7 @@ namespace LocalMartOnline.Services.Implement
             IRepository<User> userRepo,
             IRepository<Product> productRepo,
             IRepository<Store> storeRepo,
+            IRepository<Market> marketRepo,
             IRepository<ProxyRequest> requestRepo,
             IRepository<ProductUnit> productUnitRepo,
             IRepository<ProductImage> productImageRepo,
@@ -43,6 +45,7 @@ namespace LocalMartOnline.Services.Implement
             _userRepo = userRepo;
             _productRepo = productRepo;
             _storeRepo = storeRepo;
+            _marketRepo = marketRepo;
             _requestRepo = requestRepo;
             _productUnitRepo = productUnitRepo;
             _productImageRepo = productImageRepo;
@@ -101,10 +104,24 @@ namespace LocalMartOnline.Services.Implement
         {
             var reg = await _proxyRepo.FindOneAsync(r => r.Id == dto.RegistrationId);
             if (reg == null) return false;
+            
             reg.Status = dto.Approve ? "Approved" : "Rejected";
             reg.RejectionReason = dto.Approve ? null : dto.RejectionReason;
             reg.UpdatedAt = DateTime.Now;
             await _proxyRepo.UpdateAsync(reg.Id!, reg);
+
+            // Nếu approve thành công, cập nhật role của user thành "Proxy Shopper"
+            if (dto.Approve)
+            {
+                var user = await _userRepo.FindOneAsync(u => u.Id == reg.UserId);
+                if (user != null)
+                {
+                    user.Role = "Proxy Shopper";
+                    await _userRepo.UpdateAsync(user.Id!, user);
+                    Console.WriteLine($"[INFO] ApproveRegistrationAsync - Updated user {user.Id} role to 'Proxy Shopper'");
+                }
+            }
+            
             return true;
         }
         // 1. Buyer tạo request (yêu cầu đi chợ giùm)
@@ -679,6 +696,36 @@ namespace LocalMartOnline.Services.Implement
 
                 await _orderRepo.UpdateAsync(orderId, order);
                 Console.WriteLine($"[DEBUG] SendProposalAsync - Order updated successfully");
+
+                // Tạo notification cho buyer
+                try
+                {
+                    var buyerName = "Khách hàng";
+                    var buyer = await _userRepo.FindOneAsync(u => u.Id == order.BuyerId);
+                    if (buyer != null)
+                    {
+                        buyerName = buyer.FullName ?? "Khách hàng";
+                    }
+
+                    var title = "📋 Đề xuất đơn hàng mới!";
+                    var message = $"Proxy shopper đã gửi đề xuất đơn hàng cho yêu cầu của bạn. " +
+                                $"Tổng tiền: {order.TotalAmount:N0} VND, Phí proxy: {order.ProxyFee:N0} VND. " +
+                                $"Hãy kiểm tra và duyệt đề xuất để tiến hành thanh toán.";
+                    
+                    await _notificationService.CreateNotificationAsync(
+                        order.BuyerId,
+                        title,
+                        message,
+                        "PROXY_SHOPPING_PROPOSAL_RECEIVED"
+                    );
+
+                    Console.WriteLine($"[INFO] SendProposalAsync - Created notification for buyer {order.BuyerId}");
+                }
+                catch (Exception notifEx)
+                {
+                    Console.WriteLine($"[ERROR] SendProposalAsync - Failed to create notification: {notifEx.Message}");
+                    // Không throw exception vì notification không phải critical operation
+                }
                 
                 return true;
             }
@@ -693,13 +740,70 @@ namespace LocalMartOnline.Services.Implement
         // 5. Buyer duyệt & thanh toán
         public async Task<bool> BuyerApproveAndPayAsync(string orderId, string buyerId)
         {
-            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.BuyerId == buyerId);
-            if (order == null || order.Status != ProxyOrderStatus.Proposed) return false;
-            // Thực hiện thanh toán ở đây (TODO)
-            order.Status = ProxyOrderStatus.Paid;
-            order.UpdatedAt = DateTime.UtcNow;
-            await _orderRepo.UpdateAsync(orderId, order);
-            return true;
+            try
+            {
+                Console.WriteLine($"[DEBUG] BuyerApproveAndPayAsync - Starting with OrderId: {orderId}, BuyerId: {buyerId}");
+                
+                var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.BuyerId == buyerId);
+                if (order == null || order.Status != ProxyOrderStatus.Proposed)
+                {
+                    Console.WriteLine($"[DEBUG] BuyerApproveAndPayAsync - Order not found or invalid status. Order: {order?.Id}, Status: {order?.Status}");
+                    return false;
+                }
+
+                Console.WriteLine($"[DEBUG] BuyerApproveAndPayAsync - Order found. ProxyShopperId: {order.ProxyShopperId}");
+
+                // Thực hiện thanh toán ở đây (TODO)
+                order.Status = ProxyOrderStatus.Paid;
+                order.UpdatedAt = DateTime.UtcNow;
+                await _orderRepo.UpdateAsync(orderId, order);
+                Console.WriteLine($"[DEBUG] BuyerApproveAndPayAsync - Order status updated to Paid");
+
+                // Tạo notification cho proxy shopper
+                try
+                {
+                    if (!string.IsNullOrEmpty(order.ProxyShopperId))
+                    {
+                        var proxyShopperName = "Proxy Shopper";
+                        var proxyShopper = await _userRepo.FindOneAsync(u => u.Id == order.ProxyShopperId);
+                        if (proxyShopper != null)
+                        {
+                            proxyShopperName = proxyShopper.FullName ?? "Proxy Shopper";
+                        }
+
+                        var title = "💰 Đơn hàng đã được duyệt và thanh toán!";
+                        var message = $"Khách hàng đã duyệt đề xuất và hoàn tất thanh toán cho đơn hàng #{orderId.Substring(orderId.Length - 8)}. " +
+                                    $"Tổng tiền: {order.TotalAmount:N0} VND, Phí của bạn: {order.ProxyFee:N0} VND. " +
+                                    $"Bạn có thể bắt đầu mua hàng ngay bây giờ!";
+                        
+                        await _notificationService.CreateNotificationAsync(
+                            order.ProxyShopperId,
+                            title,
+                            message,
+                            "PROXY_SHOPPING_ORDER_APPROVED"
+                        );
+
+                        Console.WriteLine($"[INFO] BuyerApproveAndPayAsync - Created notification for proxy shopper {order.ProxyShopperId}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[WARNING] BuyerApproveAndPayAsync - ProxyShopperId is null or empty for order {orderId}");
+                    }
+                }
+                catch (Exception notifEx)
+                {
+                    Console.WriteLine($"[ERROR] BuyerApproveAndPayAsync - Failed to create notification: {notifEx.Message}");
+                    // Không throw exception vì notification không phải critical operation
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] BuyerApproveAndPayAsync - Exception: {ex.Message}");
+                Console.WriteLine($"[ERROR] BuyerApproveAndPayAsync - StackTrace: {ex.StackTrace}");
+                return false;
+            }
         }
 
         // 6. Proxy bắt đầu mua hàng (chuyển trạng thái)
@@ -714,7 +818,7 @@ namespace LocalMartOnline.Services.Implement
         }
 
         // 7. Proxy upload ảnh hàng hóa, ghi chú...
-        public async Task<bool> UploadBoughtItemsAsync(string orderId, List<string> imageUrls, string? note)
+        public async Task<bool> UploadBoughtItemsAsync(string orderId, string proofImages, string? note)
         {
             try
             {
@@ -736,17 +840,7 @@ namespace LocalMartOnline.Services.Implement
                 // Validate và lưu imageUrl (chỉ 1 ảnh) vào ProofImages field
                 if (string.IsNullOrEmpty(order.ProofImages))
                 {
-                    string? validImageUrl = null;
-                    if (imageUrls != null && imageUrls.Any())
-                    {
-                        // Lấy ảnh đầu tiên không null/empty
-                        validImageUrl = imageUrls.FirstOrDefault(url => !string.IsNullOrWhiteSpace(url))?.Trim();
-                        if (!string.IsNullOrEmpty(validImageUrl))
-                        {
-                            Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Using first valid image URL: {validImageUrl}");
-                            order.ProofImages = validImageUrl;
-                        }
-                    }
+
                 }
                 order.Notes = note;
                 order.UpdatedAt = DateTime.UtcNow;
@@ -863,17 +957,27 @@ namespace LocalMartOnline.Services.Implement
 
             // Lấy thông tin buyer
             var buyer = await _userRepo.FindOneAsync(u => u.Id == request.BuyerId);
+
+            // Lấy thông tin market
+            Market? market = null;
+            if (!string.IsNullOrEmpty(request.MarketId))
+            {
+                market = await _marketRepo.FindOneAsync(m => m.Id == request.MarketId);
+            }
             
             return new ProxyRequestResponseDto
             {
                 Id = request.Id,
+                ProxyOrderId = request.ProxyShoppingOrderId,
                 Items = request.Items,
                 Status = request.Status.ToString(),
                 CreatedAt = request.CreatedAt,
                 UpdatedAt = request.UpdatedAt,
                 BuyerName = buyer?.FullName,
                 BuyerEmail = buyer?.Email,
-                BuyerPhone = buyer?.PhoneNumber
+                BuyerPhone = buyer?.PhoneNumber,
+                MarketId = request.MarketId,
+                MarketName = market?.Name
             };
         }
     }
