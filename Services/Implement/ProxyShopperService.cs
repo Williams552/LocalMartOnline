@@ -836,12 +836,7 @@ namespace LocalMartOnline.Services.Implement
                     Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Order status is not InProgress: {order.Status}");
                     return false;
                 }
-
-                // Validate và lưu imageUrl (chỉ 1 ảnh) vào ProofImages field
-                if (string.IsNullOrEmpty(order.ProofImages))
-                {
-
-                }
+                order.ProofImages = proofImages;
                 order.Notes = note;
                 order.UpdatedAt = DateTime.UtcNow;
                 
