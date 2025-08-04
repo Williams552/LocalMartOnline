@@ -24,17 +24,23 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<Market> _marketRepo;
         private readonly IMapper _mapper;
         private readonly IMarketService _marketService;
+        private readonly IRepository<Product> _productRepo; // Thêm repository này
+        private readonly IRepository<Order> _orderRepo; // Thêm repository này
+        private readonly IRepository<Review> _reviewRepo;
 
         public StoreService(
-            IRepository<Store> storeRepo,
-            IRepository<StoreFollow> followRepo,
-            IRepository<MarketFeePayment> paymentRepo,
-            IRepository<MarketFee> marketFeeRepo,
-            IRepository<MarketFeeType> marketFeeTypeRepo,
-            IRepository<User> userRepo,
-            IRepository<Market> marketRepo,
-            IMapper mapper,
-            IMarketService marketService)
+         IRepository<Store> storeRepo,
+         IRepository<StoreFollow> followRepo,
+         IRepository<MarketFeePayment> paymentRepo,
+         IRepository<MarketFee> marketFeeRepo,
+         IRepository<MarketFeeType> marketFeeTypeRepo,
+         IRepository<User> userRepo,
+         IRepository<Market> marketRepo,
+         IRepository<Product> productRepo, // Thêm vào constructor
+         IRepository<Order> orderRepo, // Thêm vào constructor
+         IRepository<Review> reviewRepo, // Thêm vào constructor (nếu có)
+         IMapper mapper,
+         IMarketService marketService)
         {
             _storeRepo = storeRepo;
             _followRepo = followRepo;
@@ -43,6 +49,9 @@ namespace LocalMartOnline.Services.Implement
             _marketFeeTypeRepo = marketFeeTypeRepo;
             _userRepo = userRepo;
             _marketRepo = marketRepo;
+            _productRepo = productRepo; // Khởi tạo
+            _orderRepo = orderRepo; // Khởi tạo
+            _reviewRepo = reviewRepo; // Khởi tạo (nếu có)
             _mapper = mapper;
             _marketService = marketService;
         }
@@ -540,15 +549,44 @@ namespace LocalMartOnline.Services.Implement
             var store = await _storeRepo.GetByIdAsync(storeId);
             if (store == null) return null;
 
-            // Mock data for statistics - trong thực tế sẽ query từ database
+            // 1. Đếm số sản phẩm của store (chỉ Active products)
+            var products = await _productRepo.FindManyAsync(p =>
+                p.StoreId == storeId &&
+                p.Status == ProductStatus.Active);
+            var productCount = products.Count();
+
+            // 2. Đếm số người theo dõi store
+            var followers = await _followRepo.FindManyAsync(f => f.StoreId == storeId);
+            var followerCount = followers.Count();
+
+            // 3. Đếm số đơn hàng đã hoàn thành của store
+            var completedOrders = await _orderRepo.FindManyAsync(o =>
+                o.SellerId == store.SellerId &&
+                o.Status == OrderStatus.Completed);
+            var orderCount = completedOrders.Count();
+
+            // 4. Đếm số đánh giá (nếu có model Review)
+            int reviewCount = 0;
+            if (_reviewRepo != null)
+            {
+                var reviews = await _reviewRepo.FindManyAsync(r =>
+                    r.TargetType == "Store" &&
+                    r.TargetId == storeId);
+                reviewCount = reviews.Count();
+            }
+
+            // 5. ViewCount - có thể implement later hoặc để giá trị mặc định
+            // Hiện tại chưa có model để track view count, có thể thêm sau
+            var viewCount = 0; // Hoặc có thể tính từ log/analytics
+
             return new
             {
-                productCount = 25, // Số sản phẩm
-                orderCount = 156,  // Số đơn hàng đã bán
-                followerCount = store.Rating > 4.0m ? 340 : 150, // Số người theo dõi
-                viewCount = 1205,  // Lượt xem
+                productCount = productCount,
+                orderCount = orderCount,
+                followerCount = followerCount,
+                viewCount = viewCount, // Tạm thời để 0, có thể implement sau
                 rating = store.Rating,
-                reviewCount = store.Rating > 4.0m ? 128 : 45 // Số đánh giá
+                reviewCount = reviewCount
             };
         }
     }
