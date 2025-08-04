@@ -12,6 +12,7 @@ namespace LocalMartOnline.Services
     {
         private readonly IRepository<User> _userRepo;
         private readonly AutoMapper.IMapper _mapper;
+        
         public UserService(IRepository<User> userRepo, AutoMapper.IMapper mapper)
         {
             _userRepo = userRepo;
@@ -62,16 +63,38 @@ namespace LocalMartOnline.Services
                     throw new System.Exception("Email already exists");
             }
 
-            // Sử dụng AutoMapper để map các trường từ DTO sang user hiện tại (trừ Password)
-
-            var tempPassword = updateDto.Password;
-            updateDto.Password = ""; // Không map password qua AutoMapper
-            _mapper.Map(updateDto, currentUser);
+            // Chỉ update những field có giá trị mới (không null/empty)
+            if (!string.IsNullOrEmpty(updateDto.Username))
+                currentUser.Username = updateDto.Username;
+            
+            if (!string.IsNullOrEmpty(updateDto.Email))
+                currentUser.Email = updateDto.Email;
+            
+            if (!string.IsNullOrEmpty(updateDto.FullName))
+                currentUser.FullName = updateDto.FullName;
+            
+            if (!string.IsNullOrEmpty(updateDto.PhoneNumber))
+                currentUser.PhoneNumber = updateDto.PhoneNumber;
+            
+            if (!string.IsNullOrEmpty(updateDto.Address))
+                currentUser.Address = updateDto.Address;
+            
+            if (!string.IsNullOrEmpty(updateDto.AvatarUrl))
+                currentUser.AvatarUrl = updateDto.AvatarUrl;
+            
+            if (!string.IsNullOrEmpty(updateDto.Role))
+                currentUser.Role = updateDto.Role;
+            
+            if (!string.IsNullOrEmpty(updateDto.Status))
+                currentUser.Status = updateDto.Status;
+            
+            if (updateDto.TwoFactorEnabled.HasValue)
+                currentUser.TwoFactorEnabled = updateDto.TwoFactorEnabled.Value;
 
             // Nếu có password mới, hash và gán vào user
-            if (!string.IsNullOrEmpty(tempPassword))
+            if (!string.IsNullOrEmpty(updateDto.Password))
             {
-                currentUser.PasswordHash = PasswordHashService.HashPassword(tempPassword);
+                currentUser.PasswordHash = PasswordHashService.HashPassword(updateDto.Password);
             }
 
             currentUser.UpdatedAt = DateTime.Now;
