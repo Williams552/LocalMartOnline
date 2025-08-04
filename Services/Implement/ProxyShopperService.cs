@@ -298,8 +298,6 @@ namespace LocalMartOnline.Services.Implement
         {
             try
             {
-                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Starting for UserId: {userId}, Role: {userRole}");
-
                 List<ProxyRequest> myRequests;
                 List<ProxyShoppingOrder> relatedOrders;
 
@@ -307,8 +305,6 @@ namespace LocalMartOnline.Services.Implement
                 {
                     // Buyer: Lấy các request mà họ đã tạo
                     myRequests = (await _requestRepo.FindManyAsync(r => r.BuyerId == userId)).ToList();
-                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Buyer found {myRequests.Count} requests");
-
                     // Lấy các order tương ứng với requests của buyer
                     var requestIds = myRequests.Select(r => r.Id).ToList();
                     relatedOrders = requestIds.Any() 
@@ -319,7 +315,6 @@ namespace LocalMartOnline.Services.Implement
                 {
                     // Proxy Shopper: Lấy các order mà họ đã nhận, rồi lấy request tương ứng
                     relatedOrders = (await _orderRepo.FindManyAsync(o => o.ProxyShopperId == userId)).ToList();
-                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - ProxyShopper found {relatedOrders.Count} orders");
 
                     var requestIds = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyRequestId))
                                                   .Select(o => o.ProxyRequestId!)
@@ -330,12 +325,8 @@ namespace LocalMartOnline.Services.Implement
                         ? (await _requestRepo.FindManyAsync(r => r.Id != null && requestIds.Contains(r.Id))).ToList()
                         : new List<ProxyRequest>();
                 }
-
-                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Found {myRequests.Count} requests and {relatedOrders.Count} orders");
-
                 if (!myRequests.Any())
                 {
-                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - No requests found");
                     return new List<MyRequestsResponseDto>();
                 }
 
@@ -360,16 +351,12 @@ namespace LocalMartOnline.Services.Implement
                     : new List<User>();
                 var partnerDict = partners.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
 
-                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Found {partners.Count()} partners");
-
                 // Lấy thông tin stores
                 var storeIds = myRequests.Select(r => r.MarketId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
                 var stores = storeIds.Any() 
                     ? await _storeRepo.FindManyAsync(s => s.Id != null && storeIds.Contains(s.Id))
                     : new List<Store>();
                 var storeDict = stores.Where(s => s.Id != null).ToDictionary(s => s.Id!, s => s);
-
-                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Found {stores.Count()} stores");
 
                 // Tạo dictionary để map request -> order
                 var orderDict = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyRequestId))
@@ -379,8 +366,6 @@ namespace LocalMartOnline.Services.Implement
 
                 foreach (var request in myRequests)
                 {
-                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Processing request: {request.Id}");
-
                     // Lấy thông tin order tương ứng
                     var order = orderDict.TryGetValue(request.Id, out var ord) ? ord : null;
 
@@ -464,16 +449,12 @@ namespace LocalMartOnline.Services.Implement
                     };
 
                     result.Add(dto);
-                    Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Added DTO for request {request.Id} with phase {currentPhase}");
                 }
 
-                Console.WriteLine($"[DEBUG] GetMyRequestsAsync - Returning {result.Count} results");
                 return result.OrderByDescending(r => r.CreatedAt).ToList();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] GetMyRequestsAsync - Exception: {ex.Message}");
-                Console.WriteLine($"[ERROR] GetMyRequestsAsync - StackTrace: {ex.StackTrace}");
                 return new List<MyRequestsResponseDto>();
             }
         }

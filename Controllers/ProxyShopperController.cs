@@ -183,30 +183,19 @@ namespace LocalMartOnline.Controllers
                     return Unauthorized("Không tìm thấy userId trong token.");
 
                 // Log proposal details
-                Console.WriteLine($"[DEBUG] SendProposal - OrderId: {orderId}");
-                Console.WriteLine($"[DEBUG] SendProposal - ProxyShopperId: {proxyShopperId}");
-                Console.WriteLine($"[DEBUG] SendProposal - Items Count: {dto.Items.Count}");
-                Console.WriteLine($"[DEBUG] SendProposal - TotalProductPrice: {dto.TotalProductPrice}");
-                Console.WriteLine($"[DEBUG] SendProposal - ProxyFee: {dto.ProxyFee}");
-                Console.WriteLine($"[DEBUG] SendProposal - TotalAmount: {dto.TotalAmount}");
-
                 var ok = await _proxyShopperService.SendProposalAsync(orderId, dto);
 
                 if (ok)
                 {
-                    Console.WriteLine($"[DEBUG] SendProposal - Success for OrderId: {orderId}");
                     return Ok(new { message = "Đề xuất đã được gửi thành công.", orderId });
                 }
                 else
                 {
-                    Console.WriteLine($"[DEBUG] SendProposal - Failed for OrderId: {orderId}");
                     return BadRequest("Không thể gửi đề xuất. Đơn hàng có thể không tồn tại hoặc không ở trạng thái Draft.");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] SendProposal - Exception: {ex.Message}");
-                Console.WriteLine($"[ERROR] SendProposal - StackTrace: {ex.StackTrace}");
                 return StatusCode(500, $"Lỗi server: {ex.Message}");
             }
         }
@@ -273,7 +262,6 @@ namespace LocalMartOnline.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] UploadBoughtItems - Exception: {ex.Message}");
                 return StatusCode(500, $"Lỗi server: {ex.Message}");
             }
         }
