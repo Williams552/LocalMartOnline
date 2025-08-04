@@ -20,9 +20,9 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<User> _userRepo;
         private readonly IRepository<Market> _marketRepo;
         private readonly IMapper _mapper;
-        
+
         public MarketFeePaymentService(
-            IRepository<MarketFeePayment> repo, 
+            IRepository<MarketFeePayment> repo,
             IRepository<MarketFee> marketFeeRepo,
             IRepository<MarketFeeType> marketFeeTypeRepo,
             IRepository<Store> storeRepo,
@@ -46,16 +46,16 @@ namespace LocalMartOnline.Services.Implement
             var allMarketFeeTypes = await _marketFeeTypeRepo.GetAllAsync();
             var allUsers = await _userRepo.GetAllAsync();
             var allMarkets = await _marketRepo.GetAllAsync();
-            
+
             var result = new List<MarketFeePaymentDto>();
-            
+
             foreach (var payment in payments)
             {
                 var marketFee = allMarketFees.FirstOrDefault(mf => mf.Id == payment.FeeId);
                 var feeType = marketFee != null ? allMarketFeeTypes.FirstOrDefault(ft => ft.Id == marketFee.MarketFeeTypeId) : null;
                 var seller = allUsers.FirstOrDefault(u => u.Id == payment.SellerId);
                 var market = marketFee != null ? allMarkets.FirstOrDefault(m => m.Id == marketFee.MarketId) : null;
-                
+
                 result.Add(new MarketFeePaymentDto
                 {
                     PaymentId = payment.PaymentId,
@@ -70,7 +70,7 @@ namespace LocalMartOnline.Services.Implement
                     CreatedAt = payment.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")
                 });
             }
-            
+
             return result;
         }
 
@@ -78,17 +78,17 @@ namespace LocalMartOnline.Services.Implement
         {
             var payment = await _repo.GetByIdAsync(paymentId);
             if (payment == null) return null;
-            
+
             var allMarketFees = await _marketFeeRepo.GetAllAsync();
             var allMarketFeeTypes = await _marketFeeTypeRepo.GetAllAsync();
             var allUsers = await _userRepo.GetAllAsync();
             var allMarkets = await _marketRepo.GetAllAsync();
-            
+
             var marketFee = allMarketFees.FirstOrDefault(mf => mf.Id == payment.FeeId);
             var feeType = marketFee != null ? allMarketFeeTypes.FirstOrDefault(ft => ft.Id == marketFee.MarketFeeTypeId) : null;
             var seller = allUsers.FirstOrDefault(u => u.Id == payment.SellerId);
             var market = marketFee != null ? allMarkets.FirstOrDefault(m => m.Id == marketFee.MarketId) : null;
-            
+
             return new MarketFeePaymentDto
             {
                 PaymentId = payment.PaymentId,
@@ -118,11 +118,11 @@ namespace LocalMartOnline.Services.Implement
             // Get all stores in the market
             var stores = await _storeRepo.FindManyAsync(s => s.MarketId == request.MarketId);
             var storesList = stores.ToList();
-            
+
             // Get market info
             var market = await _marketRepo.GetByIdAsync(request.MarketId);
             var marketName = market?.Name ?? "Unknown Market";
-            
+
             var sellerPaymentStatuses = new List<SellerPaymentStatusDto>();
             int totalSellers = storesList.Count;
             int completedCount = 0;
@@ -139,15 +139,15 @@ namespace LocalMartOnline.Services.Implement
                 // Get market fees for this market (default to monthly rent fee type)
                 var marketFees = await _marketFeeRepo.FindManyAsync(mf => mf.MarketId == request.MarketId);
                 var monthlyRentFee = marketFees.FirstOrDefault();
-                
+
                 if (monthlyRentFee == null) continue;
 
                 // Get payment record for this seller and fee
                 var payment = await _repo.FindOneAsync(p => p.SellerId == store.SellerId && p.FeeId == monthlyRentFee.Id);
-                
+
                 var paymentStatus = payment?.PaymentStatus ?? MarketFeePaymentStatus.Pending;
                 var amountDue = payment?.Amount ?? monthlyRentFee.Amount;
-                
+
                 // Calculate if overdue (assuming monthly payments, check if no payment this month)
                 var isOverdue = false;
                 var daysOverdue = 0;
@@ -303,14 +303,14 @@ namespace LocalMartOnline.Services.Implement
             // Determine target month and year
             var targetMonth = request.Month ?? DateTime.Now.Month;
             var targetYear = request.Year ?? DateTime.Now.Year;
-            
+
             // Generate monthly payments first to ensure data is up-to-date
             await GenerateMonthlyPaymentsAsync(targetMonth, targetYear);
 
             // Get all payments for the target month/year first (payment-centric approach)
             var allPayments = await _repo.GetAllAsync();
-            var filteredPayments = allPayments.Where(p => 
-                p.DueDate.Month == targetMonth && 
+            var filteredPayments = allPayments.Where(p =>
+                p.DueDate.Month == targetMonth &&
                 p.DueDate.Year == targetYear);
 
             // Apply payment status filter if provided
@@ -332,12 +332,12 @@ namespace LocalMartOnline.Services.Implement
                 var seller = allUsers.FirstOrDefault(u => u.Id == payment.SellerId);
                 var store = allStores.FirstOrDefault(s => s.SellerId == payment.SellerId);
                 var marketFee = allMarketFees.FirstOrDefault(mf => mf.Id == payment.FeeId);
-                
+
                 if (seller == null || store == null || marketFee == null) continue;
 
                 var market = allMarkets.FirstOrDefault(m => m.Id == store.MarketId);
                 var marketFeeType = allMarketFeeTypes.FirstOrDefault(ft => ft.Id == marketFee.MarketFeeTypeId);
-                
+
                 if (market == null || marketFeeType == null) continue;
 
                 // Apply market filter if provided
@@ -352,7 +352,7 @@ namespace LocalMartOnline.Services.Implement
                 if (!string.IsNullOrEmpty(request.SearchKeyword))
                 {
                     var keyword = request.SearchKeyword.ToLower();
-                    if (!store.Name.ToLower().Contains(keyword) && 
+                    if (!store.Name.ToLower().Contains(keyword) &&
                         !seller.Username.ToLower().Contains(keyword))
                         continue;
                 }
@@ -449,8 +449,8 @@ namespace LocalMartOnline.Services.Implement
                 var allPayments = await _repo.GetAllAsync();
 
                 // Find "Phí Thuê Tháng" fee type
-                var monthlyRentFeeType = allMarketFeeTypes.FirstOrDefault(ft => 
-                    ft.FeeType.Equals("Phí Thuê Tháng", StringComparison.OrdinalIgnoreCase) && 
+                var monthlyRentFeeType = allMarketFeeTypes.FirstOrDefault(ft =>
+                    ft.FeeType.Equals("Phí Thuê Tháng", StringComparison.OrdinalIgnoreCase) &&
                     !ft.IsDeleted);
 
                 if (monthlyRentFeeType == null) return 0;
@@ -460,15 +460,15 @@ namespace LocalMartOnline.Services.Implement
                 foreach (var store in allStores)
                 {
                     // Get MarketFee for this market with "Phí Thuê Tháng" type
-                    var monthlyRentMarketFee = allMarketFees.FirstOrDefault(mf => 
-                        mf.MarketId == store.MarketId && 
+                    var monthlyRentMarketFee = allMarketFees.FirstOrDefault(mf =>
+                        mf.MarketId == store.MarketId &&
                         mf.MarketFeeTypeId == monthlyRentFeeType.Id);
 
                     if (monthlyRentMarketFee == null) continue;
 
                     // Check if payment already exists for this month/year - DUPLICATE CHECK
-                    var existingPayment = allPayments.FirstOrDefault(p => 
-                        p.SellerId == store.SellerId && 
+                    var existingPayment = allPayments.FirstOrDefault(p =>
+                        p.SellerId == store.SellerId &&
                         p.FeeId == monthlyRentMarketFee.Id &&
                         p.DueDate.Month == targetMonth &&
                         p.DueDate.Year == targetYear);
@@ -477,7 +477,7 @@ namespace LocalMartOnline.Services.Implement
 
                     // Calculate due date from PaymentDay in MarketFee
                     var dueDate = new DateTime(targetYear, targetMonth, monthlyRentMarketFee.PaymentDay);
-                    
+
                     // Ensure dueDate is valid (handle cases where PaymentDay > days in month)
                     var daysInMonth = DateTime.DaysInMonth(targetYear, targetMonth);
                     if (monthlyRentMarketFee.PaymentDay > daysInMonth)
@@ -520,10 +520,10 @@ namespace LocalMartOnline.Services.Implement
 
                 // Find MarketFee by MarketId (from Store) + FeeTypeId
                 var allMarketFees = await _marketFeeRepo.GetAllAsync();
-                var marketFee = allMarketFees.FirstOrDefault(mf => 
-                    mf.MarketId == store.MarketId && 
+                var marketFee = allMarketFees.FirstOrDefault(mf =>
+                    mf.MarketId == store.MarketId &&
                     mf.MarketFeeTypeId == dto.FeeTypeId);
-                
+
                 if (marketFee == null)
                     throw new InvalidOperationException($"Không tìm thấy cấu hình phí '{feeType.FeeType}' cho chợ này");
 
@@ -532,19 +532,10 @@ namespace LocalMartOnline.Services.Implement
                 if (market == null)
                     throw new InvalidOperationException("Không tìm thấy thông tin chợ");
 
-                // Debug: Log tất cả MarketFees để kiểm tra
-                Console.WriteLine($"DEBUG: Total MarketFees: {allMarketFees.Count()}");
-                Console.WriteLine($"DEBUG: Looking for FeeTypeId: {dto.FeeTypeId} in MarketId: {store.MarketId}");
-                
-                foreach (var fee in allMarketFees.Take(5)) // Log 5 fees đầu tiên
-                {
-                    Console.WriteLine($"DEBUG: MarketFee - Id: {fee.Id}, Name: {fee.Name}, MarketId: {fee.MarketId}, FeeTypeId: {fee.MarketFeeTypeId}");
-                }
-
                 // Calculate due date from PaymentDay in MarketFee (current month)
                 var currentDate = DateTime.Now;
                 var dueDate = new DateTime(currentDate.Year, currentDate.Month, marketFee.PaymentDay);
-                
+
                 // Ensure dueDate is valid (handle cases where PaymentDay > days in month)
                 var daysInMonth = DateTime.DaysInMonth(currentDate.Year, currentDate.Month);
                 if (marketFee.PaymentDay > daysInMonth)
@@ -553,12 +544,12 @@ namespace LocalMartOnline.Services.Implement
                 }
 
                 // Check for duplicate payment for this user + fee in current month/year
-                var existingPayment = await _repo.FindOneAsync(p => 
-                    p.SellerId == dto.UserId && 
+                var existingPayment = await _repo.FindOneAsync(p =>
+                    p.SellerId == dto.UserId &&
                     p.FeeId == marketFee.Id &&
                     p.DueDate.Month == currentDate.Month &&
                     p.DueDate.Year == currentDate.Year);
-                
+
                 if (existingPayment != null)
                     throw new InvalidOperationException($"Phí '{marketFee.Name}' tháng {currentDate.Month}/{currentDate.Year} cho người dùng này đã tồn tại");
 
@@ -611,19 +602,16 @@ namespace LocalMartOnline.Services.Implement
 
                 // Find MarketFee by MarketId + FeeTypeId
                 var allMarketFees = await _marketFeeRepo.GetAllAsync();
-                var marketFee = allMarketFees.FirstOrDefault(mf => 
-                    mf.MarketId == dto.MarketId && 
+                var marketFee = allMarketFees.FirstOrDefault(mf =>
+                    mf.MarketId == dto.MarketId &&
                     mf.MarketFeeTypeId == dto.FeeTypeId);
-                
+
                 if (marketFee == null)
                     throw new InvalidOperationException($"Không tìm thấy cấu hình phí '{feeType.FeeType}' cho chợ '{market.Name}'");
-
-                Console.WriteLine($"DEBUG: Found MarketFee: {marketFee.Id}, Name: {marketFee.Name}");
-
                 // Calculate due date from PaymentDay in MarketFee (current month)
                 var currentDate = DateTime.Now;
                 var dueDate = new DateTime(currentDate.Year, currentDate.Month, marketFee.PaymentDay);
-                
+
                 // Ensure dueDate is valid (handle cases where PaymentDay > days in month)
                 var daysInMonth = DateTime.DaysInMonth(currentDate.Year, currentDate.Month);
                 if (marketFee.PaymentDay > daysInMonth)
@@ -637,7 +625,7 @@ namespace LocalMartOnline.Services.Implement
                     p.DueDate.Year == currentDate.Year);
 
                 // Get all active stores in the market
-                var stores = await _storeRepo.FindManyAsync(s => s.MarketId == dto.MarketId && 
+                var stores = await _storeRepo.FindManyAsync(s => s.MarketId == dto.MarketId &&
                     (s.Status == "Open" || s.Status == "Closed"));
                 var storesList = stores.ToList();
 

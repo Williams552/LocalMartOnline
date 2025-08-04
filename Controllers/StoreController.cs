@@ -252,7 +252,7 @@ namespace LocalMartOnline.Controllers
 
         // Get store followers
         [HttpGet("{storeId}/followers")]
-        [Authorize(Roles = "Seller,Admin")]
+        [Authorize(Roles = "Seller,Admin,Buyer")]
         public async Task<IActionResult> GetStoreFollowers(
             string storeId,
             [FromQuery] int page = 1,
