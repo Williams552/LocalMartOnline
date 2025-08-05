@@ -10,5 +10,6 @@ namespace LocalMartOnline.Models.DTOs.ProxyShopping
         public string BuyerId { get; set; } = string.Empty;
         public string MarketId { get; set; } = string.Empty;
         public List<ProxyItem> Items { get; set; } = new();
+        public string? DeliveryAddress { get; set; }
     }
 }

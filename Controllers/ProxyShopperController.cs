@@ -146,6 +146,7 @@ namespace LocalMartOnline.Controllers
             {
                 Id = r.Id,
                 Items = r.Items,
+                DeliveryAddress = r.DeliveryAddress,
                 Status = r.Status.ToString(),
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt,

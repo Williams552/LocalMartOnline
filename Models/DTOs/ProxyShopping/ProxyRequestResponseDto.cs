@@ -9,6 +9,7 @@ namespace LocalMartOnline.Models.DTOs.ProxyShopping
         public string? Id { get; set; }
         public string? ProxyOrderId { get; set; }
         public List<ProxyItem> Items { get; set; } = new();
+        public string? DeliveryAddress { get; set; }
         public string? Status { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
