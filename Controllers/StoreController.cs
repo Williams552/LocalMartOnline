@@ -114,7 +114,6 @@ namespace LocalMartOnline.Controllers
 
         // UC032: Update Store
         [HttpPut("{id}")]
-        [Authorize(Roles = "Seller")]
         public async Task<IActionResult> UpdateStore(string id, [FromBody] StoreUpdateDto dto)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
