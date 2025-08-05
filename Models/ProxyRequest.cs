@@ -40,6 +40,9 @@ namespace LocalMartOnline.Models
         [BsonElement("items")]
         public List<ProxyItem> Items { get; set; } = new();
 
+        [BsonElement("delivery_address")]
+        public string? DeliveryAddress { get; set; }
+
         [BsonElement("status")]
         public ProxyRequestStatus Status { get; set; } = ProxyRequestStatus.Open;
 

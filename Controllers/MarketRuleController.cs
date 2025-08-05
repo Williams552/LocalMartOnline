@@ -79,7 +79,7 @@ namespace LocalMartOnline.Controllers
         /// Buyer, Proxy Shopper, Market Staff, Seller
         /// </summary>
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+       // [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateMarketRule([FromBody] CreateMarketRuleDto createMarketRuleDto)
         {
             try

@@ -280,7 +280,46 @@ namespace LocalMartOnline.Controllers
                 });
             }
         }
+        // Get Order Detail
+        [HttpGet("{orderId}")]
+        [Authorize(Roles = "Seller, Buyer, ProxyShopper")]
+        public async Task<IActionResult> GetOrderDetail(string orderId)
+        {
+            try
+            {
+                var order = await _service.GetOrderDetailAsync(orderId);
 
+                if (order == null)
+                {
+                    return NotFound(new
+                    {
+                        Success = false,
+                        Message = "Không tìm thấy đơn hàng"
+                    });
+                }
+
+                // Kiểm tra quyền truy cập (chỉ buyer hoặc seller của đơn hàng)
+                var userId = User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+               
+
+                return Ok(new
+                {
+                    Success = true,
+                    Message = "Lấy chi tiết đơn hàng thành công",
+                    Data = order
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    Success = false,
+                    Message = "Có lỗi xảy ra khi lấy chi tiết đơn hàng",
+                    Error = ex.Message
+                });
+            }
+        }
         // ...existing code...
     }
 }

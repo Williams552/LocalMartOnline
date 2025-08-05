@@ -97,8 +97,9 @@ namespace LocalMartOnline.Services
             };
             await _userRepo.CreateAsync(newUser);
 
-            // Gửi email xác thực
-            var verifyUrl = baseUrl + "/api/Auth/verify-email?token=" + otpToken;
+            // Gửi email xác thực - Link trỏ đến frontend
+            var frontendUrl = _configuration["App:FrontendUrl"] ?? "http://localhost:3000";
+            var verifyUrl = frontendUrl + "/verify-email?token=" + otpToken;
             var subject = "Xác thực email tài khoản LocalMartOnline";
             var body = $"<p>Chào {registerDto.FullName},</p><p>Vui lòng xác thực email bằng cách nhấn vào link sau: <a href='{verifyUrl}'>Xác thực Email</a></p>";
             await _emailService.SendEmailAsync(registerDto.Email, subject, body);
