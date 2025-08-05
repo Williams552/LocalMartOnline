@@ -27,6 +27,118 @@ namespace LocalMartOnline.Services.Implement
         private readonly IMapper _mapper;
         private readonly INotificationService _notificationService;
 
+        // ADMIN: Lấy danh sách tất cả proxy requests
+        public async Task<List<AdminProxyRequestDto>> GetAllProxyRequestsAsync()
+        {
+            var requests = await _requestRepo.GetAllAsync();
+            var userIds = requests.Select(r => r.BuyerId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+            var proxyIds = requests.Where(r => r.ProxyShoppingOrderId != null)
+                .Select(r => r.ProxyShoppingOrderId)
+                .Distinct()
+                .ToList();
+            var users = await _userRepo.FindManyAsync(u => u.Id != null && userIds.Contains(u.Id));
+            var userDict = users.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
+            var orders = await _orderRepo.GetAllAsync();
+            var orderDict = orders.Where(o => o.Id != null).ToDictionary(o => o.Id!, o => o);
+            var result = new List<AdminProxyRequestDto>();
+            foreach (var req in requests)
+            {
+                var dto = new AdminProxyRequestDto
+                {
+                    Id = req.Id,
+                    ProxyOrderId = req.ProxyShoppingOrderId,
+                    BuyerId = req.BuyerId,
+                    BuyerName = userDict.TryGetValue(req.BuyerId, out var buyer) ? buyer.FullName : null,
+                    BuyerEmail = userDict.TryGetValue(req.BuyerId, out var buyer2) ? buyer2.Email : null,
+                    BuyerPhone = userDict.TryGetValue(req.BuyerId, out var buyer3) ? buyer3.PhoneNumber : null,
+                    Status = req.Status.ToString(),
+                    RequestStatus = req.Status.ToString(),
+                    CreatedAt = req.CreatedAt,
+                    Items = req.Items,
+                };
+                if (!string.IsNullOrEmpty(req.ProxyShoppingOrderId) && orderDict.TryGetValue(req.ProxyShoppingOrderId, out var order))
+                {
+                    dto.ProxyShopperId = order.ProxyShopperId;
+                    var proxyUser = await _userRepo.FindOneAsync(u => u.Id == order.ProxyShopperId);
+                    dto.ProxyShopperName = proxyUser?.FullName;
+                    dto.ProxyShopperEmail = proxyUser?.Email;
+                    dto.ProxyShopperPhone = proxyUser?.PhoneNumber;
+                    dto.OrderStatus = order.Status.ToString();
+                    dto.TotalAmount = order.TotalAmount;
+                }
+                result.Add(dto);
+            }
+            return result;
+        }
+
+        // ADMIN: Lấy chi tiết proxy request theo id
+        public async Task<ProxyRequestsResponseDto?> GetProxyRequestDetailForAdminAsync(string requestId)
+        {
+            var req = await _requestRepo.FindOneAsync(r => r.Id == requestId);
+            if (req == null) return null;
+            var buyer = await _userRepo.FindOneAsync(u => u.Id == req.BuyerId);
+            ProxyShoppingOrder? order = null;
+            if (!string.IsNullOrEmpty(req.ProxyShoppingOrderId))
+                order = await _orderRepo.FindOneAsync(o => o.Id == req.ProxyShoppingOrderId);
+            var dto = new ProxyRequestsResponseDto
+            {
+                Id = req.Id,
+                ProxyOrderId = req.ProxyShoppingOrderId,
+                Items = req.Items,
+                Status = req.Status.ToString(),
+                CreatedAt = req.CreatedAt,
+                UpdatedAt = req.UpdatedAt,
+                PartnerName = buyer?.FullName,
+                PartnerEmail = buyer?.Email,
+                PartnerPhone = buyer?.PhoneNumber,
+                PartnerRole = "Buyer",
+                // Thông tin người mua
+                BuyerName = buyer?.FullName,
+                BuyerEmail = buyer?.Email,
+                BuyerPhone = buyer?.PhoneNumber,
+            };
+            if (order != null)
+            {
+                var proxyUser = await _userRepo.FindOneAsync(u => u.Id == order.ProxyShopperId);
+                dto.OrderId = order.Id;
+                dto.OrderStatus = order.Status.ToString();
+                dto.OrderItems = order.Items;
+                dto.TotalAmount = order.TotalAmount;
+                dto.ProxyFee = order.ProxyFee;
+                dto.DeliveryAddress = order.DeliveryAddress;
+                dto.Notes = order.Notes;
+                dto.ProofImages = order.ProofImages;
+                dto.OrderCreatedAt = order.CreatedAt;
+                dto.OrderUpdatedAt = order.UpdatedAt;
+                dto.PartnerName = proxyUser?.FullName;
+                dto.PartnerEmail = proxyUser?.Email;
+                dto.PartnerPhone = proxyUser?.PhoneNumber;
+                dto.PartnerRole = "Proxy Shopper";
+            }
+            return dto;
+        }
+
+        // ADMIN: Cập nhật trạng thái proxy request
+        public async Task<bool> UpdateProxyRequestStatusAsync(string requestId, string status)
+        {
+            var req = await _requestRepo.FindOneAsync(r => r.Id == requestId);
+            if (req == null) return false;
+            req.Status = Enum.TryParse<ProxyRequestStatus>(status, out var s) ? s : req.Status;
+            req.UpdatedAt = DateTime.UtcNow;
+            await _requestRepo.UpdateAsync(requestId, req);
+            return true;
+        }
+
+        // ADMIN: Cập nhật trạng thái proxy order
+        public async Task<bool> UpdateProxyOrderStatusAsync(string orderId, string status)
+        {
+            var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
+            if (order == null) return false;
+            order.Status = Enum.TryParse<ProxyOrderStatus>(status, out var s) ? s : order.Status;
+            order.UpdatedAt = DateTime.UtcNow;
+            await _orderRepo.UpdateAsync(orderId, order);
+            return true;
+        }
         public ProxyShopperService(
             IRepository<ProxyShoppingOrder> orderRepo,
             IRepository<ProxyShopperRegistration> proxyRepo,
@@ -294,7 +406,7 @@ namespace LocalMartOnline.Services.Implement
             }
         }
 
-        public async Task<List<MyRequestsResponseDto>> GetMyRequestsAsync(string userId, string userRole)
+        public async Task<List<ProxyRequestsResponseDto>> GetMyRequestsAsync(string userId, string userRole)
         {
             try
             {
@@ -327,7 +439,7 @@ namespace LocalMartOnline.Services.Implement
                 }
                 if (!myRequests.Any())
                 {
-                    return new List<MyRequestsResponseDto>();
+                    return new List<ProxyRequestsResponseDto>();
                 }
 
                 // Lấy thông tin partners (đối tác)
@@ -362,7 +474,7 @@ namespace LocalMartOnline.Services.Implement
                 var orderDict = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyRequestId))
                                              .ToDictionary(o => o.ProxyRequestId!, o => o);
 
-                var result = new List<MyRequestsResponseDto>();
+                var result = new List<ProxyRequestsResponseDto>();
 
                 foreach (var request in myRequests)
                 {
@@ -415,7 +527,7 @@ namespace LocalMartOnline.Services.Implement
                         };
                     }
 
-                    var dto = new MyRequestsResponseDto
+                    var dto = new ProxyRequestsResponseDto
                     {
                         // Request Information
                         Id = request.Id,
@@ -455,7 +567,7 @@ namespace LocalMartOnline.Services.Implement
             }
             catch (Exception ex)
             {
-                return new List<MyRequestsResponseDto>();
+                return new List<ProxyRequestsResponseDto>();
             }
         }
 

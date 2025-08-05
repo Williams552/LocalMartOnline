@@ -2,10 +2,11 @@ using LocalMartOnline.Models.DTOs.Product;
 
 namespace LocalMartOnline.Models.DTOs.ProxyShopping
 {
-    public class MyRequestsResponseDto
+    public class ProxyRequestsResponseDto
     {
         // Request Information
         public string Id { get; set; } = string.Empty;
+        public string? ProxyOrderId { get; set; } = string.Empty; // Optional, if the request has an associated order
         public List<ProxyItem> Items { get; set; } = new();
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
@@ -34,5 +35,9 @@ namespace LocalMartOnline.Models.DTOs.ProxyShopping
         // UI Helpers
         public bool HasOrder => !string.IsNullOrEmpty(OrderId);
         public string CurrentPhase { get; set; } = string.Empty;
+        // Buyer Information (for admin detail)
+        public string? BuyerName { get; set; }
+        public string? BuyerEmail { get; set; }
+        public string? BuyerPhone { get; set; }
     }
 }

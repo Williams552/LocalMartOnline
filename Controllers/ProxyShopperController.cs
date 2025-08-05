@@ -23,6 +23,43 @@ namespace LocalMartOnline.Controllers
             _marketRepo = marketRepo;
         }
 
+        // ADMIN: Lấy danh sách tất cả proxy requests
+        [HttpGet("proxy-requests")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllProxyRequests()
+        {
+            var requests = await _proxyShopperService.GetAllProxyRequestsAsync();
+            return Ok(requests);
+        }
+
+        // ADMIN: Lấy chi tiết proxy request theo id
+        [HttpGet("proxy-requests/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetProxyRequestById(string id)
+        {
+            var request = await _proxyShopperService.GetProxyRequestDetailForAdminAsync(id);
+            if (request == null) return NotFound();
+            return Ok(request);
+        }
+
+        // ADMIN: Cập nhật trạng thái proxy request
+        [HttpPatch("proxy-requests/{id}/status")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateProxyRequestStatus(string id, [FromBody] UpdateProxyRequestStatusDto dto)
+        {
+            var ok = await _proxyShopperService.UpdateProxyRequestStatusAsync(id, dto.Status);
+            return ok ? Ok() : BadRequest();
+        }
+
+        // ADMIN: Cập nhật trạng thái proxy order
+        [HttpPatch("proxy-orders/{id}/status")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateProxyOrderStatus(string id, [FromBody] UpdateProxyOrderStatusDto dto)
+        {
+            var ok = await _proxyShopperService.UpdateProxyOrderStatusAsync(id, dto.Status);
+            return ok ? Ok() : BadRequest();
+        }
+
 
         [HttpPost("register")]
         [Authorize]
