@@ -55,6 +55,7 @@ namespace LocalMartOnline.Services.Implement
                     RequestStatus = req.Status.ToString(),
                     CreatedAt = req.CreatedAt,
                     Items = req.Items,
+                    DeliveryAddress = req.DeliveryAddress,
                 };
                 if (!string.IsNullOrEmpty(req.ProxyShoppingOrderId) && orderDict.TryGetValue(req.ProxyShoppingOrderId, out var order))
                 {
@@ -249,6 +250,7 @@ namespace LocalMartOnline.Services.Implement
                 BuyerId = buyerId,
                 MarketId = proxyRequest.MarketId,
                 Items = proxyRequest.Items.Select(item => _mapper.Map<ProxyItem>(item)).ToList(),
+                DeliveryAddress = proxyRequest.DeliveryAddress,
                 Status = ProxyRequestStatus.Open,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -609,6 +611,7 @@ namespace LocalMartOnline.Services.Implement
                 ProxyRequestId = requestId,
                 BuyerId = req.BuyerId!,
                 ProxyShopperId = proxyShopperId,
+                DeliveryAddress = req.DeliveryAddress ?? string.Empty,
                 Items = new List<ProductDto>(),
                 TotalAmount = 0,
                 ProxyFee = 0,
@@ -1058,6 +1061,7 @@ namespace LocalMartOnline.Services.Implement
                 Id = request.Id,
                 ProxyOrderId = request.ProxyShoppingOrderId,
                 Items = request.Items,
+                DeliveryAddress = request.DeliveryAddress,
                 Status = request.Status.ToString(),
                 CreatedAt = request.CreatedAt,
                 UpdatedAt = request.UpdatedAt,
