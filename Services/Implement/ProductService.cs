@@ -315,14 +315,26 @@ namespace LocalMartOnline.Services.Implement
             Console.WriteLine($"FilterProductsAsync called with MarketId: {filter.MarketId}, StoreId: {filter.StoreId}, CategoryId: {filter.CategoryId}, Keyword: {filter.Keyword}, Status: {filter.Status}");
             Console.WriteLine($"Total products: {products.Count()}, Total stores: {stores.Count()}");
             
-            // Start with stores that are open and in active markets
+            // Nếu filter theo status cụ thể (không phải Active), cho phép xem tất cả store
+            // Nếu không có status filter hoặc status=Active, chỉ xem store mở cửa
             var validStoreIds = new HashSet<string>();
-            foreach (var store in stores.Where(s => s.Status == "Open"))
+            
+            if (!string.IsNullOrEmpty(filter.Status) && !filter.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
             {
-                var isMarketOpen = await _marketService.IsMarketOpenAsync(store.MarketId);
-                if (isMarketOpen)
+                // Cho phép xem tất cả store khi filter theo status khác Active
+                validStoreIds = stores.Select(s => s.Id!).ToHashSet();
+                Console.WriteLine($"Allowing all stores for status filter: {filter.Status}");
+            }
+            else
+            {
+                // Chỉ lấy store đang mở và market active cho Active products
+                foreach (var store in stores.Where(s => s.Status == "Open"))
                 {
-                    validStoreIds.Add(store.Id!);
+                    var isMarketOpen = await _marketService.IsMarketOpenAsync(store.MarketId);
+                    if (isMarketOpen)
+                    {
+                        validStoreIds.Add(store.Id!);
+                    }
                 }
             }
             Console.WriteLine($"Valid stores (open + market active) count: {validStoreIds.Count}");
@@ -344,8 +356,8 @@ namespace LocalMartOnline.Services.Implement
 
             var filtered = products.Where(p =>
                 validStoreIds.Contains(p.StoreId) &&
-                p.Status == ProductStatus.Active &&
-                (string.IsNullOrEmpty(filter.Status) || p.Status.ToString().Equals(filter.Status, StringComparison.OrdinalIgnoreCase)) &&
+                // Chỉ lọc theo Status nếu có truyền vào, ngược lại mặc định lấy Active
+                (string.IsNullOrEmpty(filter.Status) ? p.Status == ProductStatus.Active : p.Status.ToString().Equals(filter.Status, StringComparison.OrdinalIgnoreCase)) &&
                 (string.IsNullOrEmpty(filter.CategoryId) || p.CategoryId == filter.CategoryId) &&
                 (!filter.MinPrice.HasValue || p.Price >= filter.MinPrice.Value) &&
                 (!filter.MaxPrice.HasValue || p.Price <= filter.MaxPrice.Value) &&
