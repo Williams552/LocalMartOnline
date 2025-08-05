@@ -92,7 +92,43 @@ namespace LocalMartOnline.Services.Implement
         {
             var store = await _storeRepo.GetByIdAsync(id);
             if (store == null) return false;
-            _mapper.Map(dto, store);
+            
+            // Chỉ cập nhật những trường có giá trị trong DTO
+            if (!string.IsNullOrEmpty(dto.Name))
+            {
+                store.Name = dto.Name;
+            }
+            
+            if (!string.IsNullOrEmpty(dto.Address))
+            {
+                store.Address = dto.Address;
+            }
+            
+            if (dto.Latitude != 0)
+            {
+                store.Latitude = dto.Latitude;
+            }
+            
+            if (dto.Longitude != 0)
+            {
+                store.Longitude = dto.Longitude;
+            }
+            
+            if (!string.IsNullOrEmpty(dto.ContactNumber))
+            {
+                store.ContactNumber = dto.ContactNumber;
+            }
+            
+            if (!string.IsNullOrEmpty(dto.StoreImageUrl))
+            {
+                store.StoreImageUrl = dto.StoreImageUrl;
+            }
+            
+            if (!string.IsNullOrEmpty(dto.MarketId))
+            {
+                store.MarketId = dto.MarketId;
+            }
+            
             store.UpdatedAt = DateTime.Now;
             await _storeRepo.UpdateAsync(id, store);
             return true;

@@ -8,5 +8,6 @@ namespace LocalMartOnline.Models.DTOs.Store
         public decimal Longitude { get; set; }
         public string ContactNumber { get; set; } = string.Empty;
         public string StoreImageUrl { get; set; } = string.Empty;
+        public string MarketId { get; set; } = string.Empty;
     }
 }
