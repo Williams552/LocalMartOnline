@@ -17,5 +17,6 @@ namespace LocalMartOnline.Services.Interface
         Task<bool> CancelOrderAsync(string orderId, string userId, OrderCancelDto cancelDto); // Hủy đơn hàng
         Task<bool> ConfirmOrderAsync(string orderId, string sellerId); // Seller xác nhận còn hàng
         Task<bool> MarkAsPaidAsync(string orderId, string sellerId); // Seller xác nhận đã nhận tiền
+        Task<OrderDto?> GetOrderDetailAsync(string orderId);
     }
 }
