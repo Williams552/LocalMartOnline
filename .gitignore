@@ -52,5 +52,4 @@ $RECYCLE.BIN/
 *.sln.iml
 
 appsettings.Local.json
-# Firebase service account key
-Key/serviceAccountKey.json
+
