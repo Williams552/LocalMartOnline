@@ -123,9 +123,9 @@ namespace LocalMartOnline.Services
             CreateMap<FaqCreateDto, Faq>();
             CreateMap<FaqUpdateDto, Faq>();
 
-            // PlatformPolicy <-> PlatformPolicyDto, PlatformPolicyUpdateDto
+            // PlatformPolicy <-> PlatformPolicyDto, PlatformPolicyCreateDto
             CreateMap<PlatformPolicy, PlatformPolicyDto>().ReverseMap();
-            CreateMap<PlatformPolicyUpdateDto, PlatformPolicy>();
+            CreateMap<PlatformPolicyCreateDto, PlatformPolicy>();
 
             // Market <-> MarketDto, MarketCreateDto, MarketUpdateDto
             CreateMap<Market, MarketDto>().ReverseMap();

@@ -27,12 +27,31 @@ namespace LocalMartOnline.Controllers
             return Ok(policies);
         }
 
+        // UC104: Create Platform Policy
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<PlatformPolicyDto>> Create([FromBody] PlatformPolicyCreateDto dto)
+        {
+            var createdPolicy = await _policyService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetById), new { id = createdPolicy.Id }, createdPolicy);
+        }
+
         // UC106: Update Policies
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(string id, [FromBody] PlatformPolicyUpdateDto dto)
         {
             var result = await _policyService.UpdateAsync(id, dto);
+            if (!result) return NotFound();
+            return NoContent();
+        }
+
+        // UC107: Toggle Platform Policy
+        [HttpPut("{id}/toggle")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Toggle(string id)
+        {
+            var result = await _policyService.ToggleAsync(id);
             if (!result) return NotFound();
             return NoContent();
         }

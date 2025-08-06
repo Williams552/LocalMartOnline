@@ -8,6 +8,8 @@ namespace LocalMartOnline.Services.Interface
     {
         Task<IEnumerable<PlatformPolicyDto>> GetAllAsync();
         Task<PlatformPolicyDto?> GetByIdAsync(string id);
+        Task<PlatformPolicyDto> CreateAsync(PlatformPolicyCreateDto dto);
         Task<bool> UpdateAsync(string id, PlatformPolicyUpdateDto dto);
+        Task<bool> ToggleAsync(string id);
     }
 }

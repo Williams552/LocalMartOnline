@@ -32,11 +32,41 @@ namespace LocalMartOnline.Services.Implement
             return policy == null ? null : _mapper.Map<PlatformPolicyDto>(policy);
         }
 
+        public async Task<PlatformPolicyDto> CreateAsync(PlatformPolicyCreateDto dto)
+        {
+            var policy = _mapper.Map<PlatformPolicy>(dto);
+            policy.CreatedAt = DateTime.Now;
+            policy.UpdatedAt = DateTime.Now;
+            await _policyRepo.CreateAsync(policy);
+            return _mapper.Map<PlatformPolicyDto>(policy);
+        }
+
         public async Task<bool> UpdateAsync(string id, PlatformPolicyUpdateDto dto)
         {
             var policy = await _policyRepo.GetByIdAsync(id);
             if (policy == null) return false;
-            _mapper.Map(dto, policy);
+            
+            // Chỉ cập nhật các field được truyền vào (không null)
+            if (!string.IsNullOrEmpty(dto.Title))
+                policy.Title = dto.Title;
+            
+            if (!string.IsNullOrEmpty(dto.Content))
+                policy.Content = dto.Content;
+            
+            if (dto.IsActive.HasValue)
+                policy.IsActive = dto.IsActive.Value;
+            
+            policy.UpdatedAt = DateTime.Now;
+            await _policyRepo.UpdateAsync(id, policy);
+            return true;
+        }
+
+        public async Task<bool> ToggleAsync(string id)
+        {
+            var policy = await _policyRepo.GetByIdAsync(id);
+            if (policy == null) return false;
+            else if(policy.IsActive == true) policy.IsActive = false;
+            else if(policy.IsActive == false) policy.IsActive = true; // Already deactivated
             policy.UpdatedAt = DateTime.Now;
             await _policyRepo.UpdateAsync(id, policy);
             return true;
