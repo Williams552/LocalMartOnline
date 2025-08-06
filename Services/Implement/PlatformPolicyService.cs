@@ -6,6 +6,7 @@ using LocalMartOnline.Services.Interface;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
+using System.Linq;
 
 namespace LocalMartOnline.Services.Implement
 {
@@ -20,9 +21,16 @@ namespace LocalMartOnline.Services.Implement
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<PlatformPolicyDto>> GetAllAsync()
+        public async Task<IEnumerable<PlatformPolicyDto>> GetAllAsync(PlatformPolicyFilterDto? filter = null)
         {
             var policies = await _policyRepo.GetAllAsync();
+            
+            // Apply filter if provided
+            if (filter?.IsActive.HasValue == true)
+            {
+                policies = policies.Where(p => p.IsActive == filter.IsActive.Value);
+            }
+            
             return _mapper.Map<IEnumerable<PlatformPolicyDto>>(policies);
         }
 

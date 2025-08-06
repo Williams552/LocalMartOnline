@@ -20,10 +20,10 @@ namespace LocalMartOnline.Controllers
 
         // UC105: View Platform Policies
         [HttpGet]
-        [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<PlatformPolicyDto>>> GetAll()
+        public async Task<ActionResult<IEnumerable<PlatformPolicyDto>>> GetAll([FromQuery] bool? isActive = null)
         {
-            var policies = await _policyService.GetAllAsync();
+            var filter = new PlatformPolicyFilterDto { IsActive = isActive };
+            var policies = await _policyService.GetAllAsync(filter);
             return Ok(policies);
         }
 
@@ -57,7 +57,6 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet("{id}")]
-        [AllowAnonymous]
         public async Task<ActionResult<PlatformPolicyDto>> GetById(string id)
         {
             var policy = await _policyService.GetByIdAsync(id);

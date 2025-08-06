@@ -6,7 +6,7 @@ namespace LocalMartOnline.Services.Interface
 {
     public interface IPlatformPolicyService
     {
-        Task<IEnumerable<PlatformPolicyDto>> GetAllAsync();
+        Task<IEnumerable<PlatformPolicyDto>> GetAllAsync(PlatformPolicyFilterDto? filter = null);
         Task<PlatformPolicyDto?> GetByIdAsync(string id);
         Task<PlatformPolicyDto> CreateAsync(PlatformPolicyCreateDto dto);
         Task<bool> UpdateAsync(string id, PlatformPolicyUpdateDto dto);

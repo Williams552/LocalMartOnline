@@ -24,4 +24,9 @@ namespace LocalMartOnline.Models.DTOs.PlatformPolicy
         public bool? IsActive { get; set; }
         public DateTime? UpdatedAt { get; set; } = DateTime.Now;
     }
+
+    public class PlatformPolicyFilterDto
+    {
+        public bool? IsActive { get; set; }
+    }
 }
