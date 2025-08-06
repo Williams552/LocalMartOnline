@@ -34,5 +34,6 @@ namespace LocalMartOnline.Services.Interface
         Task<ProxyRequestsResponseDto?> GetProxyRequestDetailForAdminAsync(string requestId);
         Task<bool> UpdateProxyRequestStatusAsync(string requestId, string status);
         Task<bool> UpdateProxyOrderStatusAsync(string orderId, string status);
+        Task<bool> CancelRequestAsync(string requestId, string buyerId);
     }
 }
