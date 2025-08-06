@@ -17,6 +17,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<Order> _orderRepo;
         private readonly IRepository<OrderItem> _orderItemRepo;
         private readonly IRepository<Product> _productRepo;
+        private readonly IRepository<FastBargain> _fastBargainRepo;
         private readonly ICartService _cartService;
         private readonly IMapper _mapper;
         private readonly IMongoCollection<User> _userCollection;
@@ -33,6 +34,7 @@ namespace LocalMartOnline.Services.Implement
             IRepository<Order> orderRepo,
             IRepository<OrderItem> orderItemRepo,
             IRepository<Product> productRepo,
+            IRepository<FastBargain> fastBargainRepo,
             IRepository<Notification> notificationRepo,
             ICartService cartService,
             IMapper mapper)
@@ -40,6 +42,7 @@ namespace LocalMartOnline.Services.Implement
             _orderRepo = orderRepo;
             _orderItemRepo = orderItemRepo;
             _productRepo = productRepo;
+            _fastBargainRepo = fastBargainRepo;
             _notificationRepo = notificationRepo;
             _cartService = cartService;
             _mapper = mapper;
@@ -481,8 +484,19 @@ namespace LocalMartOnline.Services.Implement
             var buyer = await _userCollection.Find(u => u.Id == dto.BuyerId).FirstOrDefaultAsync();
             var buyerName = buyer?.FullName ?? "Khách hàng";
 
+            // Lấy cart items thực tế từ database thay vì dùng DTO từ client
+            var actualCartItems = await _cartService.GetCartItemsWithDetailsAsync(dto.BuyerId);
+            if (actualCartItems == null || !actualCartItems.Any())
+            {
+                throw new Exception("Giỏ hàng trống hoặc không tồn tại");
+            }
+
+            // Lọc chỉ những sản phẩm được chọn để đặt hàng
+            var selectedProductIds = dto.CartItems.Select(item => item.ProductId).ToHashSet();
+            var selectedCartItems = actualCartItems.Where(item => selectedProductIds.Contains(item.ProductId)).ToList();
+
             // Nhóm các sản phẩm theo StoreId (SellerId)
-            var groupedByStore = dto.CartItems.GroupBy(item => item.Product.StoreId);
+            var groupedByStore = selectedCartItems.GroupBy(item => item.Product.StoreId);
 
             foreach (var storeGroup in groupedByStore)
             {
@@ -508,8 +522,14 @@ namespace LocalMartOnline.Services.Implement
                     UpdatedAt = DateTime.Now
                 };
 
-                // Tính tổng tiền cho đơn hàng này
-                order.TotalAmount = storeItems.Sum(i => i.Product.Price * (decimal)i.Quantity);
+                // Tính tổng tiền cho đơn hàng này - sử dụng giá trả giá nếu có
+                decimal totalAmount = 0;
+                foreach (var item in storeItems)
+                {
+                    var finalPrice = item.BargainPrice ?? item.Product.Price;
+                    totalAmount += finalPrice * (decimal)item.Quantity;
+                }
+                order.TotalAmount = totalAmount;
 
                 await _orderRepo.CreateAsync(order);
 
@@ -532,7 +552,7 @@ namespace LocalMartOnline.Services.Implement
                         OrderId = order.Id!,
                         ProductId = cartItem.ProductId,
                         Quantity = (decimal)cartItem.Quantity,
-                        PriceAtPurchase = cartItem.Product.Price
+                        PriceAtPurchase = cartItem.BargainPrice ?? cartItem.Product.Price, // Sử dụng giá trả giá nếu có
                     };
                     await _orderItemRepo.CreateAsync(orderItem);
 
@@ -544,15 +564,27 @@ namespace LocalMartOnline.Services.Implement
                         ProductImageUrl = cartItem.Product.Images,
                         ProductUnitName = cartItem.Product.Unit,
                         Quantity = (decimal)cartItem.Quantity,
-                        PriceAtPurchase = cartItem.Product.Price
+                        PriceAtPurchase = cartItem.BargainPrice ?? cartItem.Product.Price // Sử dụng giá trả giá nếu có
                     });
                 }
 
                 // Map sang DTO
-                var orderDto = _mapper.Map<OrderDto>(order);
-                orderDto.Items = orderItemDtos;
-                orderDto.StoreName = store.Name;
-                orderDto.BuyerName = buyerName;
+                var orderDto = new OrderDto
+                {
+                    Id = order.Id,
+                    BuyerId = order.BuyerId,
+                    SellerId = order.SellerId,
+                    TotalAmount = order.TotalAmount, // Explicitly set TotalAmount
+                    Status = order.Status.ToString(),
+                    PaymentStatus = order.PaymentStatus.ToString(),
+                    Notes = order.Notes,
+                    CreatedAt = order.CreatedAt,
+                    UpdatedAt = order.UpdatedAt,
+                    Items = orderItemDtos,
+                    StoreName = store.Name,
+                    BuyerName = buyerName
+                };
+                Console.WriteLine($"[DEBUG] OrderDto TotalAmount: {orderDto.TotalAmount}");
 
                 orders.Add(orderDto);
 
@@ -561,7 +593,7 @@ namespace LocalMartOnline.Services.Implement
             }
 
             // Xóa tất cả các sản phẩm đã đặt hàng khỏi giỏ hàng
-            var allOrderedProductIds = dto.CartItems.Select(item => item.ProductId).ToList();
+            var allOrderedProductIds = selectedCartItems.Select(item => item.ProductId).ToList();
             await RemoveOrderedItemsFromCartAsync(dto.BuyerId, allOrderedProductIds);
 
             return orders;
@@ -581,6 +613,7 @@ namespace LocalMartOnline.Services.Implement
                     CreatedAt = DateTime.Now
                 };
 
+                Console.WriteLine($"[DEBUG] Order TotalAmount in notification: {order.TotalAmount}");
                 await _notificationRepo.CreateAsync(notification);
             }
             catch (Exception ex)
@@ -807,6 +840,21 @@ namespace LocalMartOnline.Services.Implement
             {
                 Console.Error.WriteLine($"Failed to remove ordered items from cart: {ex.Message}");
             }
+        }
+
+        // Helper method để bổ sung thông tin bargain cho OrderItemDto
+        private OrderItemDto EnrichOrderItemWithBargainInfoAsync(OrderItem item, Product product, ProductUnit? unit, ProductImage? image)
+        {
+            var orderItemDto = new OrderItemDto
+            {
+                ProductId = product.Id ?? string.Empty,
+                ProductName = product.Name,
+                ProductImageUrl = image?.ImageUrl ?? string.Empty,
+                ProductUnitName = unit?.DisplayName ?? "kg",
+                Quantity = item.Quantity,
+                PriceAtPurchase = item.PriceAtPurchase
+            };
+            return orderItemDto;
         }
     }
 }

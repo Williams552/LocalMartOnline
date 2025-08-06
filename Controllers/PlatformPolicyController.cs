@@ -20,11 +20,20 @@ namespace LocalMartOnline.Controllers
 
         // UC105: View Platform Policies
         [HttpGet]
-        [AllowAnonymous]
-        public async Task<ActionResult<IEnumerable<PlatformPolicyDto>>> GetAll()
+        public async Task<ActionResult<IEnumerable<PlatformPolicyDto>>> GetAll([FromQuery] bool? isActive = null)
         {
-            var policies = await _policyService.GetAllAsync();
+            var filter = new PlatformPolicyFilterDto { IsActive = isActive };
+            var policies = await _policyService.GetAllAsync(filter);
             return Ok(policies);
+        }
+
+        // UC104: Create Platform Policy
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<PlatformPolicyDto>> Create([FromBody] PlatformPolicyCreateDto dto)
+        {
+            var createdPolicy = await _policyService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetById), new { id = createdPolicy.Id }, createdPolicy);
         }
 
         // UC106: Update Policies
@@ -37,8 +46,17 @@ namespace LocalMartOnline.Controllers
             return NoContent();
         }
 
+        // UC107: Toggle Platform Policy
+        [HttpPut("{id}/toggle")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Toggle(string id)
+        {
+            var result = await _policyService.ToggleAsync(id);
+            if (!result) return NotFound();
+            return NoContent();
+        }
+
         [HttpGet("{id}")]
-        [AllowAnonymous]
         public async Task<ActionResult<PlatformPolicyDto>> GetById(string id)
         {
             var policy = await _policyService.GetByIdAsync(id);
