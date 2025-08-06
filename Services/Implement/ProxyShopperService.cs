@@ -272,17 +272,12 @@ namespace LocalMartOnline.Services.Implement
         {
             try
             {
-                Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - Starting for ProxyShopperId: {proxyShopperId}");
-                
                 // Lấy thông tin proxy shopper registration để biết MarketId
                 var proxyRegistration = await _proxyRepo.FindOneAsync(p => p.UserId == proxyShopperId && p.Status == "Approved");
                 if (proxyRegistration == null)
                 {
-                    Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - No approved registration found for proxy: {proxyShopperId}");
                     return new List<ProxyRequest>();
                 }
-
-                Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - Proxy registered for MarketId: {proxyRegistration.MarketId}");
 
                 // Lấy các request Open trong chợ mà proxy đã đăng ký
                 var availableRequests = await _requestRepo.FindManyAsync(r => 
@@ -290,7 +285,6 @@ namespace LocalMartOnline.Services.Implement
                     r.MarketId == proxyRegistration.MarketId);
 
                 var result = availableRequests.OrderByDescending(r => r.CreatedAt).ToList();
-                Console.WriteLine($"[DEBUG] GetAvailableRequestsForProxyAsync - Found {result.Count} available requests");
                 
                 return result;
             }
@@ -305,31 +299,24 @@ namespace LocalMartOnline.Services.Implement
         {
             try
             {
-                Console.WriteLine($"[DEBUG] GetMyAcceptedRequestsAsync - Starting for ProxyShopperId: {proxyShopperId}");
-                
                 // Lấy tất cả orders của proxy shopper
                 var myOrders = await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId);
-                Console.WriteLine($"[DEBUG] GetMyAcceptedRequestsAsync - Found {myOrders.Count()} orders");
 
                 if (!myOrders.Any()) 
                 {
-                    Console.WriteLine($"[DEBUG] GetMyAcceptedRequestsAsync - No orders found");
                     return new List<ProxyShopperAcceptedRequestDto>();
                 }
 
                 // Lấy tất cả request IDs từ orders
                 var requestIds = myOrders.Select(o => o.ProxyRequestId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
-                Console.WriteLine($"[DEBUG] GetMyAcceptedRequestsAsync - Found {requestIds.Count} unique request IDs");
 
                 if (!requestIds.Any()) 
                 {
-                    Console.WriteLine($"[DEBUG] GetMyAcceptedRequestsAsync - No valid request IDs found");
                     return new List<ProxyShopperAcceptedRequestDto>();
                 }
 
                 // Lấy tất cả requests
                 var myRequests = await _requestRepo.FindManyAsync(r => requestIds.Contains(r.Id));
-                Console.WriteLine($"[DEBUG] GetMyAcceptedRequestsAsync - Found {myRequests.Count()} requests");
 
                 // Lấy thông tin buyers
                 var buyerIds = myRequests.Select(r => r.BuyerId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
@@ -345,8 +332,6 @@ namespace LocalMartOnline.Services.Implement
 
                 foreach (var request in myRequests)
                 {
-                    Console.WriteLine($"[DEBUG] GetMyAcceptedRequestsAsync - Processing request: {request.Id}");
-                    
                     // Lấy thông tin buyer
                     var buyer = userDict.TryGetValue(request.BuyerId, out var user) ? user : null;
                     
@@ -376,7 +361,7 @@ namespace LocalMartOnline.Services.Implement
                         OrderItems = order?.Items ?? new List<ProductDto>(),
                         TotalAmount = order?.TotalAmount,
                         ProxyFee = order?.ProxyFee,
-                        DeliveryAddress = order?.DeliveryAddress,
+                        DeliveryAddress = request?.DeliveryAddress,
                         Notes = order?.Notes,
                         ProofImages = order?.ProofImages,
                         OrderCreatedAt = order?.CreatedAt,
@@ -391,19 +376,15 @@ namespace LocalMartOnline.Services.Implement
                     };
 
                     result.Add(dto);
-                    Console.WriteLine($"[DEBUG] GetMyAcceptedRequestsAsync - Added DTO for request {request.Id} with phase {currentPhase}");
                 }
 
                 // Sắp xếp theo thời gian tạo request (mới nhất trước)
                 result = result.OrderByDescending(r => r.RequestCreatedAt).ToList();
                 
-                Console.WriteLine($"[DEBUG] GetMyAcceptedRequestsAsync - Returning {result.Count} results");
                 return result;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[ERROR] GetMyAcceptedRequestsAsync - Exception: {ex.Message}");
-                Console.WriteLine($"[ERROR] GetMyAcceptedRequestsAsync - StackTrace: {ex.StackTrace}");
                 return new List<ProxyShopperAcceptedRequestDto>();
             }
         }
@@ -513,8 +494,14 @@ namespace LocalMartOnline.Services.Implement
                     }
 
                     // Tính toán current phase
-                    string currentPhase = "Chưa có Proxy nhận";
-                    if (order != null)
+                    string currentPhase;
+                    
+                    // Kiểm tra trạng thái request trước
+                    if (request.Status == ProxyRequestStatus.Cancelled)
+                    {
+                        currentPhase = "Yêu cầu đã bị hủy";
+                    }
+                    else if (order != null)
                     {
                         currentPhase = order.Status switch
                         {
@@ -527,6 +514,10 @@ namespace LocalMartOnline.Services.Implement
                             ProxyOrderStatus.Expired => "Đã hết hạn",
                             _ => "Không xác định"
                         };
+                    }
+                    else
+                    {
+                        currentPhase = "Chưa có Proxy nhận";
                     }
 
                     var dto = new ProxyRequestsResponseDto
@@ -552,7 +543,7 @@ namespace LocalMartOnline.Services.Implement
                         OrderItems = order?.Items,
                         TotalAmount = order?.TotalAmount,
                         ProxyFee = order?.ProxyFee,
-                        DeliveryAddress = order?.DeliveryAddress,
+                        DeliveryAddress = request?.DeliveryAddress,
                         Notes = order?.Notes,
                         ProofImages = order?.ProofImages,
                         OrderCreatedAt = order?.CreatedAt,
@@ -576,6 +567,12 @@ namespace LocalMartOnline.Services.Implement
         private (string currentPhase, bool canEditProposal, bool canStartShopping, bool canUploadProof, bool canCancel) 
             CalculateOrderPhaseAndPermissions(ProxyRequest request, ProxyShoppingOrder? order)
         {
+            // Kiểm tra trạng thái request trước
+            if (request.Status == ProxyRequestStatus.Cancelled)
+            {
+                return ("Yêu cầu đã bị hủy", false, false, false, false);
+            }
+
             if (order == null)
             {
                 // Chỉ có request, chưa có order (không bao giờ xảy ra trong flow này, nhưng để đảm bảo)
@@ -632,30 +629,21 @@ namespace LocalMartOnline.Services.Implement
         {
             try
             {
-                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Starting for ProxyShopperId: {proxyShopperId}, Query: {query}");
-                
                 // Lấy thông tin proxy shopper registration để biết MarketId
                 var proxyRegistration = await _proxyRepo.FindOneAsync(p => p.UserId == proxyShopperId && p.Status == "Approved");
                 if (proxyRegistration == null)
                 {
-                    Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - No approved registration found for proxy: {proxyShopperId}");
                     return new List<object>();
                 }
-
-                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Proxy registered for MarketId: {proxyRegistration.MarketId}");
 
                 // Lấy tất cả stores trong market mà proxy đã đăng ký
                 var storesInMarket = await _storeRepo.FindManyAsync(s => s.MarketId == proxyRegistration.MarketId);
                 var storeIdsInMarket = storesInMarket.Select(s => s.Id!).ToList();
-                
-                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Found {storeIdsInMarket.Count} stores in market");
 
                 // Tìm sản phẩm theo tên trong các cửa hàng thuộc chợ mà proxy đã đăng ký
                 var products = (await _productRepo.FindManyAsync(p => 
                     p.Name.ToLower().Contains(query.ToLower()) && 
                     storeIdsInMarket.Contains(p.StoreId)))?.ToList() ?? new List<Product>();
-                
-                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Found {products.Count} products in store");
                 
                 if (!products.Any()) return new List<object>();
 
@@ -732,13 +720,10 @@ namespace LocalMartOnline.Services.Implement
                 .Cast<object>()
                 .ToList();
                 
-                Console.WriteLine($"[DEBUG] AdvancedProductSearchAsync - Returning {result.Count} products");
                 return result;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"[ERROR] AdvancedProductSearchAsync - Exception: {ex.Message}");
-                Console.WriteLine($"[ERROR] AdvancedProductSearchAsync - StackTrace: {ex.StackTrace}");
                 return new List<object>();
             }
         }
@@ -748,12 +733,9 @@ namespace LocalMartOnline.Services.Implement
         {
             try
             {
-                Console.WriteLine($"[DEBUG] SendProposalAsync - Starting with OrderId: {orderId}");
-                
                 var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
                 if (order == null)
                 {
-                    Console.WriteLine($"[DEBUG] SendProposalAsync - Order not found: {orderId}");
                     return false;
                 }
 
@@ -1071,6 +1053,58 @@ namespace LocalMartOnline.Services.Implement
                 MarketId = request.MarketId,
                 MarketName = market?.Name
             };
+        }
+
+        // Buyer hủy request trước khi có proxy shopper nhận
+        public async Task<bool> CancelRequestAsync(string requestId, string buyerId)
+        {
+            try
+            {
+                var request = await _requestRepo.FindOneAsync(r => r.Id == requestId && r.BuyerId == buyerId);
+                if (request == null)
+                {
+                    return false;
+                }
+
+                // Chỉ cho phép hủy khi request còn ở trạng thái Open (chưa có proxy nhận)
+                if (request.Status != ProxyRequestStatus.Open)
+                {
+                    return false;
+                }
+
+                // Cập nhật trạng thái request thành Cancelled
+                request.Status = ProxyRequestStatus.Cancelled;
+                request.UpdatedAt = DateTime.UtcNow;
+                await _requestRepo.UpdateAsync(requestId, request);
+
+                // Tạo notification cho buyer
+                try
+                {
+                    var buyer = await _userRepo.FindOneAsync(u => u.Id == buyerId);
+                    var buyerName = buyer?.FullName ?? "Khách hàng";
+
+                    var title = "❌ Yêu cầu đã được hủy";
+                    var message = $"Bạn đã hủy thành công yêu cầu đi chợ giùm #{requestId.Substring(requestId.Length - 8)}. " +
+                                $"Yêu cầu này sẽ không còn hiển thị cho các proxy shopper.";
+                    
+                    await _notificationService.CreateNotificationAsync(
+                        buyerId,
+                        title,
+                        message,
+                        "PROXY_SHOPPING_REQUEST_CANCELLED"
+                    );
+                }
+                catch
+                {
+                    // Không throw exception vì notification không phải critical operation
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }
