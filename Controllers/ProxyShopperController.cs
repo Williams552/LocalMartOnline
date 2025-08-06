@@ -352,34 +352,6 @@ namespace LocalMartOnline.Controllers
             return Ok(request);
         }
 
-        // Buyer hủy request trước khi có proxy shopper nhận
-        [HttpPost("requests/{requestId}/cancel")]
-        [Authorize(Roles = "Buyer")]
-        public async Task<IActionResult> CancelRequest(string requestId)
-        {
-            try
-            {
-                var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(buyerId))
-                    return Unauthorized("Không tìm thấy userId trong token.");
-
-                var result = await _proxyShopperService.CancelRequestAsync(requestId, buyerId);
-                
-                if (result)
-                {
-                    return Ok(new { message = "Hủy yêu cầu thành công.", requestId });
-                }
-                else
-                {
-                    return BadRequest("Không thể hủy yêu cầu này. Yêu cầu có thể không tồn tại, không thuộc về bạn, hoặc đã có proxy shopper nhận.");
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Lỗi server: {ex.Message}");
-            }
-        }
-
         [HttpGet("products/advanced-search")]
         [Authorize(Roles = "Proxy Shopper")]
         public async Task<IActionResult> AdvancedProductSearch(
