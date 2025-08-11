@@ -14,12 +14,6 @@ namespace LocalMartOnline.Models
         Cancelled   // Đơn hàng bị hủy
     }
 
-    public enum PaymentStatus
-    {
-        Pending,
-        Completed,
-        Failed
-    }
 
     public class Order
     {
@@ -41,9 +35,6 @@ namespace LocalMartOnline.Models
         [BsonRepresentation(BsonType.String)]
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
-        [BsonElement("payment_status")]
-        [BsonRepresentation(BsonType.String)]
-        public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
 
         [BsonElement("notes")]
         public string? Notes { get; set; }
