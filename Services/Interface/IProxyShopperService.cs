@@ -20,6 +20,7 @@ namespace LocalMartOnline.Services.Interface
         Task<List<ProxyRequest>> GetAvailableRequestsForProxyAsync(string proxyShopperId);
         Task<string?> AcceptRequestAndCreateOrderAsync(string requestId, string proxyShopperId);
         Task<bool> SendProposalAsync(string orderId, ProxyShoppingProposalDTO proposal);
+        Task<bool> RejectProposalAsync(string orderId, string buyerId, string reason);
         Task<bool> BuyerApproveAndPayAsync(string orderId, string buyerId);
         Task<bool> StartShoppingAsync(string orderId, string proxyShopperId);
         Task<bool> UploadBoughtItemsAsync(string orderId, string imageUrls, string? note);
