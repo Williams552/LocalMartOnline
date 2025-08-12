@@ -32,6 +32,7 @@ namespace LocalMartOnline.Controllers
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null,
             [FromQuery] string? role = null,
+            [FromQuery] string? status = null,
             [FromQuery] string? sortField = null,
             [FromQuery] string? sortOrder = "asc")
         {
@@ -39,7 +40,7 @@ namespace LocalMartOnline.Controllers
             {
                 return BadRequest(new { success = false, message = "pageNumber and pageSize must be positive integers greater than zero.", data = (object?)null });
             }
-            var (users, total) = await _userService.GetUsersPagingAsync(pageNumber, pageSize, search, role, sortField, sortOrder);
+            var (users, total) = await _userService.GetUsersPagingAsync(pageNumber, pageSize, search, role, status, sortField, sortOrder);
             var userDtos = users.Select(u => _mapper.Map<UserDTO>(u));
             return Ok(new
             {

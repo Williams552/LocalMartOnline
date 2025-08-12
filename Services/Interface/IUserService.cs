@@ -17,6 +17,7 @@ namespace LocalMartOnline.Services
             int pageSize = 10,
             string? search = null,
             string? role = null,
+            string? status = null,
             string? sortField = null,
             string? sortOrder = "asc");
         Task<bool> ToggleUserAccountAsync(string id);

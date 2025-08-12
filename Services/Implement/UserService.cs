@@ -112,6 +112,7 @@ namespace LocalMartOnline.Services
             int pageSize = 10,
             string? search = null,
             string? role = null,
+            string? status = null,
             string? sortField = null,
             string? sortOrder = "asc")
         {
@@ -130,6 +131,17 @@ namespace LocalMartOnline.Services
             if (!string.IsNullOrEmpty(role))
             {
                 filter &= filterBuilder.Eq(u => u.Role, role);
+            }
+            if (!string.IsNullOrEmpty(status))
+            {
+                if (status.ToLower() == "active")
+                {
+                    filter &= filterBuilder.Eq(u => u.Status, "Active");
+                }
+                else if (status.ToLower() == "blocked")
+                {
+                    filter &= filterBuilder.Ne(u => u.Status, "Active");
+                }
             }
 
             var sortBuilder = MongoDB.Driver.Builders<User>.Sort;
