@@ -31,7 +31,7 @@ namespace LocalMartOnline.Models.DTOs.Seller
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
-        public string OperatingArea { get; set; } = string.Empty;
+        public string MarketName { get; set; } = string.Empty;
         public string TransportMethod { get; set; } = string.Empty;
         public string PaymentMethod { get; set; } = string.Empty;
         public string Status { get; set; } = "Pending";

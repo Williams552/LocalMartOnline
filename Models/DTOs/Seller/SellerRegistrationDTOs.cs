@@ -34,6 +34,7 @@ namespace LocalMartOnline.Models.DTOs
         public string? Name { get; set; }
         public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
+        public string MarketName { get; set; } = string.Empty;
         public string StoreName { get; set; } = string.Empty;
         public string StoreAddress { get; set; } = string.Empty;
         public string MarketId { get; set; } = string.Empty;

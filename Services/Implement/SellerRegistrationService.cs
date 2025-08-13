@@ -15,12 +15,20 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<SellerRegistration> _sellerRepo;
         private readonly IRepository<User> _userRepo;
         private readonly IRepository<Store> _storeRepo;
+        private readonly IRepository<Market> _marketRepo; // Thêm MarketRepository
         private readonly IMapper _mapper;
-        public SellerRegistrationervice(IRepository<SellerRegistration> sellerRepo, IRepository<User> userRepo, IRepository<Store> storeRepo, IMapper mapper)
+
+        public SellerRegistrationervice(
+            IRepository<SellerRegistration> sellerRepo,
+            IRepository<User> userRepo,
+            IRepository<Store> storeRepo,
+            IRepository<Market> marketRepo,
+            IMapper mapper)
         {
             _sellerRepo = sellerRepo;
             _userRepo = userRepo;
             _storeRepo = storeRepo;
+            _marketRepo = marketRepo;
             _mapper = mapper;
         }
 
@@ -40,6 +48,7 @@ namespace LocalMartOnline.Services.Implement
             var myReg = await _sellerRepo.FindOneAsync(r => r.UserId == userId);
             if (myReg == null) return null;
             var dto = _mapper.Map<SellerRegistrationResponseDTO>(myReg);
+
             // Lấy thông tin user
             var user = await _userRepo.FindOneAsync(u => u.Id == userId);
             if (user != null)
@@ -47,6 +56,16 @@ namespace LocalMartOnline.Services.Implement
                 dto.Name = user.FullName;
                 dto.Email = user.Email;
                 dto.PhoneNumber = user.PhoneNumber;
+            }
+
+            // Lấy tên chợ từ MarketId
+            if (!string.IsNullOrEmpty(myReg.MarketId))
+            {
+                var market = await _marketRepo.FindOneAsync(m => m.Id == myReg.MarketId);
+                if (market != null)
+                {
+                    dto.MarketName = market.Name;
+                }
             }
             return dto;
         }
@@ -57,6 +76,12 @@ namespace LocalMartOnline.Services.Implement
             var userIds = regs.Select(r => r.UserId).Distinct().ToList();
             var users = await _userRepo.FindManyAsync(u => userIds.Contains(u.Id));
             var userDict = users.ToDictionary(u => u.Id, u => u);
+
+            // Lấy tất cả MarketIds từ regs
+            var marketIds = regs.Select(r => r.MarketId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+            var markets = await _marketRepo.FindManyAsync(m => marketIds.Contains(m.Id));
+            var marketDict = markets.ToDictionary(m => m.Id, m => m);
+
             var result = new List<SellerRegistrationResponseDTO>();
             foreach (var reg in regs)
             {
@@ -66,6 +91,11 @@ namespace LocalMartOnline.Services.Implement
                     dto.Name = user.FullName;
                     dto.Email = user.Email;
                     dto.PhoneNumber = user.PhoneNumber;
+                }
+                // Lấy tên chợ từ MarketId
+                if (!string.IsNullOrEmpty(reg.MarketId) && marketDict.TryGetValue(reg.MarketId, out var market))
+                {
+                    dto.MarketName = market.Name;
                 }
                 result.Add(dto);
             }
@@ -93,14 +123,14 @@ namespace LocalMartOnline.Services.Implement
             reg.Status = dto.Approve ? "Approved" : "Rejected";
             reg.RejectionReason = dto.Approve ? null : dto.RejectionReason;
             reg.UpdatedAt = DateTime.Now;
-            
+
             // Chỉ cập nhật license dates khi approve
             if (dto.Approve)
             {
                 reg.LicenseEffectiveDate = dto.LicenseEffectiveDate;
                 reg.LicenseExpiryDate = dto.LicenseExpiryDate;
             }
-            
+
             await _sellerRepo.UpdateAsync(reg.Id!, reg);
             if (dto.Approve)
             {

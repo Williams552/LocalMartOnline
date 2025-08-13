@@ -19,7 +19,7 @@ namespace LocalMartOnline.Models
         public string MarketId { get; set; } = string.Empty;
 
         [BsonElement("operating_area")]
-        public string OperatingArea { get; set; } = string.Empty;
+        public string MarketName { get; set; } = string.Empty;
 
         [BsonElement("transport_method")]
         public string TransportMethod { get; set; } = string.Empty;

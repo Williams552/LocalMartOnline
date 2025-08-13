@@ -180,6 +180,18 @@ namespace LocalMartOnline.Services.Implement
         {
             var myReg = await _proxyRepo.FindOneAsync(r => r.UserId == userId);
             if (myReg == null) return null;
+
+            // Lấy tên chợ từ MarketId
+            string marketName = "Chưa xác định";
+            if (!string.IsNullOrEmpty(myReg.MarketId))
+            {
+                var market = await _marketRepo.FindOneAsync(m => m.Id == myReg.MarketId);
+                if (market != null)
+                {
+                    marketName = market.Name;
+                }
+            }
+
             var dto = _mapper.Map<ProxyShopperRegistrationResponseDTO>(myReg);
             // Lấy thông tin user
             var user = await _userRepo.FindOneAsync(u => u.Id == userId);
@@ -189,6 +201,7 @@ namespace LocalMartOnline.Services.Implement
                 dto.Email = user.Email;
                 dto.PhoneNumber = user.PhoneNumber;
             }
+            dto.MarketName = marketName;
             return dto;
         }
 
@@ -198,6 +211,12 @@ namespace LocalMartOnline.Services.Implement
             var userIds = regs.Select(r => r.UserId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
             var users = await _userRepo.FindManyAsync(u => u.Id != null && userIds.Contains(u.Id));
             var userDict = users.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
+
+            // Lấy tất cả MarketIds từ regs
+            var marketIds = regs.Select(r => r.MarketId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+            var markets = await _marketRepo.FindManyAsync(m => m.Id != null && marketIds.Contains(m.Id));
+            var marketDict = markets.Where(m => m.Id != null).ToDictionary(m => m.Id!, m => m);
+
             var result = new List<ProxyShopperRegistrationResponseDTO>();
             foreach (var reg in regs)
             {
@@ -208,6 +227,10 @@ namespace LocalMartOnline.Services.Implement
                     dto.Email = user.Email;
                     dto.PhoneNumber = user.PhoneNumber;
                 }
+                // Gán OperatingArea là tên chợ từ MarketId
+                dto.MarketName = (!string.IsNullOrEmpty(reg.MarketId) && marketDict.TryGetValue(reg.MarketId, out var market))
+                    ? market.Name
+                    : "Chưa xác định";
                 result.Add(dto);
             }
             return result;
@@ -217,7 +240,7 @@ namespace LocalMartOnline.Services.Implement
         {
             var reg = await _proxyRepo.FindOneAsync(r => r.Id == dto.RegistrationId);
             if (reg == null) return false;
-            
+
             reg.Status = dto.Approve ? "Approved" : "Rejected";
             reg.RejectionReason = dto.Approve ? null : dto.RejectionReason;
             reg.UpdatedAt = DateTime.Now;
@@ -234,7 +257,7 @@ namespace LocalMartOnline.Services.Implement
                     Console.WriteLine($"[INFO] ApproveRegistrationAsync - Updated user {user.Id} role to 'Proxy Shopper'");
                 }
             }
-            
+
             return true;
         }
         // 1. Buyer tạo request (yêu cầu đi chợ giùm)
@@ -280,12 +303,12 @@ namespace LocalMartOnline.Services.Implement
                 }
 
                 // Lấy các request Open trong chợ mà proxy đã đăng ký
-                var availableRequests = await _requestRepo.FindManyAsync(r => 
-                    r.Status == ProxyRequestStatus.Open && 
+                var availableRequests = await _requestRepo.FindManyAsync(r =>
+                    r.Status == ProxyRequestStatus.Open &&
                     r.MarketId == proxyRegistration.MarketId);
 
                 var result = availableRequests.OrderByDescending(r => r.CreatedAt).ToList();
-                
+
                 return result;
             }
             catch (Exception ex)
@@ -302,7 +325,7 @@ namespace LocalMartOnline.Services.Implement
                 // Lấy tất cả orders của proxy shopper
                 var myOrders = await _orderRepo.FindManyAsync(o => o.ProxyShopperId == proxyShopperId);
 
-                if (!myOrders.Any()) 
+                if (!myOrders.Any())
                 {
                     return new List<ProxyShopperAcceptedRequestDto>();
                 }
@@ -310,7 +333,7 @@ namespace LocalMartOnline.Services.Implement
                 // Lấy tất cả request IDs từ orders
                 var requestIds = myOrders.Select(o => o.ProxyRequestId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
 
-                if (!requestIds.Any()) 
+                if (!requestIds.Any())
                 {
                     return new List<ProxyShopperAcceptedRequestDto>();
                 }
@@ -334,10 +357,10 @@ namespace LocalMartOnline.Services.Implement
                 {
                     // Lấy thông tin buyer
                     var buyer = userDict.TryGetValue(request.BuyerId, out var user) ? user : null;
-                    
+
                     // Lấy thông tin order tương ứng
                     var order = orderDict.TryGetValue(request.Id, out var ord) ? ord : null;
-                    
+
                     // Tính toán current phase và permissions
                     var (currentPhase, canEditProposal, canStartShopping, canUploadProof, canCancel) = CalculateOrderPhaseAndPermissions(request, order);
 
@@ -349,12 +372,12 @@ namespace LocalMartOnline.Services.Implement
                         RequestStatus = request.Status.ToString(),
                         RequestCreatedAt = request.CreatedAt,
                         RequestUpdatedAt = request.UpdatedAt,
-                        
+
                         // Buyer Information
                         BuyerName = buyer?.FullName,
                         BuyerEmail = buyer?.Email,
                         BuyerPhone = buyer?.PhoneNumber,
-                        
+
                         // Order Information
                         OrderId = order?.Id,
                         OrderStatus = order?.Status.ToString(),
@@ -366,7 +389,7 @@ namespace LocalMartOnline.Services.Implement
                         ProofImages = order?.ProofImages,
                         OrderCreatedAt = order?.CreatedAt,
                         OrderUpdatedAt = order?.UpdatedAt,
-                        
+
                         // UI State
                         CurrentPhase = currentPhase,
                         CanEditProposal = canEditProposal,
@@ -380,7 +403,7 @@ namespace LocalMartOnline.Services.Implement
 
                 // Sắp xếp theo thời gian tạo request (mới nhất trước)
                 result = result.OrderByDescending(r => r.RequestCreatedAt).ToList();
-                
+
                 return result;
             }
             catch (Exception)
@@ -402,7 +425,7 @@ namespace LocalMartOnline.Services.Implement
                     myRequests = (await _requestRepo.FindManyAsync(r => r.BuyerId == userId)).ToList();
                     // Lấy các order tương ứng với requests của buyer
                     var requestIds = myRequests.Select(r => r.Id).ToList();
-                    relatedOrders = requestIds.Any() 
+                    relatedOrders = requestIds.Any()
                         ? (await _orderRepo.FindManyAsync(o => o.ProxyRequestId != null && requestIds.Contains(o.ProxyRequestId))).ToList()
                         : new List<ProxyShoppingOrder>();
                 }
@@ -415,8 +438,8 @@ namespace LocalMartOnline.Services.Implement
                                                   .Select(o => o.ProxyRequestId!)
                                                   .Distinct()
                                                   .ToList();
-                    
-                    myRequests = requestIds.Any() 
+
+                    myRequests = requestIds.Any()
                         ? (await _requestRepo.FindManyAsync(r => r.Id != null && requestIds.Contains(r.Id))).ToList()
                         : new List<ProxyRequest>();
                 }
@@ -441,14 +464,14 @@ namespace LocalMartOnline.Services.Implement
                     partnerIds = myRequests.Select(r => r.BuyerId).Distinct().ToList();
                 }
 
-                var partners = partnerIds.Any() 
+                var partners = partnerIds.Any()
                     ? await _userRepo.FindManyAsync(u => u.Id != null && partnerIds.Contains(u.Id))
                     : new List<User>();
                 var partnerDict = partners.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
 
                 // Lấy thông tin stores
                 var storeIds = myRequests.Select(r => r.MarketId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
-                var stores = storeIds.Any() 
+                var stores = storeIds.Any()
                     ? await _storeRepo.FindManyAsync(s => s.Id != null && storeIds.Contains(s.Id))
                     : new List<Store>();
                 var storeDict = stores.Where(s => s.Id != null).ToDictionary(s => s.Id!, s => s);
@@ -495,7 +518,7 @@ namespace LocalMartOnline.Services.Implement
 
                     // Tính toán current phase
                     string currentPhase;
-                    
+
                     // Kiểm tra trạng thái request trước
                     if (request.Status == ProxyRequestStatus.Cancelled)
                     {
@@ -530,13 +553,13 @@ namespace LocalMartOnline.Services.Implement
                         UpdatedAt = request.UpdatedAt,
                         StoreId = request.MarketId,
                         StoreName = !string.IsNullOrEmpty(request.MarketId) && storeDict.TryGetValue(request.MarketId, out var store) ? store.Name : null,
-                        
+
                         // Partner Information
                         PartnerName = partnerName,
                         PartnerEmail = partnerEmail,
                         PartnerPhone = partnerPhone,
                         PartnerRole = partnerRole,
-                        
+
                         // Order Information
                         OrderId = order?.Id,
                         OrderStatus = order?.Status.ToString(),
@@ -548,7 +571,7 @@ namespace LocalMartOnline.Services.Implement
                         ProofImages = order?.ProofImages,
                         OrderCreatedAt = order?.CreatedAt,
                         OrderUpdatedAt = order?.UpdatedAt,
-                        
+
                         // UI Helpers
                         CurrentPhase = currentPhase
                     };
@@ -564,7 +587,7 @@ namespace LocalMartOnline.Services.Implement
             }
         }
 
-        private (string currentPhase, bool canEditProposal, bool canStartShopping, bool canUploadProof, bool canCancel) 
+        private (string currentPhase, bool canEditProposal, bool canStartShopping, bool canUploadProof, bool canCancel)
             CalculateOrderPhaseAndPermissions(ProxyRequest request, ProxyShoppingOrder? order)
         {
             // Kiểm tra trạng thái request trước
@@ -641,10 +664,10 @@ namespace LocalMartOnline.Services.Implement
                 var storeIdsInMarket = storesInMarket.Select(s => s.Id!).ToList();
 
                 // Tìm sản phẩm theo tên trong các cửa hàng thuộc chợ mà proxy đã đăng ký
-                var products = (await _productRepo.FindManyAsync(p => 
-                    p.Name.ToLower().Contains(query.ToLower()) && 
+                var products = (await _productRepo.FindManyAsync(p =>
+                    p.Name.ToLower().Contains(query.ToLower()) &&
                     storeIdsInMarket.Contains(p.StoreId)))?.ToList() ?? new List<Product>();
-                
+
                 if (!products.Any()) return new List<object>();
 
                 // Lấy thông tin các cửa hàng
@@ -680,7 +703,7 @@ namespace LocalMartOnline.Services.Implement
                     // Sử dụng ProductStatus thay vì InStock
                     double stockScore = p.Status == ProductStatus.Active ? 1 : 0;
                     double score = wPrice * priceScore + wReputation * reputationScore + wSold * soldScore + wStock * stockScore;
-                    
+
                     string? storeName = null;
                     if (!string.IsNullOrEmpty(p.StoreId) && storeDict.TryGetValue(p.StoreId, out var store))
                     {
@@ -719,7 +742,7 @@ namespace LocalMartOnline.Services.Implement
                 .OrderByDescending(x => x.Score)
                 .Cast<object>()
                 .ToList();
-                
+
                 return result;
             }
             catch (Exception)
@@ -745,7 +768,7 @@ namespace LocalMartOnline.Services.Implement
 
                 // Chuyển đổi từ ProxyShoppingProposalItemDto sang ProductDto
                 Console.WriteLine($"[DEBUG] SendProposalAsync - Converting {proposal.Items.Count} items");
-                var productDtos = proposal.Items.Select((item, index) => 
+                var productDtos = proposal.Items.Select((item, index) =>
                 {
                     Console.WriteLine($"[DEBUG] SendProposalAsync - Item {index + 1}: Id={item.Id}, Name={item.Name}, Quantity={item.Quantity}, Unit={item.Unit}, Price={item.Price}");
                     return new ProductDto
@@ -789,7 +812,7 @@ namespace LocalMartOnline.Services.Implement
                     var message = $"Proxy shopper đã gửi đề xuất đơn hàng cho yêu cầu của bạn. " +
                                 $"Tổng tiền: {order.TotalAmount:N0} VND, Phí proxy: {order.ProxyFee:N0} VND. " +
                                 $"Hãy kiểm tra và duyệt đề xuất để tiến hành thanh toán.";
-                    
+
                     await _notificationService.CreateNotificationAsync(
                         order.BuyerId,
                         title,
@@ -804,7 +827,7 @@ namespace LocalMartOnline.Services.Implement
                     Console.WriteLine($"[ERROR] SendProposalAsync - Failed to create notification: {notifEx.Message}");
                     // Không throw exception vì notification không phải critical operation
                 }
-                
+
                 return true;
             }
             catch (Exception ex)
@@ -821,7 +844,7 @@ namespace LocalMartOnline.Services.Implement
             try
             {
                 Console.WriteLine($"[DEBUG] BuyerApproveAndPayAsync - Starting with OrderId: {orderId}, BuyerId: {buyerId}");
-                
+
                 var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.BuyerId == buyerId);
                 if (order == null || order.Status != ProxyOrderStatus.Proposed)
                 {
@@ -853,7 +876,7 @@ namespace LocalMartOnline.Services.Implement
                         var message = $"Khách hàng đã duyệt đề xuất và hoàn tất thanh toán cho đơn hàng #{orderId.Substring(orderId.Length - 8)}. " +
                                     $"Tổng tiền: {order.TotalAmount:N0} VND, Phí của bạn: {order.ProxyFee:N0} VND. " +
                                     $"Bạn có thể bắt đầu mua hàng ngay bây giờ!";
-                        
+
                         await _notificationService.CreateNotificationAsync(
                             order.ProxyShopperId,
                             title,
@@ -901,14 +924,14 @@ namespace LocalMartOnline.Services.Implement
             try
             {
                 Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Starting with OrderId: {orderId}");
-                
+
                 var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
                 if (order == null)
                 {
                     Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Order not found: {orderId}");
                     return false;
                 }
-                
+
                 if (order.Status != ProxyOrderStatus.InProgress)
                 {
                     Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Order status is not InProgress: {order.Status}");
@@ -917,10 +940,10 @@ namespace LocalMartOnline.Services.Implement
                 order.ProofImages = proofImages;
                 order.Notes = note;
                 order.UpdatedAt = DateTime.UtcNow;
-                
+
                 Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Saving proof image to database: {order.ProofImages ?? "null"}");
                 Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Note: {note}");
-                
+
                 await _orderRepo.UpdateAsync(orderId, order);
                 Console.WriteLine($"[DEBUG] UploadBoughtItemsAsync - Successfully updated order {orderId}");
 
@@ -938,7 +961,7 @@ namespace LocalMartOnline.Services.Implement
                     var message = $"Proxy shopper đã hoàn tất việc mua sản phẩm của bạn và đã upload ảnh chứng từ. " +
                                 $"Đơn hàng #{orderId.Substring(orderId.Length - 8)} sẵn sàng để giao. " +
                                 $"Hãy kiểm tra ảnh chứng từ và xác nhận đã nhận hàng.";
-                    
+
                     await _notificationService.CreateNotificationAsync(
                         order.BuyerId,
                         title,
@@ -1037,7 +1060,7 @@ namespace LocalMartOnline.Services.Implement
             {
                 market = await _marketRepo.FindOneAsync(m => m.Id == request.MarketId);
             }
-            
+
             return new ProxyRequestResponseDto
             {
                 Id = request.Id,
@@ -1086,7 +1109,7 @@ namespace LocalMartOnline.Services.Implement
                     var title = "❌ Yêu cầu đã được hủy";
                     var message = $"Bạn đã hủy thành công yêu cầu đi chợ giùm #{requestId.Substring(requestId.Length - 8)}. " +
                                 $"Yêu cầu này sẽ không còn hiển thị cho các proxy shopper.";
-                    
+
                     await _notificationService.CreateNotificationAsync(
                         buyerId,
                         title,
