@@ -65,7 +65,10 @@ namespace LocalMartOnline.Controllers
         [Authorize]
         public async Task<IActionResult> Register([FromBody] ProxyShopperRegistrationRequestDTO dto)
         {
-            var userId = ""; // Lấy userId từ Claims
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("Không tìm thấy userId trong token.");
+                
             await _proxyShopperService.RegisterProxyShopperAsync(dto, userId);
             return Ok(new { success = true });
         }
@@ -93,7 +96,7 @@ namespace LocalMartOnline.Controllers
 
         // Lấy danh sách requests cho cả Buyer và Proxy Shopper
         [HttpGet("requests/my-requests")]
-        [Authorize(Roles = "Proxy Shopper,Buyer, Seller")]
+        [Authorize(Roles = "Proxy Shopper, Buyer, Seller")]
         public async Task<IActionResult> GetMyRequests()
         {
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -108,9 +111,9 @@ namespace LocalMartOnline.Controllers
             return Ok(result);
         }
 
-        // 1. Buyer tạo request
+        // 1. Buyer/Seller tạo request
         [HttpPost("requests")]
-        [Authorize(Roles = "Buyer, Seller")]
+        [Authorize(Roles = "Proxy Shopper, Buyer, Seller")]
         public async Task<IActionResult> CreateProxyRequest([FromBody] ProxyRequestDto proxyRequest)
         {
             var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -240,7 +243,7 @@ namespace LocalMartOnline.Controllers
 
         // 5. Buyer duyệt & thanh toán
         [HttpPost("orders/{orderId}/approve-pay")]
-        [Authorize(Roles = "Buyer, Seller")]
+        [Authorize(Roles = "Proxy Shopper, Buyer, Seller")]
         public async Task<IActionResult> BuyerApproveAndPay(string orderId)
         {
             var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -252,7 +255,7 @@ namespace LocalMartOnline.Controllers
 
         // 5.1. Buyer từ chối đề xuất
         [HttpPost("orders/{orderId}/reject-proposal")]
-        [Authorize(Roles = "Buyer, Seller")]
+        [Authorize(Roles = "Proxy Shopper, Buyer, Seller")]
         public async Task<IActionResult> RejectProposal(string orderId, [FromBody] RejectProposalDTO dto)
         {
             try
@@ -341,7 +344,7 @@ namespace LocalMartOnline.Controllers
 
         // 8. Buyer xác nhận hoàn tất đơn
         [HttpPost("orders/{orderId}/confirm-delivery")]
-        [Authorize(Roles = "Buyer, Seller")]
+        [Authorize(Roles = "Proxy Shopper, Buyer, Seller")]
         public async Task<IActionResult> ConfirmDelivery(string orderId)
         {
             try
@@ -388,9 +391,9 @@ namespace LocalMartOnline.Controllers
         }
 
 
-        // Buyer hủy request trước khi có proxy shopper nhận
+        // Buyer/Seller hủy request trước khi có proxy shopper nhận
         [HttpPost("requests/{requestId}/cancel")]
-        [Authorize(Roles = "Buyer")]
+        [Authorize(Roles = "Proxy Shopper, Buyer, Seller")]
         public async Task<IActionResult> CancelRequest(string requestId)
         {
             try

@@ -260,7 +260,7 @@ namespace LocalMartOnline.Services.Implement
 
             return true;
         }
-        // 1. Buyer tạo request (yêu cầu đi chợ giùm)
+        // 1. Buyer/Seller tạo request (yêu cầu đi chợ giùm)
         public async Task<string> CreateProxyRequestAsync(string buyerId, ProxyRequestDto proxyRequest)
         {
             if (proxyRequest == null || !proxyRequest.Items.Any())
@@ -270,7 +270,7 @@ namespace LocalMartOnline.Services.Implement
 
             var request = new ProxyRequest
             {
-                BuyerId = buyerId,
+                BuyerId = buyerId, // buyerId có thể là ID của Buyer hoặc Seller
                 MarketId = proxyRequest.MarketId,
                 Items = proxyRequest.Items.Select(item => _mapper.Map<ProxyItem>(item)).ToList(),
                 DeliveryAddress = proxyRequest.DeliveryAddress,
@@ -341,7 +341,7 @@ namespace LocalMartOnline.Services.Implement
                 // Lấy tất cả requests
                 var myRequests = await _requestRepo.FindManyAsync(r => requestIds.Contains(r.Id));
 
-                // Lấy thông tin buyers
+                // Lấy thông tin buyers/sellers
                 var buyerIds = myRequests.Select(r => r.BuyerId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
                 var users = await _userRepo.FindManyAsync(u => u.Id != null && buyerIds.Contains(u.Id));
                 var userDict = users.Where(u => u.Id != null).ToDictionary(u => u.Id!, u => u);
@@ -355,7 +355,7 @@ namespace LocalMartOnline.Services.Implement
 
                 foreach (var request in myRequests)
                 {
-                    // Lấy thông tin buyer
+                    // Lấy thông tin buyer/seller
                     var buyer = userDict.TryGetValue(request.BuyerId, out var user) ? user : null;
 
                     // Lấy thông tin order tương ứng
@@ -373,7 +373,7 @@ namespace LocalMartOnline.Services.Implement
                         RequestCreatedAt = request.CreatedAt,
                         RequestUpdatedAt = request.UpdatedAt,
 
-                        // Buyer Information
+                        // Buyer/Seller Information
                         BuyerName = buyer?.FullName,
                         BuyerEmail = buyer?.Email,
                         BuyerPhone = buyer?.PhoneNumber,
@@ -419,11 +419,11 @@ namespace LocalMartOnline.Services.Implement
                 List<ProxyRequest> myRequests;
                 List<ProxyShoppingOrder> relatedOrders;
 
-                if (userRole == "Buyer")
+                if (userRole == "Buyer" || userRole == "Seller" || userRole == "Proxy Shopper")
                 {
-                    // Buyer: Lấy các request mà họ đã tạo
+                    // Buyer/Seller: Lấy các request mà họ đã tạo
                     myRequests = (await _requestRepo.FindManyAsync(r => r.BuyerId == userId)).ToList();
-                    // Lấy các order tương ứng với requests của buyer
+                    // Lấy các order tương ứng với requests của buyer/seller
                     var requestIds = myRequests.Select(r => r.Id).ToList();
                     relatedOrders = requestIds.Any()
                         ? (await _orderRepo.FindManyAsync(o => o.ProxyRequestId != null && requestIds.Contains(o.ProxyRequestId))).ToList()
@@ -450,7 +450,7 @@ namespace LocalMartOnline.Services.Implement
 
                 // Lấy thông tin partners (đối tác)
                 var partnerIds = new List<string>();
-                if (userRole == "Buyer")
+                if (userRole == "Buyer" || userRole == "Seller" || userRole == "Proxy Shopper")
                 {
                     // Lấy danh sách ProxyShopperId từ orders
                     partnerIds = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyShopperId))
@@ -494,9 +494,9 @@ namespace LocalMartOnline.Services.Implement
                     string? partnerPhone = null;
                     string partnerRole = "Unknown";
 
-                    if (userRole == "Buyer" && order != null && !string.IsNullOrEmpty(order.ProxyShopperId))
+                    if (userRole == "Buyer" || userRole == "Seller" || userRole == "Proxy Shopper" && order != null && !string.IsNullOrEmpty(order.ProxyShopperId))
                     {
-                        // Buyer xem thông tin Proxy Shopper
+                        // Buyer/Seller xem thông tin Proxy Shopper
                         if (partnerDict.TryGetValue(order.ProxyShopperId, out var proxy))
                         {
                             partnerName = proxy.FullName;
@@ -507,13 +507,13 @@ namespace LocalMartOnline.Services.Implement
                     }
                     else if (userRole == "Proxy Shopper")
                     {
-                        // Proxy Shopper xem thông tin Buyer
+                        // Proxy Shopper xem thông tin Buyer/Seller
                         if (partnerDict.TryGetValue(request.BuyerId, out var buyer))
                         {
                             partnerName = buyer.FullName;
                             partnerEmail = buyer.Email;
                             partnerPhone = buyer.PhoneNumber;
-                            partnerRole = "Buyer";
+                            partnerRole = "Buyer/Seller";
                         }
                     }
 
@@ -840,7 +840,7 @@ namespace LocalMartOnline.Services.Implement
             }
         }
 
-        // Buyer từ chối đề xuất của proxy shopper
+        // Buyer/Seller từ chối đề xuất của proxy shopper
         public async Task<bool> RejectProposalAsync(string orderId, string buyerId, string reason)
         {
             try
@@ -852,10 +852,10 @@ namespace LocalMartOnline.Services.Implement
                     return false;
                 }
 
-                // Kiểm tra order có thuộc về buyer này không
+                // Kiểm tra order có thuộc về buyer/seller này không
                 if (order.BuyerId != buyerId)
                 {
-                    Console.WriteLine($"[DEBUG] RejectProposalAsync - Order doesn't belong to buyer: {buyerId}");
+                    Console.WriteLine($"[DEBUG] RejectProposalAsync - Order doesn't belong to buyer/seller: {buyerId}");
                     return false;
                 }
 
@@ -923,7 +923,7 @@ namespace LocalMartOnline.Services.Implement
             }
         }
 
-        // 5. Buyer duyệt & thanh toán
+        // 5. Buyer/Seller duyệt & thanh toán
         public async Task<bool> BuyerApproveAndPayAsync(string orderId, string buyerId)
         {
             try
@@ -1072,7 +1072,7 @@ namespace LocalMartOnline.Services.Implement
             }
         }
 
-        // 8. Buyer xác nhận nhận hàng (hoàn tất)
+        // 8. Buyer/Seller xác nhận nhận hàng (hoàn tất)
         public async Task<bool> ConfirmDeliveryAsync(string orderId, string buyerId)
         {
             var order = await _orderRepo.FindOneAsync(o => o.Id == orderId && o.BuyerId == buyerId);
@@ -1136,7 +1136,7 @@ namespace LocalMartOnline.Services.Implement
             var request = await _requestRepo.FindOneAsync(r => r.Id == requestId);
             if (request == null) return null;
 
-            // Lấy thông tin buyer
+            // Lấy thông tin buyer/seller
             var buyer = await _userRepo.FindOneAsync(u => u.Id == request.BuyerId);
 
             // Lấy thông tin market
@@ -1163,7 +1163,7 @@ namespace LocalMartOnline.Services.Implement
             };
         }
 
-        // Buyer hủy request trước khi có proxy shopper nhận
+        // Buyer/Seller hủy request trước khi có proxy shopper nhận
         public async Task<bool> CancelRequestAsync(string requestId, string buyerId)
         {
             try
@@ -1185,7 +1185,7 @@ namespace LocalMartOnline.Services.Implement
                 request.UpdatedAt = DateTime.UtcNow;
                 await _requestRepo.UpdateAsync(requestId, request);
 
-                // Tạo notification cho buyer
+                // Tạo notification cho buyer/seller
                 try
                 {
                     var buyer = await _userRepo.FindOneAsync(u => u.Id == buyerId);
