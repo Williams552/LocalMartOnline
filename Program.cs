@@ -48,6 +48,10 @@ builder.Services.Configure<IISServerOptions>(options =>
 // Add HttpClient with timeout
 builder.Services.AddHttpClient();
 
+// AI Recommendation Service
+builder.Services.AddHttpClient<IAIRecommendationService, AIRecommendationService>();
+builder.Services.AddScoped<IAIRecommendationService, AIRecommendationService>();
+
 // Configure request timeout
 builder.Services.Configure<RouteOptions>(options =>
 {

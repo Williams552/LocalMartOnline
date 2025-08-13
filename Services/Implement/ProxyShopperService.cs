@@ -476,9 +476,10 @@ namespace LocalMartOnline.Services.Implement
                     : new List<Store>();
                 var storeDict = stores.Where(s => s.Id != null).ToDictionary(s => s.Id!, s => s);
 
-                // Tạo dictionary để map request -> order
+                // Tạo dictionary để map request -> order (sử dụng GroupBy để tránh duplicate key)
                 var orderDict = relatedOrders.Where(o => !string.IsNullOrEmpty(o.ProxyRequestId))
-                                             .ToDictionary(o => o.ProxyRequestId!, o => o);
+                                             .GroupBy(o => o.ProxyRequestId!)
+                                             .ToDictionary(g => g.Key, g => g.First());
 
                 var result = new List<ProxyRequestsResponseDto>();
 
@@ -583,6 +584,7 @@ namespace LocalMartOnline.Services.Implement
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[ERROR] GetMyRequestsAsync - Exception: {ex.Message}");
                 return new List<ProxyRequestsResponseDto>();
             }
         }
@@ -834,6 +836,89 @@ namespace LocalMartOnline.Services.Implement
             {
                 Console.WriteLine($"[ERROR] SendProposalAsync - Exception: {ex.Message}");
                 Console.WriteLine($"[ERROR] SendProposalAsync - StackTrace: {ex.StackTrace}");
+                return false;
+            }
+        }
+
+        // Buyer từ chối đề xuất của proxy shopper
+        public async Task<bool> RejectProposalAsync(string orderId, string buyerId, string reason)
+        {
+            try
+            {
+                var order = await _orderRepo.FindOneAsync(o => o.Id == orderId);
+                if (order == null)
+                {
+                    Console.WriteLine($"[DEBUG] RejectProposalAsync - Order not found: {orderId}");
+                    return false;
+                }
+
+                // Kiểm tra order có thuộc về buyer này không
+                if (order.BuyerId != buyerId)
+                {
+                    Console.WriteLine($"[DEBUG] RejectProposalAsync - Order doesn't belong to buyer: {buyerId}");
+                    return false;
+                }
+
+                // Chỉ có thể từ chối khi đề xuất ở trạng thái Proposed
+                if (order.Status != ProxyOrderStatus.Proposed)
+                {
+                    Console.WriteLine($"[DEBUG] RejectProposalAsync - Order status is not Proposed: {order.Status}");
+                    return false;
+                }
+
+                Console.WriteLine($"[DEBUG] RejectProposalAsync - Rejecting proposal for order: {orderId}");
+                Console.WriteLine($"[DEBUG] RejectProposalAsync - Reason: {reason}");
+
+                // Cập nhật status về Draft để proxy có thể lên đơn lại
+                order.Status = ProxyOrderStatus.Draft;
+                order.Notes = $"Đề xuất bị từ chối. Lý do: {reason}";
+                order.UpdatedAt = DateTime.UtcNow;
+
+                await _orderRepo.UpdateAsync(orderId, order);
+                Console.WriteLine($"[DEBUG] RejectProposalAsync - Order updated to Draft status");
+
+                // Tạo notification cho proxy shopper
+                try
+                {
+                    var proxyShopperName = "Proxy Shopper";
+                    if (!string.IsNullOrEmpty(order.ProxyShopperId))
+                    {
+                        var proxyShopper = await _userRepo.FindOneAsync(u => u.Id == order.ProxyShopperId);
+                        if (proxyShopper != null)
+                        {
+                            proxyShopperName = proxyShopper.FullName ?? "Proxy Shopper";
+                        }
+                    }
+
+                    var title = "❌ Đề xuất bị từ chối";
+                    var message = $"Khách hàng đã từ chối đề xuất đơn hàng của bạn. " +
+                                $"Lý do: {reason}. " +
+                                $"Bạn có thể tạo đề xuất mới cho đơn hàng này.";
+                    
+                    if (!string.IsNullOrEmpty(order.ProxyShopperId))
+                    {
+                        await _notificationService.CreateNotificationAsync(
+                            order.ProxyShopperId,
+                            title,
+                            message,
+                            "PROXY_SHOPPING_PROPOSAL_REJECTED"
+                        );
+
+                        Console.WriteLine($"[INFO] RejectProposalAsync - Created notification for proxy shopper {order.ProxyShopperId}");
+                    }
+                }
+                catch (Exception notifEx)
+                {
+                    Console.WriteLine($"[ERROR] RejectProposalAsync - Failed to create notification: {notifEx.Message}");
+                    // Không throw exception vì notification không phải critical operation
+                }
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] RejectProposalAsync - Exception: {ex.Message}");
+                Console.WriteLine($"[ERROR] RejectProposalAsync - StackTrace: {ex.StackTrace}");
                 return false;
             }
         }

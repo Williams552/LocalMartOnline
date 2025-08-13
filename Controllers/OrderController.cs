@@ -41,7 +41,6 @@ namespace LocalMartOnline.Controllers
 
         // UC072: Filter Order List
         [HttpPost("filter")]
-        [Authorize(Roles = "Buyer, ProxyShopper, Seller")]
         public async Task<ActionResult<PagedResultDto<OrderDto>>> FilterOrderList([FromBody] OrderFilterDto filter)
         {
             var result = await _service.FilterOrderListAsync(filter);

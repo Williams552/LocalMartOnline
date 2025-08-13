@@ -15,8 +15,8 @@ namespace LocalMartOnline.Models
     public class UserInteraction
     {
         [BsonId]
-        [BsonRepresentation(BsonType.String)]
-        public Guid InteractionId { get; set; }
+        [BsonRepresentation(BsonType.ObjectId)]
+        public string? Id { get; set; }
 
 
         [BsonElement("UserId")]

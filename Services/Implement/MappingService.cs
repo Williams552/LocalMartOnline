@@ -112,8 +112,7 @@ namespace LocalMartOnline.Services
 
             // Order
             CreateMap<Order, OrderDto>()
-                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-                .ForMember(dest => dest.PaymentStatus, opt => opt.MapFrom(src => src.PaymentStatus.ToString()));
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
             CreateMap<OrderCreateDto, Order>();
             CreateMap<OrderItem, OrderItemDto>();
             CreateMap<OrderItemDto, OrderItem>();

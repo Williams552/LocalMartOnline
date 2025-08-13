@@ -63,7 +63,6 @@ namespace LocalMartOnline.Services.Implement
                 BuyerId = dto.BuyerId,
                 SellerId = dto.SellerId,
                 Status = OrderStatus.Pending,
-                PaymentStatus = PaymentStatus.Pending,
                 Notes = dto.Notes,
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
@@ -184,7 +183,6 @@ namespace LocalMartOnline.Services.Implement
                 (string.IsNullOrEmpty(filter.BuyerId) || o.BuyerId == filter.BuyerId) &&
                 (string.IsNullOrEmpty(filter.SellerId) || o.SellerId == filter.SellerId) &&
                 (string.IsNullOrEmpty(filter.Status) || o.Status.ToString() == filter.Status) &&
-                (string.IsNullOrEmpty(filter.PaymentStatus) || o.PaymentStatus.ToString() == filter.PaymentStatus) &&
                 (!filter.FromDate.HasValue || o.CreatedAt >= filter.FromDate.Value) &&
                 (!filter.ToDate.HasValue || o.CreatedAt <= filter.ToDate.Value)
             ).OrderByDescending(o => o.CreatedAt).ToList();
@@ -516,7 +514,6 @@ namespace LocalMartOnline.Services.Implement
                     BuyerId = dto.BuyerId,
                     SellerId = store.SellerId,
                     Status = OrderStatus.Pending,
-                    PaymentStatus = PaymentStatus.Pending,
                     Notes = dto.Notes,
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now
@@ -576,7 +573,6 @@ namespace LocalMartOnline.Services.Implement
                     SellerId = order.SellerId,
                     TotalAmount = order.TotalAmount, // Explicitly set TotalAmount
                     Status = order.Status.ToString(),
-                    PaymentStatus = order.PaymentStatus.ToString(),
                     Notes = order.Notes,
                     CreatedAt = order.CreatedAt,
                     UpdatedAt = order.UpdatedAt,

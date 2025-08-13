@@ -21,6 +21,7 @@ namespace LocalMartOnline.Models
         Failed
     }
 
+
     public class Order
     {
         [BsonId]
@@ -40,7 +41,6 @@ namespace LocalMartOnline.Models
         [BsonElement("status")]
         [BsonRepresentation(BsonType.String)]
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
-
         [BsonElement("payment_status")]
         [BsonRepresentation(BsonType.String)]
         public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;

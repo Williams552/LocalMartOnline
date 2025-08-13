@@ -250,6 +250,41 @@ namespace LocalMartOnline.Controllers
             return ok ? Ok() : BadRequest("Chỉ được duyệt khi đơn ở trạng thái chờ thanh toán.");
         }
 
+        // 5.1. Buyer từ chối đề xuất
+        [HttpPost("orders/{orderId}/reject-proposal")]
+        [Authorize(Roles = "Buyer, Seller")]
+        public async Task<IActionResult> RejectProposal(string orderId, [FromBody] RejectProposalDTO dto)
+        {
+            try
+            {
+                // Validate input
+                if (string.IsNullOrEmpty(orderId))
+                    return BadRequest("OrderId không được để trống.");
+
+                if (dto == null || string.IsNullOrEmpty(dto.Reason))
+                    return BadRequest("Lý do từ chối không được để trống.");
+
+                var buyerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(buyerId))
+                    return Unauthorized("Không tìm thấy userId trong token.");
+
+                var result = await _proxyShopperService.RejectProposalAsync(orderId, buyerId, dto.Reason);
+
+                if (result)
+                {
+                    return Ok(new { message = "Từ chối đề xuất thành công. Proxy shopper có thể tạo đề xuất mới.", orderId });
+                }
+                else
+                {
+                    return BadRequest("Không thể từ chối đề xuất. Đơn hàng có thể không tồn tại, không thuộc về bạn, hoặc không ở trạng thái chờ duyệt.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi server: {ex.Message}");
+            }
+        }
+
         // 6. Proxy bắt đầu mua hàng
         [HttpPost("orders/{orderId}/start-shopping")]
         [Authorize(Roles = "Proxy Shopper")]
