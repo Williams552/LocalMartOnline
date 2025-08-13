@@ -77,7 +77,7 @@ namespace LocalMartOnline.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
-        [Authorize(Roles = "Admin,Buyer,Seller,ProxyShopper")]
+        [Authorize(Roles = "Admin,Buyer,Seller,Proxy Shopper")]
         public async Task<IActionResult> Update(string id, [FromBody] UserUpdateDTO updateUserDto)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
@@ -114,7 +114,7 @@ namespace LocalMartOnline.Controllers
 
         // UC107: Update language
         [HttpPut("{id}/language")]
-        [Authorize(Roles = "Admin,Buyer,Seller,ProxyShopper")]
+        [Authorize(Roles = "Admin,Buyer,Seller,Proxy Shopper")]
         public async Task<IActionResult> UpdateLanguage(string id, [FromBody] UserLanguageUpdateDto dto)
         {
             var result = await _userService.UpdateLanguageAsync(id, dto.PreferredLanguage);
@@ -123,7 +123,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet("{id}/language")]
-        [Authorize(Roles = "Admin,Buyer,Seller,ProxyShopper")]
+        [Authorize(Roles = "Admin,Buyer,Seller,Proxy Shopper")]
         public async Task<ActionResult<string>> GetLanguage(string id)
         {
             var lang = await _userService.GetLanguageAsync(id);
@@ -133,7 +133,7 @@ namespace LocalMartOnline.Controllers
 
         // UC108: Update theme
         [HttpPut("{id}/theme")]
-        [Authorize(Roles = "Admin,Buyer,Seller,ProxyShopper")]
+        [Authorize(Roles = "Admin,Buyer,Seller,Proxy Shopper")]
         public async Task<IActionResult> UpdateTheme(string id, [FromBody] UserThemeUpdateDto dto)
         {
             var result = await _userService.UpdateThemeAsync(id, dto.PreferredTheme);
@@ -142,7 +142,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet("{id}/theme")]
-        [Authorize(Roles = "Admin,Buyer,Seller,ProxyShopper")]
+        [Authorize(Roles = "Admin,Buyer,Seller,Proxy Shopper")]
         public async Task<ActionResult<string>> GetTheme(string id)
         {
             var theme = await _userService.GetThemeAsync(id);

@@ -20,7 +20,7 @@ namespace LocalMartOnline.Controllers
 
         // UC070: Place Order
         [HttpPost]
-        [Authorize(Roles = "Buyer, ProxyShopper")]
+        [Authorize(Roles = "Buyer, Proxy Shopper, Seller")]
         public async Task<ActionResult<OrderDto>> PlaceOrder([FromBody] OrderCreateDto dto)
         {
             var result = await _service.PlaceOrderAsync(dto);
@@ -29,7 +29,7 @@ namespace LocalMartOnline.Controllers
 
         // UC071: View Order List
         [HttpGet("buyer/{buyerId}")]
-        [Authorize(Roles = "Buyer, ProxyShopper, Seller")]
+        [Authorize(Roles = "Buyer, Proxy Shopper, Seller")]
         public async Task<ActionResult<PagedResultDto<OrderDto>>> GetOrderList(
             string buyerId,
             [FromQuery] int page = 1,
@@ -281,7 +281,7 @@ namespace LocalMartOnline.Controllers
         }
         // Get Order Detail
         [HttpGet("{orderId}")]
-        [Authorize(Roles = "Seller, Buyer, ProxyShopper")]
+        [Authorize(Roles = "Seller, Buyer, Proxy Shopper")]
         public async Task<IActionResult> GetOrderDetail(string orderId)
         {
             try
