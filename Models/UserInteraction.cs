@@ -31,5 +31,8 @@ namespace LocalMartOnline.Models
         [BsonRepresentation(BsonType.Int32)]
         [BsonElement("Value")]
         public InteractionValue Value { get; set; }
+
+        [BsonElement("CreatedAt")]
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

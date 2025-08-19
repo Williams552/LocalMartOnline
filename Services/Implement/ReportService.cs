@@ -1,10 +1,12 @@
 using LocalMartOnline.Models.DTOs;
 using LocalMartOnline.Services.Interface;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MongoDB.Driver;
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.Report;
+using System.Linq;
 
 namespace LocalMartOnline.Services.Implement
 {
@@ -16,6 +18,7 @@ namespace LocalMartOnline.Services.Implement
         private readonly IMongoCollection<Store> _storeCollection;
         private readonly IMongoCollection<ProductUnit> _productUnitCollection;
         private readonly IMongoCollection<ProductImage> _productImageCollection;
+        private readonly IMongoCollection<SellerRegistration> _sellerRegistrationCollection;
 
         public ReportService(IMongoDatabase database)
         {
@@ -25,6 +28,7 @@ namespace LocalMartOnline.Services.Implement
             _productUnitCollection = database.GetCollection<ProductUnit>("ProductUnits");
             _productImageCollection = database.GetCollection<ProductImage>("ProductImages");
             _storeCollection = database.GetCollection<Store>("Stores");
+            _sellerRegistrationCollection = database.GetCollection<SellerRegistration>("SellerRegistrations");
         }
 
         public Task<object> GetRevenueStatisticsAsync(string from, string to)
@@ -55,12 +59,6 @@ namespace LocalMartOnline.Services.Implement
         {
             // TODO: Tổng hợp doanh số bán hàng của chợ
             return Task.FromResult<object>(new { MarketSales = 0 });
-        }
-
-        public Task<int> GetNumberOfSellersAsync(string marketId)
-        {
-            // TODO: Đếm số lượng seller
-            return Task.FromResult(0);
         }
 
         public Task<IEnumerable<ViolatingStoreDto>> GetViolatingStoresAsync(string marketId)
@@ -346,6 +344,80 @@ namespace LocalMartOnline.Services.Implement
             }
 
             return reportDto;
+        }
+
+        public async Task<SellerMetricsDto> GetNumberOfSellersAsync(string? marketId = null, DateTime? from = null, DateTime? to = null)
+        {
+            var metrics = new SellerMetricsDto();
+
+            // Build filter for stores
+            var storeFilter = Builders<Store>.Filter.Empty;
+            var userFilter = Builders<User>.Filter.Empty;
+            var sellerRegFilter = Builders<LocalMartOnline.Models.SellerRegistration>.Filter.Empty;
+
+            // Apply market filter if specified
+            if (!string.IsNullOrEmpty(marketId))
+            {
+                storeFilter = Builders<Store>.Filter.Eq(s => s.MarketId, marketId);
+                sellerRegFilter = Builders<LocalMartOnline.Models.SellerRegistration>.Filter.Eq(sr => sr.MarketId, marketId);
+            }
+
+            // Apply date filters if specified
+            if (from.HasValue)
+            {
+                storeFilter = Builders<Store>.Filter.And(storeFilter, Builders<Store>.Filter.Gte(s => s.CreatedAt, from.Value));
+                userFilter = Builders<User>.Filter.And(userFilter, Builders<User>.Filter.Gte(u => u.CreatedAt, from.Value));
+                sellerRegFilter = Builders<LocalMartOnline.Models.SellerRegistration>.Filter.And(sellerRegFilter, Builders<LocalMartOnline.Models.SellerRegistration>.Filter.Gte(sr => sr.CreatedAt, from.Value));
+            }
+
+            if (to.HasValue)
+            {
+                storeFilter = Builders<Store>.Filter.And(storeFilter, Builders<Store>.Filter.Lte(s => s.CreatedAt, to.Value));
+                userFilter = Builders<User>.Filter.And(userFilter, Builders<User>.Filter.Lte(u => u.CreatedAt, to.Value));
+                sellerRegFilter = Builders<LocalMartOnline.Models.SellerRegistration>.Filter.And(sellerRegFilter, Builders<LocalMartOnline.Models.SellerRegistration>.Filter.Lte(sr => sr.CreatedAt, to.Value));
+            }
+
+            // 1. Total active sellers (stores with "Active" status)
+            var activeStoreFilter = Builders<Store>.Filter.And(
+                storeFilter,
+                Builders<Store>.Filter.Eq(s => s.Status, "Active")
+            );
+            metrics.TotalActiveSellers = (int)await _storeCollection.CountDocumentsAsync(activeStoreFilter);
+
+            // 2. Sellers by market
+            var allStores = await _storeCollection.Find(storeFilter).ToListAsync();
+            metrics.SellersByMarket = allStores
+                .GroupBy(s => s.MarketId)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            // 3. New seller registrations (period)
+            var approvedSellerRegFilter = Builders<LocalMartOnline.Models.SellerRegistration>.Filter.And(
+                sellerRegFilter,
+                Builders<LocalMartOnline.Models.SellerRegistration>.Filter.Eq(sr => sr.Status, "Approved")
+            );
+            metrics.NewSellerRegistrations = (int)await _sellerRegistrationCollection.CountDocumentsAsync(approvedSellerRegFilter);
+
+            // 4. Seller activity levels (based on store status)
+            metrics.SellerActivityLevels = allStores
+                .GroupBy(s => s.Status)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            // 5. Store-to-seller ratio (assuming 1 store per seller)
+            var totalUsers = await _userCollection.CountDocumentsAsync(userFilter);
+            metrics.StoreToSellerRatio = totalUsers > 0 ? (double)allStores.Count / totalUsers : 0;
+
+            // 6. Seller performance tiers (simplified - based on store rating)
+            var storesWithRatings = allStores.Where(s => s.Rating > 0).ToList();
+            metrics.SellerPerformanceTiers = new Dictionary<string, int>
+            {
+                { "Excellent (4.5-5.0)", storesWithRatings.Count(s => s.Rating >= 4.5m) },
+                { "Good (4.0-4.4)", storesWithRatings.Count(s => s.Rating >= 4.0m && s.Rating < 4.5m) },
+                { "Average (3.0-3.9)", storesWithRatings.Count(s => s.Rating >= 3.0m && s.Rating < 4.0m) },
+                { "Below Average (2.0-2.9)", storesWithRatings.Count(s => s.Rating >= 2.0m && s.Rating < 3.0m) },
+                { "Poor (0-1.9)", storesWithRatings.Count(s => s.Rating < 2.0m) }
+            };
+
+            return metrics;
         }
     }
 }

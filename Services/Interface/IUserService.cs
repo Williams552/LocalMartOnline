@@ -1,5 +1,6 @@
 using LocalMartOnline.Models;
 using LocalMartOnline.Models.DTOs.User;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -27,5 +28,6 @@ namespace LocalMartOnline.Services
         Task<bool> UpdateThemeAsync(string userId, string theme);
         Task<string?> GetLanguageAsync(string userId);
         Task<string?> GetThemeAsync(string userId);
+    Task<UserStatisticsDto> GetUserStatisticsAsync(int? periodDays = null);
     }
 }

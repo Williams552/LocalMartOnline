@@ -674,5 +674,23 @@ namespace LocalMartOnline.Controllers
                 data = result
             });
         }
+        
+        // Get store statistics for a market and period
+        [HttpGet("statistics")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetStoreStatistics(
+            [FromQuery] string? marketId = null,
+            [FromQuery] DateTime? periodStart = null,
+            [FromQuery] DateTime? periodEnd = null)
+        {
+            var statistics = await _storeService.GetStatisticsAsync(marketId, periodStart, periodEnd);
+            
+            return Ok(new
+            {
+                success = true,
+                message = "Lấy thống kê gian hàng thành công",
+                data = statistics
+            });
+        }
     }
 }

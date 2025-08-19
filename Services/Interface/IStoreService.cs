@@ -39,5 +39,8 @@ namespace LocalMartOnline.Services.Interface
         
         // Get store statistics and featured products
         Task<object> GetStoreStatisticsAsync(string storeId);
+        
+        // Get comprehensive store statistics for a market and period
+        Task<StoreStatisticsDto> GetStatisticsAsync(string? marketId = null, DateTime? periodStart = null, DateTime? periodEnd = null);
     }
 }

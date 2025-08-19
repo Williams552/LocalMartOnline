@@ -1,6 +1,7 @@
 using LocalMartOnline.Models;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Models.DTOs.User;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
@@ -11,11 +12,23 @@ namespace LocalMartOnline.Services
     public class UserService : IUserService
     {
         private readonly IRepository<User> _userRepo;
+        private readonly IRepository<Order> _orderRepo;
+        private readonly IRepository<UserInteraction> _userInteractionRepo;
+        private readonly IRepository<Store> _storeRepo;
+
         private readonly AutoMapper.IMapper _mapper;
         
-        public UserService(IRepository<User> userRepo, AutoMapper.IMapper mapper)
+        public UserService(
+            IRepository<User> userRepo,
+            IRepository<Order> orderRepo,
+            IRepository<UserInteraction> userInteractionRepo,
+            IRepository<Store> storeRepo,
+            AutoMapper.IMapper mapper)
         {
             _userRepo = userRepo;
+            _orderRepo = orderRepo;
+            _userInteractionRepo = userInteractionRepo;
+            _storeRepo = storeRepo;
             _mapper = mapper;
         }
         public Task<IEnumerable<User>> GetAllAsync() => _userRepo.GetAllAsync();
@@ -219,6 +232,201 @@ namespace LocalMartOnline.Services
             user.UpdatedAt = DateTime.Now;
             await _userRepo.UpdateAsync(userId, user);
             return true;
+        }
+
+        public async Task<UserStatisticsDto> GetUserStatisticsAsync(int? periodDays = null)
+        {
+            var statistics = new UserStatisticsDto();
+            DateTime to = DateTime.Now;
+            DateTime? from = null;
+            if (periodDays.HasValue)
+            {
+                from = to.AddDays(-periodDays.Value);
+            }
+
+            var users = await _userRepo.FindManyAsync(_ => true);
+            var filteredUsers = users as User[] ?? users.ToArray();
+
+            IEnumerable<User> periodUsers = filteredUsers;
+            if (from.HasValue)
+            {
+                periodUsers = filteredUsers.Where(u => u.CreatedAt >= from.Value && u.CreatedAt <= to);
+            }
+
+            statistics.TotalUsers = filteredUsers.Length;
+            statistics.UsersByRole = filteredUsers
+                .GroupBy(u => u.Role)
+                .ToDictionary(g => g.Key, g => g.Count());
+            statistics.NewRegistrations = periodUsers.Count();
+            statistics.ActiveUsers = filteredUsers.Count(u => u.Status == "Active");
+            statistics.InactiveUsers = filteredUsers.Count(u => u.Status != "Active");
+
+            // User growth rate
+            DateTime? previousPeriodStart = from.HasValue ? from.Value.AddDays(-periodDays ?? 7) : (DateTime?)null;
+            DateTime? previousPeriodEnd = from;
+            var previousUsers = previousPeriodStart.HasValue && previousPeriodEnd.HasValue
+                ? filteredUsers.Count(u => u.CreatedAt >= previousPeriodStart.Value && u.CreatedAt < previousPeriodEnd.Value)
+                : 0;
+            var currentUsers = statistics.NewRegistrations;
+            statistics.UserGrowthRate = previousUsers > 0 ? ((double)(currentUsers - previousUsers) / previousUsers) * 100 : 0;
+
+            statistics.RoleDistribution = statistics.UsersByRole;
+            statistics.ActivityLevels = filteredUsers
+                .GroupBy(u => u.Status)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            // Registration trends (daily counts for the period)
+            var trends = new List<RegistrationTrendDto>();
+            var endDate = to;
+            var startDate = from ?? endDate.AddDays(-7);
+            for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+            {
+                var dateUsers = filteredUsers.Where(u => u.CreatedAt?.Date == date).ToList();
+                var trend = new RegistrationTrendDto
+                {
+                    Date = date,
+                    Count = dateUsers.Count,
+                    ByRole = dateUsers.GroupBy(u => u.Role).ToDictionary(g => g.Key, g => g.Count())
+                };
+                trends.Add(trend);
+            }
+            statistics.RegistrationTrends = trends;
+
+            // Top buyers/sellers/engagement metrics
+            var topBuyers = await GetTopBuyersAsync(from, to);
+            statistics.TopBuyers = topBuyers;
+            var topSellers = await GetTopSellersAsync(from, to);
+            statistics.TopSellers = topSellers;
+            var engagementMetrics = await GetEngagementMetricsAsync(from, to);
+            statistics.EngagementMetrics = engagementMetrics;
+
+            statistics.PeriodStart = from;
+            statistics.PeriodEnd = to;
+            return statistics;
+        }
+        
+        private async Task<List<TopUserDto>> GetTopBuyersAsync(DateTime? from, DateTime? to)
+        {
+            // Get all completed orders in the period
+            var orderFilter = Builders<Order>.Filter.Eq(o => o.Status, OrderStatus.Completed);
+            if (from.HasValue)
+            {
+                orderFilter = Builders<Order>.Filter.And(orderFilter, Builders<Order>.Filter.Gte(o => o.CreatedAt, from.Value));
+            }
+            if (to.HasValue)
+            {
+                orderFilter = Builders<Order>.Filter.And(orderFilter, Builders<Order>.Filter.Lte(o => o.CreatedAt, to.Value));
+            }
+            
+            var completedOrders = await _orderRepo.FindManyAsync(_ => true);
+            var filteredOrders = completedOrders.Where(o => o.Status == OrderStatus.Completed);
+            if (from.HasValue || to.HasValue)
+            {
+                filteredOrders = filteredOrders.Where(o =>
+                    (!from.HasValue || o.CreatedAt >= from.Value) &&
+                    (!to.HasValue || o.CreatedAt <= to.Value));
+            }
+            
+            // Group by buyer ID and count orders
+            var buyerOrderCounts = filteredOrders
+                .GroupBy(o => o.BuyerId)
+                .Select(g => new { BuyerId = g.Key, OrderCount = g.Count() })
+                .OrderByDescending(x => x.OrderCount)
+                .Take(10); // Top 10 buyers
+            
+            // Get user details for top buyers
+            var topBuyers = new List<TopUserDto>();
+            foreach (var buyer in buyerOrderCounts)
+            {
+                var user = await _userRepo.GetByIdAsync(buyer.BuyerId);
+                if (user != null)
+                {
+                    topBuyers.Add(new TopUserDto
+                    {
+                        UserId = user.Id ?? string.Empty,
+                        Username = user.Username,
+                        FullName = user.FullName,
+                        Role = user.Role,
+                        ActivityCount = buyer.OrderCount,
+                        Rating = 0 // Buyers don't have ratings in this model
+                    });
+                }
+            }
+            
+            return topBuyers;
+        }
+        
+        private async Task<List<TopUserDto>> GetTopSellersAsync(DateTime? from, DateTime? to)
+        {
+            // Get all completed orders in the period
+            var orderFilter = Builders<Order>.Filter.Eq(o => o.Status, OrderStatus.Completed);
+            if (from.HasValue)
+            {
+                orderFilter = Builders<Order>.Filter.And(orderFilter, Builders<Order>.Filter.Gte(o => o.CreatedAt, from.Value));
+            }
+            if (to.HasValue)
+            {
+                orderFilter = Builders<Order>.Filter.And(orderFilter, Builders<Order>.Filter.Lte(o => o.CreatedAt, to.Value));
+            }
+            
+            var completedOrders = await _orderRepo.FindManyAsync(_ => true);
+            var filteredOrders = completedOrders.Where(o => o.Status == OrderStatus.Completed);
+            if (from.HasValue || to.HasValue)
+            {
+                filteredOrders = filteredOrders.Where(o =>
+                    (!from.HasValue || o.CreatedAt >= from.Value) &&
+                    (!to.HasValue || o.CreatedAt <= to.Value));
+            }
+            
+            // Group by seller ID and count orders
+            var sellerOrderCounts = filteredOrders
+                .GroupBy(o => o.SellerId)
+                .Select(g => new { SellerId = g.Key, OrderCount = g.Count() })
+                .OrderByDescending(x => x.OrderCount)
+                .Take(10); // Top 10 sellers
+            
+            // Get user and store details for top sellers
+            var topSellers = new List<TopUserDto>();
+            foreach (var seller in sellerOrderCounts)
+            {
+                var user = await _userRepo.GetByIdAsync(seller.SellerId);
+                if (user != null)
+                {
+                    // Get store for this seller to get rating
+                    var store = await _storeRepo
+                        .FindManyAsync(s => s.SellerId == seller.SellerId);                    if (store == null) continue; // Skip if no store found for seller
+                    
+                    var sellerStore = store?.FirstOrDefault();
+                    topSellers.Add(new TopUserDto
+                    {
+                        UserId = user.Id ?? string.Empty,
+                        Username = user.Username,
+                        FullName = user.FullName,
+                        Role = user.Role,
+                        ActivityCount = seller.OrderCount,
+                        Rating = sellerStore?.Rating ?? 0
+                    });
+                }
+            }
+            
+            return topSellers;
+        }
+        
+        private async Task<EngagementMetricsDto> GetEngagementMetricsAsync(DateTime? from, DateTime? to)
+        {
+            var interactions = await _userInteractionRepo.FindManyAsync(_ => true);
+            
+            var engagementMetrics = new EngagementMetricsDto
+            {
+                AverageSessionDuration = 0, // Would require session tracking data
+                TotalInteractions = interactions.Count(),
+                InteractionsByType = interactions
+                    .GroupBy(ui => ui.Type)
+                    .ToDictionary(g => g.Key, g => g.Count()),
+                EngagementRate = 0 // Would require more complex calculation
+            };
+            
+            return engagementMetrics;
         }
     }
 }

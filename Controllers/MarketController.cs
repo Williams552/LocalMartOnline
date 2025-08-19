@@ -76,7 +76,7 @@ namespace LocalMartOnline.Controllers
             }
 
             var result = await _marketService.UpdateAsync(id, dto);
-            if (!result) 
+            if (!result)
                 return NotFound(new
                 {
                     success = false,
@@ -140,7 +140,7 @@ namespace LocalMartOnline.Controllers
             }
 
             var result = await _marketService.DeleteAsync(id);
-            if (!result) 
+            if (!result)
                 return BadRequest(new
                 {
                     success = false,
@@ -233,7 +233,7 @@ namespace LocalMartOnline.Controllers
             }
 
             var market = await _marketService.GetByIdAsync(id);
-            if (market == null) 
+            if (market == null)
                 return NotFound(new
                 {
                     success = false,
@@ -322,7 +322,7 @@ namespace LocalMartOnline.Controllers
                 }
 
                 var isMarketOpen = _marketService.IsTimeInOperatingHours(market.OperatingHours ?? "", testDateTime);
-                
+
                 return Ok(new
                 {
                     success = true,
@@ -349,6 +349,14 @@ namespace LocalMartOnline.Controllers
                     error = ex.Message
                 });
             }
+        }
+
+        [HttpGet("statistics")]
+        [Authorize(Roles = "Admin,MarketManagementBoard")]
+        public async Task<IActionResult> GetMarketStatistics([FromQuery] int year)
+        {
+            var stats = await _marketService.GetMarketStatisticsAsync(year);
+            return Ok(new { success = true, message = "Market statistics retrieved successfully", data = stats });
         }
     }
 }

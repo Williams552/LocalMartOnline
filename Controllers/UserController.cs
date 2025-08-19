@@ -172,5 +172,20 @@ namespace LocalMartOnline.Controllers
                 return NotFound(new { success = false, message = "User not found", data = (object?)null });
             return Ok(new { success = true, message = "Your account has been disabled", data = (object?)null });
         }
+        
+        [HttpGet("statistics")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUserStatistics(int period)
+        {
+            try
+            {
+                var statistics = await _userService.GetUserStatisticsAsync(period);
+                return Ok(new { success = true, message = "User statistics retrieved successfully", data = statistics });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Error retrieving user statistics", data = ex.Message });
+            }
+        }
     }
 }

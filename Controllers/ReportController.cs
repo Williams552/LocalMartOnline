@@ -41,7 +41,7 @@ namespace LocalMartOnline.Controllers
             try
             {
                 var report = await _reportService.GetReportByIdAsync(reportId);
-                
+
                 if (report == null)
                     return NotFound(new { message = "Report not found" });
 
@@ -85,7 +85,7 @@ namespace LocalMartOnline.Controllers
                     return BadRequest(new { message = "User ID is required" });
 
                 var report = await _reportService.CreateReportAsync(userId, createReportDto);
-                
+
                 if (report == null)
                     return BadRequest(new { message = "Failed to create report. Invalid target or already reported." });
 
@@ -155,7 +155,7 @@ namespace LocalMartOnline.Controllers
                     return BadRequest(new { message = "Invalid status. Valid values are: Pending, Resolved, Dismissed" });
 
                 var updatedReport = await _reportService.UpdateReportStatusAsync(reportId, updateReportStatusDto);
-                
+
                 if (updatedReport == null)
                     return NotFound(new { message = "Report not found or failed to update" });
 
@@ -189,6 +189,20 @@ namespace LocalMartOnline.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Error in debug database", error = ex.Message });
+            }
+        }
+
+        [HttpGet("seller-count")]
+        public async Task<IActionResult> GetSellerMetrics([FromQuery] string? marketId = null, [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null)
+        {
+            try
+            {
+                var metrics = await _reportService.GetNumberOfSellersAsync(marketId, from, to);
+                return Ok(metrics);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error retrieving seller metrics", error = ex.Message });
             }
         }
     }

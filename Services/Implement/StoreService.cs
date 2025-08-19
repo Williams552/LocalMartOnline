@@ -625,5 +625,168 @@ namespace LocalMartOnline.Services.Implement
                 reviewCount = reviewCount
             };
         }
+        
+        public async Task<StoreStatisticsDto> GetStatisticsAsync(string? marketId = null, DateTime? periodStart = null, DateTime? periodEnd = null)
+        {
+            var statistics = new StoreStatisticsDto
+            {
+                PeriodStart = periodStart ?? DateTime.UtcNow.AddMonths(-1),
+                PeriodEnd = periodEnd ?? DateTime.UtcNow,
+                MarketId = marketId
+            };
+            
+            // Get all stores (filtering will be done in memory for simplicity)
+            var allStores = (await _storeRepo.GetAllAsync()).ToList();
+            
+            // Apply market filter if specified
+            if (!string.IsNullOrEmpty(marketId))
+            {
+                allStores = allStores.Where(s => s.MarketId == marketId).ToList();
+            }
+            
+            // Apply date filters if specified
+            if (periodStart.HasValue || periodEnd.HasValue)
+            {
+                if (periodStart.HasValue)
+                {
+                    allStores = allStores.Where(s => s.CreatedAt >= periodStart.Value).ToList();
+                }
+                if (periodEnd.HasValue)
+                {
+                    allStores = allStores.Where(s => s.CreatedAt <= periodEnd.Value).ToList();
+                }
+            }
+            
+            // 1. Total store count
+            statistics.TotalStoreCount = allStores.Count;
+            
+            // 2. Stores by status (Open/Closed/Suspended)
+            statistics.StoresByStatus = allStores
+                .GroupBy(s => s.Status)
+                .ToDictionary(g => g.Key, g => g.Count());
+            
+            // 3. Stores by market
+            statistics.StoresByMarket = allStores
+                .GroupBy(s => s.MarketId)
+                .ToDictionary(g => g.Key, g => g.Count());
+            
+            // 4. Average store rating
+            var storesWithRatings = allStores.Where(s => s.Rating > 0).ToList();
+            statistics.AverageStoreRating = storesWithRatings.Count > 0 ?
+                (double)storesWithRatings.Average(s => s.Rating) : 0;
+            
+            // 5. Store performance tiers (based on store rating)
+            statistics.StorePerformanceTiers = new Dictionary<string, int>
+            {
+                { "Excellent (4.5-5.0)", storesWithRatings.Count(s => s.Rating >= 4.5m) },
+                { "Good (4.0-4.4)", storesWithRatings.Count(s => s.Rating >= 4.0m && s.Rating < 4.5m) },
+                { "Average (3.0-3.9)", storesWithRatings.Count(s => s.Rating >= 3.0m && s.Rating < 4.0m) },
+                { "Below Average (2.0-2.9)", storesWithRatings.Count(s => s.Rating >= 2.0m && s.Rating < 3.0m) },
+                { "Poor (0-1.9)", storesWithRatings.Count(s => s.Rating < 2.0m) }
+            };
+            
+            // 6. Store performance ranking (based on rating)
+            statistics.StorePerformanceRanking = allStores
+                .ToDictionary(s => s.Id ?? s.Name, s => s.Rating);
+            
+            // 7. Market distribution (already calculated in #3)
+            statistics.MarketDistribution = statistics.StoresByMarket;
+            
+            // 8. Revenue per store (need to calculate from orders)
+            var allOrders = await _orderRepo.GetAllAsync();
+            var completedOrders = allOrders.Where(o => o.Status == OrderStatus.Completed).ToList();
+            
+            // Apply date filters to orders if specified
+            if (periodStart.HasValue || periodEnd.HasValue)
+            {
+                if (periodStart.HasValue)
+                {
+                    completedOrders = completedOrders.Where(o => o.CreatedAt >= periodStart.Value).ToList();
+                }
+                if (periodEnd.HasValue)
+                {
+                    completedOrders = completedOrders.Where(o => o.CreatedAt <= periodEnd.Value).ToList();
+                }
+            }
+            
+            // Group revenue by seller/store
+            var revenueByStore = completedOrders
+                .GroupBy(o => o.SellerId)
+                .ToDictionary(g => g.Key, g => g.Sum(o => o.TotalAmount));
+            
+            // Map to store IDs and convert to dictionary
+            statistics.RevenuePerStore = new Dictionary<string, decimal>();
+            foreach (var store in allStores)
+            {
+                if (revenueByStore.ContainsKey(store.SellerId))
+                {
+                    statistics.RevenuePerStore[store.Id ?? store.Name] = revenueByStore[store.SellerId];
+                }
+                else
+                {
+                    statistics.RevenuePerStore[store.Id ?? store.Name] = 0;
+                }
+            }
+            
+            // 9. Product catalog size (number of products per store)
+            var products = await _productRepo.GetAllAsync();
+            var productsByStore = products
+                .GroupBy(p => p.StoreId)
+                .ToDictionary(g => g.Key, g => g.Count());
+            
+            statistics.ProductCatalogSize = new Dictionary<string, int>();
+            foreach (var store in allStores)
+            {
+                if (productsByStore.ContainsKey(store.Id))
+                {
+                    statistics.ProductCatalogSize[store.Id ?? store.Name] = productsByStore[store.Id];
+                }
+                else
+                {
+                    statistics.ProductCatalogSize[store.Id ?? store.Name] = 0;
+                }
+            }
+            
+            // 10. Customer engagement (number of followers per store)
+            var followers = await _followRepo.GetAllAsync();
+            var followersByStore = followers
+                .GroupBy(f => f.StoreId)
+                .ToDictionary(g => g.Key, g => g.Count());
+            
+            statistics.CustomerEngagement = new Dictionary<string, int>();
+            foreach (var store in allStores)
+            {
+                if (followersByStore.ContainsKey(store.Id))
+                {
+                    statistics.CustomerEngagement[store.Id ?? store.Name] = followersByStore[store.Id];
+                }
+                else
+                {
+                    statistics.CustomerEngagement[store.Id ?? store.Name] = 0;
+                }
+            }
+            
+            // 11. Growth trends (new stores per month in the period)
+            var growthTrends = new Dictionary<string, decimal>();
+            var startDate = statistics.PeriodStart;
+            var endDate = statistics.PeriodEnd;
+            
+            // Calculate monthly growth
+            for (var date = new DateTime(startDate.Year, startDate.Month, 1);
+                 date <= endDate;
+                 date = date.AddMonths(1))
+            {
+                var monthStart = date;
+                var monthEnd = date.AddMonths(1).AddDays(-1);
+                
+                // Count stores created in this month
+                var monthlyStores = allStores.Count(s => s.CreatedAt >= monthStart && s.CreatedAt <= monthEnd);
+                growthTrends[date.ToString("yyyy-MM")] = monthlyStores;
+            }
+            
+            statistics.GrowthTrends = growthTrends;
+            
+            return statistics;
+        }
     }
 }

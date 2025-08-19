@@ -61,19 +61,19 @@ public class MarketService : IMarketService
     {
         var market = await _marketRepo.GetByIdAsync(id);
         if (market == null) return false;
-        
+
         var oldStatus = market.Status;
-        
+
         _mapper.Map(dto, market);
         market.UpdatedAt = DateTime.Now;
         await _marketRepo.UpdateAsync(id, market);
-        
+
         // Nếu market status thay đổi từ Active sang Suspended/Inactive, đóng tất cả stores
         if (oldStatus == "Active" && market.Status != "Active")
         {
             await CloseAllStoresInMarketAsync(id);
         }
-        
+
         return true;
     }
 
@@ -136,18 +136,18 @@ public class MarketService : IMarketService
         if (market == null) return false;
 
         var oldStatus = market.Status;
-        
+
         // Toggle trạng thái từ Active <-> Suspended
         market.Status = market.Status == "Active" ? "Suspended" : "Active";
         market.UpdatedAt = DateTime.Now;
         await _marketRepo.UpdateAsync(id, market);
-        
+
         // Nếu market chuyển từ Active sang Suspended, đóng tất cả stores
         if (oldStatus == "Active" && market.Status == "Suspended")
         {
             await CloseAllStoresInMarketAsync(id);
         }
-        
+
         return true;
     }
 
@@ -238,7 +238,7 @@ public class MarketService : IMarketService
 
         var currentTime = DateTime.Now;
         var isInOperatingHours = IsTimeInOperatingHours(market.OperatingHours, currentTime);
-        
+
         if (!isInOperatingHours)
             return (false, $"Chợ đang đóng cửa (giờ hoạt động: {market.OperatingHours})");
 
@@ -255,14 +255,14 @@ public class MarketService : IMarketService
             // Support formats: "06:00-18:00", "6:00 AM - 6:00 PM", "06:00 - 18:00"
             var timePattern = @"(\d{1,2}):(\d{2})(?:\s*(AM|PM))?\s*-\s*(\d{1,2}):(\d{2})(?:\s*(AM|PM))?";
             var match = System.Text.RegularExpressions.Regex.Match(operatingHours.Replace(" ", ""), timePattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            
+
             if (!match.Success)
                 return true; // Nếu format không đúng thì mặc định luôn mở
 
             var startHour = int.Parse(match.Groups[1].Value);
             var startMinute = int.Parse(match.Groups[2].Value);
             var startAmPm = match.Groups[3].Value;
-            
+
             var endHour = int.Parse(match.Groups[4].Value);
             var endMinute = int.Parse(match.Groups[5].Value);
             var endAmPm = match.Groups[6].Value;
@@ -333,7 +333,7 @@ public class MarketService : IMarketService
     {
         // Lấy tất cả stores trong market này
         var stores = await _storeRepo.FindManyAsync(s => s.MarketId.ToString() == marketId);
-        
+
         foreach (var store in stores)
         {
             // Chỉ đóng những store đang Open, không touch Suspended stores
@@ -344,5 +344,63 @@ public class MarketService : IMarketService
                 await _storeRepo.UpdateAsync(store.Id!, store);
             }
         }
+    }
+
+    // Implement the missing interface method
+    public async Task<MarketStatisticsDto> GetMarketStatisticsAsync(int year)
+    {
+        var markets = await _marketRepo.GetAllAsync();
+        var stores = await _storeRepo.GetAllAsync();
+        var orderRepo = (IRepository<Order>?)_storeRepo; // You should inject IRepository<Order> in constructor for best practice
+        var orders = orderRepo != null ? (await orderRepo.GetAllAsync()).ToList() : new List<Order>();
+
+        var marketStatsList = new List<MarketDetailStatisticsDto>();
+        foreach (var market in markets.Where(m => m.CreatedAt.Year == year))
+        {
+            var marketStores = stores.Where(s => s.MarketId.ToString() == market.Id).ToList();
+            var sellerIds = marketStores.Select(s => s.SellerId).Distinct().ToList();
+            var marketOrders = orders.Where(o => sellerIds.Contains(o.SellerId)).ToList();
+
+            // Aggregate sales data
+            var totalRevenue = marketOrders.Sum(o => o.TotalAmount);
+            var orderCount = marketOrders.Count;
+
+            // Seller distribution by market
+            var sellers = sellerIds.Count;
+
+            var detail = new MarketDetailStatisticsDto
+            {
+                MarketId = market.Id,
+                MarketName = market.Name,
+                Status = market.Status,
+                StoreCount = marketStores.Count,
+                SellerCount = sellers,
+                TotalRevenue = totalRevenue,
+                OrderCount = orderCount,
+                AverageStoreRevenue = marketStores.Count > 0 ? totalRevenue / marketStores.Count : 0,
+                AverageOrdersPerStore = marketStores.Count > 0 ? (double)orderCount / marketStores.Count : 0,
+                MarketStores = marketStores.Select(s => new MarketStoreDto {
+                    StoreId = s.Id ?? string.Empty,
+                    StoreName = s.Name,
+                    Status = s.Status
+                }).ToList(),
+                MarketOrders = marketOrders.Select(o => new MarketOrderDto {
+                    OrderId = o.Id ?? string.Empty,
+                    Amount = o.TotalAmount,
+                    SellerId = o.SellerId
+                }).ToList()
+            };
+            marketStatsList.Add(detail);
+        }
+
+        var result = new MarketStatisticsDto
+        {
+            TotalMarkets = markets.Count(m => m.CreatedAt.Year == year),
+            ActiveMarkets = markets.Count(m => m.Status == "Active" && m.CreatedAt.Year == year),
+            ClosedMarkets = markets.Count(m => m.Status != "Active" && m.CreatedAt.Year == year),
+            MarketStatistics = marketStatsList
+        };
+
+        return result;
     }
 }
