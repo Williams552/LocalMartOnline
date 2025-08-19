@@ -15,10 +15,4 @@ namespace LocalMartOnline.Models.DTOs
         public string? MarketId { get; set; }
     }
 
-    public class ViolatingStoreDto
-    {
-        public string StoreId { get; set; } = string.Empty;
-        public string StoreName { get; set; } = string.Empty;
-        public string Reason { get; set; } = string.Empty;
-    }
 }

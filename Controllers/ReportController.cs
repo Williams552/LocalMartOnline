@@ -1,6 +1,7 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using LocalMartOnline.Models.DTOs.Report;
 using LocalMartOnline.Services.Interface;
-using LocalMartOnline.Models.DTOs.Report;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace LocalMartOnline.Controllers
 {
@@ -189,6 +190,129 @@ namespace LocalMartOnline.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Error in debug database", error = ex.Message });
+            }
+        }
+        /// <summary>
+        /// Get market sales report
+        /// </summary>
+        [HttpGet("market/{marketId}/sales")]
+        [Authorize(Roles = "Admin,MarketManagementBoardHead,LocalGovernmentRepresentative")]
+        public async Task<IActionResult> GetMarketSalesReport(
+            string marketId,
+            [FromQuery] string from,
+            [FromQuery] string to)
+        {
+            try
+            {
+                if (!MongoDB.Bson.ObjectId.TryParse(marketId, out _))
+                {
+                    return BadRequest(new { message = "Invalid market ID" });
+                }
+
+                var report = await _reportService.GetMarketSalesReportAsync(marketId, from, to);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy báo cáo doanh số chợ thành công",
+                    data = report
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Error retrieving market sales report",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [HttpGet("violating-stores")]
+        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        public async Task<IActionResult> GetViolatingStores(
+    [FromQuery] string? marketId = null)
+        {
+            var violatingStores = await _reportService.GetViolatingStoresAsync(marketId);
+            return Ok(new { success = true, message = "Lấy danh sách cửa hàng vi phạm thành công", data = violatingStores });
+        }
+
+        [HttpGet("product-statistics")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetProductStatistics(
+    [FromQuery] string? categoryId = null,
+    [FromQuery] string period = "30d")
+        {
+            try
+            {
+                var statistics = await _reportService.GetProductStatisticsAsync(categoryId, period);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy thống kê sản phẩm thành công",
+                    data = statistics
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi lấy thống kê sản phẩm",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [HttpGet("category-statistics")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetCategoryStatistics([FromQuery] string period = "30d")
+        {
+            try
+            {
+                var statistics = await _reportService.GetCategoryStatisticsAsync(period);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy thống kê danh mục thành công",
+                    data = statistics
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi lấy thống kê danh mục",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [HttpGet("order-statistics")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetOrderStatistics(
+    [FromQuery] string period = "30d",
+    [FromQuery] string? status = null)
+        {
+            try
+            {
+                var statistics = await _reportService.GetOrderStatisticsAsync(period, status);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy thống kê đơn hàng thành công",
+                    data = statistics
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi lấy thống kê đơn hàng",
+                    error = ex.Message
+                });
             }
         }
     }

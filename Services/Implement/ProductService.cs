@@ -158,7 +158,7 @@ namespace LocalMartOnline.Services.Implement
 
             // Set StoreName, UnitName, Seller và MarketName cho từng ProductDto
             var storeDict = stores.ToDictionary(s => s.Id!, s => s);
-            var unitDict = units.ToDictionary(u => u.Id!, u => u.Name);
+            var unitDict = units.ToDictionary(u => u.Id!, u => u.DisplayName);
             var userDict = users.ToDictionary(u => u.Id!, u => u);
             var marketDict = markets.ToDictionary(m => m.Id!, m => m.Name);
             
@@ -234,7 +234,7 @@ namespace LocalMartOnline.Services.Implement
             {
                 var unit = await _unitRepo.GetByIdAsync(dto.UnitId);
                 if (unit != null)
-                    unitName = unit.Name;
+                    unitName = unit.DisplayName;
             }
             dto.StoreName = storeName;
             dto.UnitName = unitName;
