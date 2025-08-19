@@ -13,12 +13,16 @@ namespace LocalMartOnline.Services.Interface
         Task<string> GenerateReportAsync(GenerateReportRequestDto dto);
         Task<ReportFileDto> ExportReportAsync(string reportId);
         Task<object> GetMarketSalesReportAsync(string marketId, string from, string to);
-        Task<IEnumerable<ViolatingStoreDto>> GetViolatingStoresAsync(string marketId);
+        Task<int> GetNumberOfSellersAsync(string marketId);
         Task<GetReportsResponseDto> GetAllReportsAsync(GetReportsRequestDto request);
         Task<ReportDto?> GetReportByIdAsync(string reportId);
         Task<ReportDto?> CreateReportAsync(string reporterId, CreateReportDto createReportDto);
         Task<ReportDto?> UpdateReportStatusAsync(string reportId, UpdateReportStatusDto updateReportStatusDto);
         Task<GetReportsResponseDto> GetReportsByReporterAsync(string reporterId, int page = 1, int pageSize = 10);
         Task<SellerMetricsDto> GetNumberOfSellersAsync(string? marketId = null, DateTime? from = null, DateTime? to = null);
+        Task<IEnumerable<ViolatingStoreDto>> GetViolatingStoresAsync(string marketId);
+        Task<ProductStatisticsDto> GetProductStatisticsAsync(string? categoryId = null, string period = "30d");
+        Task<CategoryStatisticsDto> GetCategoryStatisticsAsync(string period = "30d");
+        Task<OrderStatisticsDto> GetOrderStatisticsAsync(string period = "30d", string? status = null);
     }
 }
