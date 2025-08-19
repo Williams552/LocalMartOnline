@@ -19,7 +19,6 @@ namespace LocalMartOnline.Services.Interface
         Task<ReportDto?> CreateReportAsync(string reporterId, CreateReportDto createReportDto);
         Task<ReportDto?> UpdateReportStatusAsync(string reportId, UpdateReportStatusDto updateReportStatusDto);
         Task<GetReportsResponseDto> GetReportsByReporterAsync(string reporterId, int page = 1, int pageSize = 10);
-        Task<IEnumerable<ViolatingStoreDto>> GetViolatingStoresAsync(string marketId);
         Task<ProductStatisticsDto> GetProductStatisticsAsync(string? categoryId = null, string period = "30d");
         Task<CategoryStatisticsDto> GetCategoryStatisticsAsync(string period = "30d");
         Task<OrderStatisticsDto> GetOrderStatisticsAsync(string period = "30d", string? status = null);

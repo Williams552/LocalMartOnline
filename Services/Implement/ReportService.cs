@@ -68,12 +68,6 @@ namespace LocalMartOnline.Services.Implement
             return Task.FromResult<object>(new { MarketSales = 0 });
         }
 
-        public Task<IEnumerable<ViolatingStoreDto>> GetViolatingStoresAsync(string marketId)
-        {
-            // TODO: Lấy danh sách cửa hàng vi phạm
-            return Task.FromResult<IEnumerable<ViolatingStoreDto>>(new List<ViolatingStoreDto>());
-        }
-
         public Task<int> GetNumberOfSellersAsync(string marketId)
         {
             // TODO: Đếm số lượng seller
@@ -432,7 +426,6 @@ namespace LocalMartOnline.Services.Implement
 
             return metrics;
         }
-    }
 
         public async Task<IEnumerable<ViolatingStoreDto>> GetViolatingStoresAsync(string marketId)
         {
