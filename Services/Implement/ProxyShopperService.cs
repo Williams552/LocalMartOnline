@@ -419,7 +419,7 @@ namespace LocalMartOnline.Services.Implement
                 List<ProxyRequest> myRequests;
                 List<ProxyShoppingOrder> relatedOrders;
 
-                if (userRole == "Buyer" || userRole == "Seller" || userRole == "Proxy Shopper")
+                if (userRole == "Buyer")
                 {
                     // Buyer/Seller: Lấy các request mà họ đã tạo
                     myRequests = (await _requestRepo.FindManyAsync(r => r.BuyerId == userId)).ToList();
@@ -494,9 +494,9 @@ namespace LocalMartOnline.Services.Implement
                     string? partnerPhone = null;
                     string partnerRole = "Unknown";
 
-                    if (userRole == "Buyer" || userRole == "Seller" || userRole == "Proxy Shopper" && order != null && !string.IsNullOrEmpty(order.ProxyShopperId))
+                   if (userRole == "Buyer" && order != null && !string.IsNullOrEmpty(order.ProxyShopperId))
                     {
-                        // Buyer/Seller xem thông tin Proxy Shopper
+                        // Buyer xem thông tin Proxy Shopper
                         if (partnerDict.TryGetValue(order.ProxyShopperId, out var proxy))
                         {
                             partnerName = proxy.FullName;
@@ -507,13 +507,13 @@ namespace LocalMartOnline.Services.Implement
                     }
                     else if (userRole == "Proxy Shopper")
                     {
-                        // Proxy Shopper xem thông tin Buyer/Seller
+                        // Proxy Shopper xem thông tin Buyer
                         if (partnerDict.TryGetValue(request.BuyerId, out var buyer))
                         {
                             partnerName = buyer.FullName;
                             partnerEmail = buyer.Email;
                             partnerPhone = buyer.PhoneNumber;
-                            partnerRole = "Buyer/Seller";
+                            partnerRole = "Buyer";
                         }
                     }
 
