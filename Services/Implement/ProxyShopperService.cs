@@ -494,7 +494,7 @@ namespace LocalMartOnline.Services.Implement
                     string? partnerPhone = null;
                     string partnerRole = "Unknown";
 
-                   if (userRole == "Buyer" && order != null && !string.IsNullOrEmpty(order.ProxyShopperId))
+                   if ((userRole == "Buyer"|| userRole == "Seller") && order != null && !string.IsNullOrEmpty(order.ProxyShopperId))
                     {
                         // Buyer xem thông tin Proxy Shopper
                         if (partnerDict.TryGetValue(order.ProxyShopperId, out var proxy))
