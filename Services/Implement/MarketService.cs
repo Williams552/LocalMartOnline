@@ -14,12 +14,14 @@ public class MarketService : IMarketService
 {
     private readonly IRepository<Market> _marketRepo;
     private readonly IRepository<Store> _storeRepo;
+    private readonly IRepository<Order> _orderRepo;
     private readonly IMapper _mapper;
 
-    public MarketService(IRepository<Market> marketRepo, IRepository<Store> storeRepo, IMapper mapper)
+    public MarketService(IRepository<Market> marketRepo, IRepository<Store> storeRepo, IRepository<Order> orderRepo, IMapper mapper)
     {
         _marketRepo = marketRepo;
         _storeRepo = storeRepo;
+        _orderRepo = orderRepo;
         _mapper = mapper;
     }
 
@@ -351,8 +353,7 @@ public class MarketService : IMarketService
     {
         var markets = await _marketRepo.GetAllAsync();
         var stores = await _storeRepo.GetAllAsync();
-        var orderRepo = (IRepository<Order>?)_storeRepo; // You should inject IRepository<Order> in constructor for best practice
-        var orders = orderRepo != null ? (await orderRepo.GetAllAsync()).ToList() : new List<Order>();
+        var orders = await _orderRepo.GetAllAsync();
 
         var marketStatsList = new List<MarketDetailStatisticsDto>();
         foreach (var market in markets.Where(m => m.CreatedAt.Year == year))

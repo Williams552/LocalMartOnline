@@ -275,31 +275,37 @@ namespace LocalMartOnline.Services
                 .GroupBy(u => u.Status)
                 .ToDictionary(g => g.Key, g => g.Count());
 
-            // Registration trends (daily counts for the period)
-            var trends = new List<RegistrationTrendDto>();
+            // Registration trends: dictionary, mỗi role là một mảng trend theo ngày
             var endDate = to;
             var startDate = from ?? endDate.AddDays(-7);
+            var roles = filteredUsers.Select(u => u.Role).Distinct().ToList();
+            var allowedRoles = new List<string> { "Buyer", "Seller", "Proxy Shopper" };
+            var roleTrends = new Dictionary<string, List<RegistrationTrendDto>>();
+            foreach (var role in allowedRoles)
+            {
+                roleTrends[role] = new List<RegistrationTrendDto>();
+            }
             for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
             {
-                var dateUsers = filteredUsers.Where(u => u.CreatedAt?.Date == date).ToList();
-                var trend = new RegistrationTrendDto
+                foreach (var role in allowedRoles)
                 {
-                    Date = date,
-                    Count = dateUsers.Count,
-                    ByRole = dateUsers.GroupBy(u => u.Role).ToDictionary(g => g.Key, g => g.Count())
-                };
-                trends.Add(trend);
+                    // Cumulative total users for each role up to this date
+                    var total = filteredUsers.Count(u => u.CreatedAt != null && u.CreatedAt.Value.Date <= date && u.Role == role);
+                    roleTrends[role].Add(new RegistrationTrendDto
+                    {
+                        Date = date,
+                        Count = total,
+                        ByRole = new Dictionary<string, int> { { role, total } }
+                    });
+                }
             }
-            statistics.RegistrationTrends = trends;
+            statistics.RegistrationTrendsByRole = roleTrends;
 
             // Top buyers/sellers/engagement metrics
             var topBuyers = await GetTopBuyersAsync(from, to);
             statistics.TopBuyers = topBuyers;
             var topSellers = await GetTopSellersAsync(from, to);
             statistics.TopSellers = topSellers;
-            var engagementMetrics = await GetEngagementMetricsAsync(from, to);
-            statistics.EngagementMetrics = engagementMetrics;
-
             statistics.PeriodStart = from;
             statistics.PeriodEnd = to;
             return statistics;
@@ -410,23 +416,6 @@ namespace LocalMartOnline.Services
             }
             
             return topSellers;
-        }
-        
-        private async Task<EngagementMetricsDto> GetEngagementMetricsAsync(DateTime? from, DateTime? to)
-        {
-            var interactions = await _userInteractionRepo.FindManyAsync(_ => true);
-            
-            var engagementMetrics = new EngagementMetricsDto
-            {
-                AverageSessionDuration = 0, // Would require session tracking data
-                TotalInteractions = interactions.Count(),
-                InteractionsByType = interactions
-                    .GroupBy(ui => ui.Type)
-                    .ToDictionary(g => g.Key, g => g.Count()),
-                EngagementRate = 0 // Would require more complex calculation
-            };
-            
-            return engagementMetrics;
         }
     }
 }

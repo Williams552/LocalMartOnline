@@ -413,15 +413,34 @@ namespace LocalMartOnline.Services.Implement
             var totalUsers = await _userCollection.CountDocumentsAsync(userFilter);
             metrics.StoreToSellerRatio = totalUsers > 0 ? (double)allStores.Count / totalUsers : 0;
 
-            // 6. Seller performance tiers (simplified - based on store rating)
-            var storesWithRatings = allStores.Where(s => s.Rating > 0).ToList();
+            // 6. Seller performance tiers (based on average rating from Review collection)
+            var reviewCollection = _userCollection.Database.GetCollection<Review>("Reviews");
+            var reviewFilterBuilder = Builders<Review>.Filter;
+            var reviewFilter = reviewFilterBuilder.Eq(r => r.TargetType, "Seller");
+            if (!string.IsNullOrEmpty(marketId)) {
+                // Lấy sellerIds của market này
+                var sellerIds = allStores.Select(s => s.SellerId).Distinct().ToList();
+                reviewFilter = reviewFilterBuilder.And(
+                    reviewFilter,
+                    reviewFilterBuilder.In(r => r.TargetId, sellerIds)
+                );
+            }
+            var sellerReviews = await reviewCollection.Find(reviewFilter).ToListAsync();
+            var sellerGroups = sellerReviews
+                .GroupBy(r => r.TargetId)
+                .Select(g => new {
+                    SellerId = g.Key,
+                    AvgRating = g.Any() ? g.Average(r => r.Rating) : 0
+                })
+                .ToList();
+
             metrics.SellerPerformanceTiers = new Dictionary<string, int>
             {
-                { "Excellent (4.5-5.0)", storesWithRatings.Count(s => s.Rating >= 4.5m) },
-                { "Good (4.0-4.4)", storesWithRatings.Count(s => s.Rating >= 4.0m && s.Rating < 4.5m) },
-                { "Average (3.0-3.9)", storesWithRatings.Count(s => s.Rating >= 3.0m && s.Rating < 4.0m) },
-                { "Below Average (2.0-2.9)", storesWithRatings.Count(s => s.Rating >= 2.0m && s.Rating < 3.0m) },
-                { "Poor (0-1.9)", storesWithRatings.Count(s => s.Rating < 2.0m) }
+                { "Excellent (4.5-5.0)", sellerGroups.Count(s => s.AvgRating >= 4.5) },
+                { "Good (4.0-4.4)", sellerGroups.Count(s => s.AvgRating >= 4.0 && s.AvgRating < 4.5) },
+                { "Average (3.0-3.9)", sellerGroups.Count(s => s.AvgRating >= 3.0 && s.AvgRating < 4.0) },
+                { "Below Average (2.0-2.9)", sellerGroups.Count(s => s.AvgRating >= 2.0 && s.AvgRating < 3.0) },
+                { "Poor (0-1.9)", sellerGroups.Count(s => s.AvgRating < 2.0) }
             };
 
             return metrics;

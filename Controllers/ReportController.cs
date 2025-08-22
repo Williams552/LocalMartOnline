@@ -15,6 +15,16 @@ namespace LocalMartOnline.Controllers
         {
             _reportService = reportService;
         }
+        /// <summary>
+        /// Get total number of API endpoints in the project
+        /// </summary>
+        [HttpGet("endpoint-count")]
+        [AllowAnonymous]
+        public IActionResult GetEndpointCount([FromServices] Microsoft.AspNetCore.Mvc.ApiExplorer.IApiDescriptionGroupCollectionProvider provider)
+        {
+            var count = provider.ApiDescriptionGroups.Items.SelectMany(g => g.Items).Count();
+            return Ok(new { endpointCount = count });
+        }
 
         /// <summary>
         /// Get all reports
