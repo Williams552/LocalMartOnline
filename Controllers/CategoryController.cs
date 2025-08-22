@@ -37,7 +37,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet("admin")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetAllAdminPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var result = await _categoryService.GetAllPagedAdminAsync(page, pageSize);
@@ -51,7 +51,7 @@ namespace LocalMartOnline.Controllers
 
         // UC057: Add Category
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS")]
         public async Task<IActionResult> Create([FromBody] CategoryCreateDto dto)
         {
             var created = await _categoryService.CreateAsync(dto);
@@ -69,7 +69,7 @@ namespace LocalMartOnline.Controllers
 
         // UC059: Edit Category
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS")]
         public async Task<IActionResult> Update(string id, [FromBody] CategoryUpdateDto dto)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
@@ -219,7 +219,7 @@ namespace LocalMartOnline.Controllers
 
         // Optional: Delete category
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))

@@ -251,7 +251,7 @@ namespace LocalMartOnline.Controllers
 
         // Get store followers
         [HttpGet("{storeId}/followers")]
-        [Authorize(Roles = "Seller,Admin,Buyer")]
+        [Authorize(Roles = "Seller,Admin,Buyer, MS, LGR, MMBH")]
         public async Task<IActionResult> GetStoreFollowers(
             string storeId,
             [FromQuery] int page = 1,
@@ -427,7 +427,7 @@ namespace LocalMartOnline.Controllers
 
         // UC025: View All Stores (Admin)
         [HttpGet("admin")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetAllStores([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var result = await _storeService.GetAllStoresAsync(page, pageSize);
@@ -441,7 +441,7 @@ namespace LocalMartOnline.Controllers
 
         // UC026: View Suspended Stores
         [HttpGet("suspended")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead,LocalGovernmentRepresentative")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetSuspendedStores([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var result = await _storeService.GetSuspendedStoresAsync(page, pageSize);
@@ -455,7 +455,7 @@ namespace LocalMartOnline.Controllers
 
         // UC027: Suspend Store
         [HttpPatch("{id}/suspend")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> SuspendStore(string id, [FromBody] SuspendStoreDto dto)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
@@ -487,7 +487,7 @@ namespace LocalMartOnline.Controllers
 
         // UC028: Reactivate Store
         [HttpPatch("{id}/reactivate")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> ReactivateStore(string id)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
@@ -560,7 +560,7 @@ namespace LocalMartOnline.Controllers
 
         // Tìm kiếm và lọc cửa hàng (cho admin)
         [HttpPost("admin/search")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> SearchStoresAdmin([FromBody] StoreSearchFilterDto filter)
         {
             var result = await _storeService.SearchStoresAsync(filter, true);

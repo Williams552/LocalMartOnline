@@ -29,7 +29,7 @@ namespace LocalMartOnline.Controllers
 
         // UC102: Add FAQ
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, LGR")]
         public async Task<ActionResult<FaqDto>> Add([FromBody] FaqCreateDto dto)
         {
             var faq = await _faqService.AddAsync(dto);
@@ -38,7 +38,7 @@ namespace LocalMartOnline.Controllers
 
         // UC103: Update FAQ
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, LGR")]
         public async Task<IActionResult> Update(string id, [FromBody] FaqUpdateDto dto)
         {
             var result = await _faqService.UpdateAsync(id, dto);
@@ -48,7 +48,7 @@ namespace LocalMartOnline.Controllers
 
         // UC104: Delete FAQ
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, LGR")]
         public async Task<IActionResult> Delete(string id)
         {
             var result = await _faqService.DeleteAsync(id);
