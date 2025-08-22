@@ -77,7 +77,7 @@ namespace LocalMartOnline.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
-        [Authorize(Roles = "Admin,Buyer,Seller,Proxy Shopper")]
+        [Authorize(Roles = "Admin,Buyer,Seller,Proxy Shopper, MS, LGR, MMBH")]
         public async Task<IActionResult> Update(string id, [FromBody] UserUpdateDTO updateUserDto)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out var objectId))
