@@ -184,12 +184,40 @@ namespace LocalMartOnline.Services
 
         private List<ProductRecommendationDto> GetFallbackRecommendations(int count)
         {
-            // Fallback to popular products from your database
-            // This should be implemented based on your Product model
-            _logger.LogInformation("Using fallback recommendations");
-            
-            // TODO: Implement fallback logic here
-            // For example, get most popular products from MongoDB
+            _logger.LogInformation("Using fallback recommendations (popular products)");
+            try
+            {
+                var response = _httpClient.GetAsync($"/api/popular?count={count}").Result;
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonContent = response.Content.ReadAsStringAsync().Result;
+                    using var doc = JsonDocument.Parse(jsonContent);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("data", out var dataElem) && dataElem.ValueKind == JsonValueKind.Array)
+                    {
+                        var result = new List<ProductRecommendationDto>();
+                        foreach (var item in dataElem.EnumerateArray())
+                        {
+                            result.Add(new ProductRecommendationDto
+                            {
+                                ProductId = item.GetProperty("productId").GetString() ?? string.Empty,
+                                ProductName = item.GetProperty("productName").GetString() ?? string.Empty,
+                                Category = item.GetProperty("category").GetString() ?? string.Empty,
+                                Price = item.GetProperty("price").GetDecimal(),
+                                Score = item.GetProperty("score").GetDouble(),
+                                Brand = null // Không có trường brand
+                            });
+                        }
+                        _logger.LogInformation("Popular products fallback count: {Count}", result.Count);
+                        return result;
+                    }
+                }
+                _logger.LogWarning("Popular products API returned {StatusCode}", response.StatusCode);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting popular products for fallback");
+            }
             return new List<ProductRecommendationDto>();
         }
     }
