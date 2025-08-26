@@ -42,8 +42,10 @@ namespace LocalMartOnline.Services
     public interface IAIRecommendationService
     {
         Task<List<ProductRecommendationDto>> GetRecommendationsAsync(string userId, int count = 5);
+    Task<List<ProductRecommendationDto>> GetFallbackRecommendationsAsync(int count = 5);
         Task<bool> TriggerRetrainingAsync();
         Task<AIStatusDto?> GetAIStatusAsync();
+        
         Task<bool> IsHealthyAsync();
     }
 
@@ -85,18 +87,18 @@ namespace LocalMartOnline.Services
                 else
                 {
                     _logger.LogWarning("AI service returned {StatusCode} for user {UserId}", response.StatusCode, userId);
-                    return GetFallbackRecommendations(count);
+                    return await GetFallbackRecommendationsAsync(count);
                 }
             }
             catch (HttpRequestException ex)
             {
                 _logger.LogError(ex, "HTTP error when getting recommendations for user {UserId}", userId);
-                return GetFallbackRecommendations(count);
+                return await GetFallbackRecommendationsAsync(count);
             }
             catch (TaskCanceledException ex)
             {
                 _logger.LogError(ex, "Timeout when getting recommendations for user {UserId}", userId);
-                return GetFallbackRecommendations(count);
+                return await GetFallbackRecommendationsAsync(count);
             }
             catch (Exception ex)
             {
@@ -182,15 +184,15 @@ namespace LocalMartOnline.Services
             }
         }
 
-        private List<ProductRecommendationDto> GetFallbackRecommendations(int count)
+        public async Task<List<ProductRecommendationDto>> GetFallbackRecommendationsAsync(int count)
         {
             _logger.LogInformation("Using fallback recommendations (popular products)");
             try
             {
-                var response = _httpClient.GetAsync($"/api/popular?count={count}").Result;
+                var response = await _httpClient.GetAsync($"/api/popular?count={count}");
                 if (response.IsSuccessStatusCode)
                 {
-                    var jsonContent = response.Content.ReadAsStringAsync().Result;
+                    var jsonContent = await response.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(jsonContent);
                     var root = doc.RootElement;
                     if (root.TryGetProperty("data", out var dataElem) && dataElem.ValueKind == JsonValueKind.Array)
@@ -212,7 +214,10 @@ namespace LocalMartOnline.Services
                         return result;
                     }
                 }
-                _logger.LogWarning("Popular products API returned {StatusCode}", response.StatusCode);
+                else
+                {
+                    _logger.LogWarning("Popular products API returned {StatusCode}", response.StatusCode);
+                }
             }
             catch (Exception ex)
             {
