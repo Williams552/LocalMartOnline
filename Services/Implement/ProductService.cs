@@ -131,22 +131,29 @@ namespace LocalMartOnline.Services.Implement
             // Update store status based on market hours before filtering
             await _marketService.UpdateStoreStatusBasedOnMarketHoursAsync();
             
-            var products = await _productRepo.GetAllAsync();
-            var stores = await _storeRepo.GetAllAsync();
-            var units = await _unitRepo.GetAllAsync();
-            var users = await _userRepo.GetAllAsync();
-            var markets = await _marketRepo.GetAllAsync();
+            // Load all required data in parallel (reduces sequential queries)
+            var productsTask = _productRepo.GetAllAsync();
+            var storesTask = _storeRepo.GetAllAsync();
+            var unitsTask = _unitRepo.GetAllAsync();
+            var usersTask = _userRepo.GetAllAsync();
+            var marketsTask = _marketRepo.GetAllAsync();
             
-            // Filter stores that are open and in active markets
-            var validStoreIds = new HashSet<string>();
-            foreach (var store in stores.Where(s => s.Status == "Open"))
-            {
-                var isMarketOpen = await _marketService.IsMarketOpenAsync(store.MarketId);
-                if (isMarketOpen)
-                {
-                    validStoreIds.Add(store.Id!);
-                }
-            }
+            await Task.WhenAll(productsTask, storesTask, unitsTask, usersTask, marketsTask);
+            
+            var products = await productsTask;
+            var stores = await storesTask;
+            var units = await unitsTask;
+            var users = await usersTask;
+            var markets = await marketsTask;
+            
+            // Pre-compute open market IDs (fix N+1: batch check instead of loop)
+            var openMarketIds = new HashSet<string>(
+                markets.Where(m => m.Status == "Active").Select(m => m.Id!));
+            
+            // Filter stores that are open and in active markets (no async calls in loop)
+            var validStoreIds = new HashSet<string>(
+                stores.Where(s => s.Status == "Open" && openMarketIds.Contains(s.MarketId))
+                      .Select(s => s.Id!));
 
             var productList = products
                 .Where(p => validStoreIds.Contains(p.StoreId) && (p.Status == ProductStatus.Active || p.Status == ProductStatus.OutOfStock || p.Status == ProductStatus.Inactive || p.Status == ProductStatus.Suspended)) // Chỉ hiển thị sản phẩm của cửa hàng mở và chợ hoạt động
@@ -763,12 +770,23 @@ namespace LocalMartOnline.Services.Implement
 
         private async Task<IEnumerable<ProductDto>> MapProductDtosWithImages(IEnumerable<Product> products)
         {
+            var productList = products.ToList();
+            if (!productList.Any())
+                return Enumerable.Empty<ProductDto>();
+
+            // Batch load all images for all products in ONE query (fix N+1)
+            var productIds = productList.Select(p => p.Id).Where(id => id != null).ToList();
+            var allImages = await _imageRepo.FindManyAsync(i => productIds.Contains(i.ProductId));
+            var imagesByProductId = allImages.GroupBy(i => i.ProductId)
+                                              .ToDictionary(g => g.Key, g => g.Select(i => i.ImageUrl).ToList());
+
             var result = new List<ProductDto>();
-            foreach (var product in products)
+            foreach (var product in productList)
             {
                 var dto = _mapper.Map<ProductDto>(product);
-                var images = await _imageRepo.FindManyAsync(i => i.ProductId == product.Id);
-                dto.ImageUrls = images.Select(i => i.ImageUrl).ToList();
+                dto.ImageUrls = product.Id != null && imagesByProductId.TryGetValue(product.Id, out var urls) 
+                    ? urls 
+                    : new List<string>();
                 result.Add(dto);
             }
             return result;
