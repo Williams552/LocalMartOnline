@@ -30,7 +30,7 @@ namespace LocalMartOnline.Controllers
 
         // UC063: View Category Registration List
         [HttpGet]
-        [Authorize (Roles = "Admin, MarketStaff")]
+        [Authorize (Roles = "Admin, MS, LGR, MMBH")]
         public async Task<ActionResult<PagedResultDto<CategoryRegistrationDto>>> GetAllPaged(
          [FromQuery] int page = 1,
          [FromQuery] int pageSize = 20)
@@ -41,7 +41,7 @@ namespace LocalMartOnline.Controllers
 
         // UC064: Approve Category Registration
         [HttpPost("{id}/approve")]
-        [Authorize (Roles = "Admin, MarketStaff")]
+        [Authorize (Roles = "Admin, MS")]
         public async Task<IActionResult> Approve(string id)
         {
             var result = await _service.ApproveAsync(id);
@@ -51,7 +51,7 @@ namespace LocalMartOnline.Controllers
 
         // UC065: Reject Category Registration
         [HttpPost("{id}/reject")]
-        [Authorize (Roles = "Admin, MarketStaff")]
+        [Authorize (Roles = "Admin, MS")]
         public async Task<IActionResult> Reject(string id, [FromBody] CategoryRegistrationRejectDto dto)
         {
             var result = await _service.RejectAsync(id, dto.RejectionReason);

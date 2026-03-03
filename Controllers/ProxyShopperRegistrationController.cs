@@ -43,7 +43,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetAll()
         {
             var dtos = await _proxyShopperService.GetAllRegistrationsAsync();
@@ -51,7 +51,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPut("approve")]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> Approve([FromBody] ProxyShopperRegistrationApproveDTO dto)
         {
             var success = await _proxyShopperService.ApproveRegistrationAsync(dto);

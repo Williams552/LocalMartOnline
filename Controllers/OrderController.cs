@@ -60,7 +60,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet("admin/orders")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<ActionResult<PagedResultDto<OrderDto>>> GetAllOrderList([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

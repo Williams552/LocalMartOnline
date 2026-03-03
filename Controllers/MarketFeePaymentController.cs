@@ -27,7 +27,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetAllPayments([FromQuery] GetAllMarketFeePaymentsRequestDto request)
         {
             try
@@ -59,7 +59,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("market/sellers-payment-status")]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetSellersPaymentStatus([FromBody] GetSellersPaymentStatusRequestDto request)
         {
             try
@@ -75,7 +75,7 @@ namespace LocalMartOnline.Controllers
 
         // Admin endpoint: Get all stores with payment information
         [HttpGet("admin/stores-payment-overview")]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetAllStoresWithPaymentInfo([FromQuery] GetAllStoresWithPaymentRequestDto request)
         {
             try
@@ -101,7 +101,7 @@ namespace LocalMartOnline.Controllers
 
         // Admin endpoint: Update store payment status
         [HttpPatch("admin/payment/{paymentId}/update-status")]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> UpdateStorePaymentStatus(string paymentId, [FromBody] UpdateStorePaymentStatusDto dto)
         {
             try
@@ -135,7 +135,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("admin/create-payment")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> CreatePaymentByAdmin([FromBody] AdminCreatePaymentDto dto)
         {
             try
@@ -160,7 +160,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("admin/create-payment-for-market")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> CreatePaymentForMarket([FromBody] AdminCreatePaymentForMarketDto dto)
         {
             try

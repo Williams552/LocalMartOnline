@@ -42,8 +42,10 @@ namespace LocalMartOnline.Services
     public interface IAIRecommendationService
     {
         Task<List<ProductRecommendationDto>> GetRecommendationsAsync(string userId, int count = 5);
+    Task<List<ProductRecommendationDto>> GetFallbackRecommendationsAsync(int count = 5);
         Task<bool> TriggerRetrainingAsync();
         Task<AIStatusDto?> GetAIStatusAsync();
+        
         Task<bool> IsHealthyAsync();
     }
 
@@ -85,18 +87,18 @@ namespace LocalMartOnline.Services
                 else
                 {
                     _logger.LogWarning("AI service returned {StatusCode} for user {UserId}", response.StatusCode, userId);
-                    return GetFallbackRecommendations(count);
+                    return await GetFallbackRecommendationsAsync(count);
                 }
             }
             catch (HttpRequestException ex)
             {
                 _logger.LogError(ex, "HTTP error when getting recommendations for user {UserId}", userId);
-                return GetFallbackRecommendations(count);
+                return await GetFallbackRecommendationsAsync(count);
             }
             catch (TaskCanceledException ex)
             {
                 _logger.LogError(ex, "Timeout when getting recommendations for user {UserId}", userId);
-                return GetFallbackRecommendations(count);
+                return await GetFallbackRecommendationsAsync(count);
             }
             catch (Exception ex)
             {
@@ -182,14 +184,45 @@ namespace LocalMartOnline.Services
             }
         }
 
-        private List<ProductRecommendationDto> GetFallbackRecommendations(int count)
+        public async Task<List<ProductRecommendationDto>> GetFallbackRecommendationsAsync(int count)
         {
-            // Fallback to popular products from your database
-            // This should be implemented based on your Product model
-            _logger.LogInformation("Using fallback recommendations");
-            
-            // TODO: Implement fallback logic here
-            // For example, get most popular products from MongoDB
+            _logger.LogInformation("Using fallback recommendations (popular products)");
+            try
+            {
+                var response = await _httpClient.GetAsync($"/api/popular?count={count}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonContent = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(jsonContent);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("data", out var dataElem) && dataElem.ValueKind == JsonValueKind.Array)
+                    {
+                        var result = new List<ProductRecommendationDto>();
+                        foreach (var item in dataElem.EnumerateArray())
+                        {
+                            result.Add(new ProductRecommendationDto
+                            {
+                                ProductId = item.GetProperty("productId").GetString() ?? string.Empty,
+                                ProductName = item.GetProperty("productName").GetString() ?? string.Empty,
+                                Category = item.GetProperty("category").GetString() ?? string.Empty,
+                                Price = item.GetProperty("price").GetDecimal(),
+                                Score = item.GetProperty("score").GetDouble(),
+                                Brand = null // Không có trường brand
+                            });
+                        }
+                        _logger.LogInformation("Popular products fallback count: {Count}", result.Count);
+                        return result;
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Popular products API returned {StatusCode}", response.StatusCode);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting popular products for fallback");
+            }
             return new List<ProductRecommendationDto>();
         }
     }

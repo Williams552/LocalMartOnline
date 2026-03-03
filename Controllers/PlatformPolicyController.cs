@@ -29,7 +29,7 @@ namespace LocalMartOnline.Controllers
 
         // UC104: Create Platform Policy
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, LGR")]
         public async Task<ActionResult<PlatformPolicyDto>> Create([FromBody] PlatformPolicyCreateDto dto)
         {
             var createdPolicy = await _policyService.CreateAsync(dto);
@@ -38,7 +38,7 @@ namespace LocalMartOnline.Controllers
 
         // UC106: Update Policies
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, LGR")]
         public async Task<IActionResult> Update(string id, [FromBody] PlatformPolicyUpdateDto dto)
         {
             var result = await _policyService.UpdateAsync(id, dto);
@@ -48,7 +48,7 @@ namespace LocalMartOnline.Controllers
 
         // UC107: Toggle Platform Policy
         [HttpPut("{id}/toggle")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, LGR")]
         public async Task<IActionResult> Toggle(string id)
         {
             var result = await _policyService.ToggleAsync(id);

@@ -25,7 +25,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> Create([FromBody] MarketFeeCreateDto dto)
         {
             var created = await _service.CreateAsync(dto);
@@ -33,7 +33,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> Update(string id, [FromBody] MarketFeeUpdateDto dto)
         {
             var result = await _service.UpdateAsync(id, dto);
@@ -42,7 +42,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> Delete(string id)
         {
             var result = await _service.DeleteAsync(id);

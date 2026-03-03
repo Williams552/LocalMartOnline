@@ -39,7 +39,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetAll()
         {
             var dtos = await _service.GetAllRegistrationsAsync();
@@ -47,7 +47,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPut("approve")]
-        [Authorize(Roles = "Admin,MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> Approve([FromBody] SellerRegistrationApproveDTO dto)
         {
             try

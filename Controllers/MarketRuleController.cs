@@ -103,7 +103,7 @@ namespace LocalMartOnline.Controllers
         /// Buyer, Proxy Shopper, Market Staff, Seller
         /// </summary>
         [HttpPut("{ruleId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> UpdateMarketRule(string ruleId, [FromBody] UpdateMarketRuleDto updateMarketRuleDto)
         {
             try
@@ -127,7 +127,7 @@ namespace LocalMartOnline.Controllers
         /// Buyer, Proxy Shopper, Market Staff, Seller
         /// </summary>
         [HttpDelete("{ruleId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> DeleteMarketRule(string ruleId)
         {
             try

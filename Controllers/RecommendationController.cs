@@ -215,14 +215,14 @@ namespace LocalMartOnline.Controllers
         {
             try
             {
-                // TODO: Implement popular products logic from your database
-                // This is a fallback when AI service is unavailable
-                
+                // Use the AI service fallback method to fetch popular products
+                var popular = _aiService.GetFallbackRecommendationsAsync(count).GetAwaiter().GetResult();
+
                 return Ok(new
                 {
                     success = true,
-                    data = new List<object>(), // Replace with actual popular products
-                    message = "Popular products (fallback)",
+                    data = popular,
+                    count = popular?.Count ?? 0,
                     timestamp = DateTime.UtcNow
                 });
             }

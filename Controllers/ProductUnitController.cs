@@ -33,7 +33,7 @@ namespace LocalMartOnline.Controllers
 
         // Admin: Get all units with pagination
         [HttpGet("admin")]
-        [Authorize(Roles = "Admin, MarketStaff")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetAllPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var result = await _service.GetAllPagedAsync(page, pageSize);
@@ -47,7 +47,7 @@ namespace LocalMartOnline.Controllers
 
         // Admin: Create new unit
         [HttpPost]
-        [Authorize(Roles = "Admin, MarketStaff")]
+        [Authorize(Roles = "Admin, MS")]
         public async Task<IActionResult> Create([FromBody] ProductUnitCreateDto dto)
         {
             if (!ModelState.IsValid)
@@ -83,7 +83,7 @@ namespace LocalMartOnline.Controllers
 
         // Admin: Update unit
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin, MarketStaff")]
+        [Authorize(Roles = "Admin, MS")]
         public async Task<IActionResult> Update(string id, [FromBody] ProductUnitUpdateDto dto)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
@@ -137,7 +137,7 @@ namespace LocalMartOnline.Controllers
 
         // Admin: Toggle unit status
         [HttpPatch("{id}/toggle")]
-        [Authorize(Roles = "Admin, MarketStaff")]
+        [Authorize(Roles = "Admin, MS")]
         public async Task<IActionResult> Toggle(string id)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
@@ -169,7 +169,7 @@ namespace LocalMartOnline.Controllers
 
         // Admin: Delete unit (soft delete)
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin, MarketStaff")]
+        [Authorize(Roles = "Admin, MS")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
@@ -257,7 +257,7 @@ namespace LocalMartOnline.Controllers
 
         // Admin: Search all units
         [HttpGet("admin/search")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS")]
         public async Task<IActionResult> SearchAdmin([FromQuery] string name)
         {
             if (string.IsNullOrEmpty(name))
@@ -295,7 +295,7 @@ namespace LocalMartOnline.Controllers
 
         // Admin: Reorder units
         [HttpPost("reorder")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin, MS")]
         public async Task<IActionResult> Reorder([FromBody] List<ProductUnitReorderDto> reorderList)
         {
             if (reorderList == null || !reorderList.Any())

@@ -20,7 +20,7 @@ namespace LocalMartOnline.Controllers
 
         // UC118: Create New Market
         [HttpPost]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        [Authorize(Roles = "Admin,, MS, LGR, MMBH")]
         public async Task<IActionResult> Create([FromBody] MarketCreateDto dto)
         {
             var market = await _marketService.CreateAsync(dto);
@@ -34,7 +34,7 @@ namespace LocalMartOnline.Controllers
 
         // UC119: View Market List (Admin/Management)
         [HttpGet("admin")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead,LocalGovernmentRepresentative")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetAllAdmin()
         {
             var markets = await _marketService.GetAllAsync();
@@ -62,7 +62,7 @@ namespace LocalMartOnline.Controllers
 
         // UC120: Update Market Info
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> Update(string id, [FromBody] MarketUpdateDto dto)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
@@ -94,7 +94,7 @@ namespace LocalMartOnline.Controllers
 
         // Toggle Market Status (Active/Suspended)
         [HttpPatch("{id}/toggle")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> ToggleStatus(string id)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
@@ -126,7 +126,7 @@ namespace LocalMartOnline.Controllers
 
         // UC121: Delete Market
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
@@ -158,7 +158,7 @@ namespace LocalMartOnline.Controllers
 
         // UC122: Search Markets (Admin)
         [HttpGet("admin/search")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead,LocalGovernmentRepresentative")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> SearchAdmin([FromQuery] string keyword)
         {
             var markets = await _marketService.SearchAsync(keyword);
@@ -186,7 +186,7 @@ namespace LocalMartOnline.Controllers
 
         // UC123: Filter Markets (Admin)
         [HttpGet("admin/filter")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead,LocalGovernmentRepresentative")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> FilterAdmin(
             [FromQuery] string? status,
             [FromQuery] string? area,
@@ -250,7 +250,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpPost("{marketId}/close-all-stores")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> CloseAllStoresInMarket(string marketId)
         {
             try
@@ -289,7 +289,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet("{marketId}/test-store-auto-close")]
-        [Authorize(Roles = "Admin,MarketManagementBoardHead")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> TestStoreAutoClose(string marketId, [FromQuery] string? testTime = null)
         {
             try
@@ -352,7 +352,7 @@ namespace LocalMartOnline.Controllers
         }
 
         [HttpGet("statistics")]
-        [Authorize(Roles = "Admin,MarketManagementBoard")]
+        [Authorize(Roles = "Admin, MS, LGR, MMBH")]
         public async Task<IActionResult> GetMarketStatistics([FromQuery] int year)
         {
             var stats = await _marketService.GetMarketStatisticsAsync(year);

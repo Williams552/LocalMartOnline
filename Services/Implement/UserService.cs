@@ -48,6 +48,7 @@ namespace LocalMartOnline.Services
             var user = _mapper.Map<User>(userDto);
             user.CreatedAt = DateTime.Now;
             user.UpdatedAt = DateTime.Now;
+            user.Status = "Active"; // Mặc định là Active
             user.PasswordHash = PasswordHashService.HashPassword(userDto.Password); // Hash password từ DTO
             user.IsEmailVerified = true;
 
