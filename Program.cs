@@ -5,6 +5,7 @@ using LocalMartOnline.Services;
 using LocalMartOnline.Services.Implement;
 using LocalMartOnline.Services.Interface;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -130,8 +131,14 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
     });
 }
 
+// Handle reverse proxy headers from Cloudflare
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 app.UseCors("AllowAll");
-app.UseHttpsRedirection();
+// UseHttpsRedirection removed: TLS is terminated at Cloudflare (origin serves HTTP)
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
