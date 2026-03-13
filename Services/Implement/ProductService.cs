@@ -4,7 +4,6 @@ using LocalMartOnline.Models.DTOs.Common;
 using LocalMartOnline.Models.DTOs.Product;
 using LocalMartOnline.Repositories;
 using LocalMartOnline.Services.Interface;
-using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
@@ -23,7 +22,12 @@ namespace LocalMartOnline.Services.Implement
         private readonly IRepository<User> _userRepo;
         private readonly IMarketService _marketService;
         private readonly IMapper _mapper;
-        private readonly IMongoCollection<BsonDocument> _productCollection;
+        private readonly IMongoCollection<Product> _productCollection;
+        private readonly IMongoCollection<ProductImage> _productImageCollection;
+        private readonly IMongoCollection<Store> _storeCollection;
+        private readonly IMongoCollection<ProductUnit> _unitCollection;
+        private readonly IMongoCollection<Market> _marketCollection;
+        private readonly IMongoCollection<User> _userCollection;
 
         public ProductService(
             IRepository<Product> productRepo,
@@ -44,7 +48,12 @@ namespace LocalMartOnline.Services.Implement
             _userRepo = userRepo;
             _marketService = marketService;
             _mapper = mapper;
-            _productCollection = database.GetCollection<BsonDocument>("products");
+            _productCollection = database.GetCollection<Product>("Products");
+            _productImageCollection = database.GetCollection<ProductImage>("ProductImages");
+            _storeCollection = database.GetCollection<Store>("Stores");
+            _unitCollection = database.GetCollection<ProductUnit>("ProductUnits");
+            _marketCollection = database.GetCollection<Market>("Markets");
+            _userCollection = database.GetCollection<User>("Users");
         }
 
         // UC041: Add Product
@@ -105,7 +114,7 @@ namespace LocalMartOnline.Services.Implement
         {
             var product = await _productRepo.GetByIdAsync(id);
             if (product == null) return false;
-
+    
             // Update status to the specified new status
             product.Status = newStatus;
             product.UpdatedAt = DateTime.Now;
@@ -128,82 +137,77 @@ namespace LocalMartOnline.Services.Implement
         // UC049: View All Product List (FOR BUYERS - ALL STATUSES)
         public async Task<PagedResultDto<ProductDto>> GetAllProductsAsync(int page, int pageSize)
         {
-            // Update store status based on market hours before filtering
-            await _marketService.UpdateStoreStatusBasedOnMarketHoursAsync();
-            
-            // Load all required data in parallel (reduces sequential queries)
-            var productsTask = _productRepo.GetAllAsync();
-            var storesTask = _storeRepo.GetAllAsync();
-            var unitsTask = _unitRepo.GetAllAsync();
-            var usersTask = _userRepo.GetAllAsync();
-            var marketsTask = _marketRepo.GetAllAsync();
-            
-            await Task.WhenAll(productsTask, storesTask, unitsTask, usersTask, marketsTask);
-            
-            var products = await productsTask;
-            var stores = await storesTask;
-            var units = await unitsTask;
-            var users = await usersTask;
-            var markets = await marketsTask;
-            
-            // Pre-compute open market IDs (fix N+1: batch check instead of loop)
-            var openMarketIds = new HashSet<string>(
-                markets.Where(m => m.Status == "Active").Select(m => m.Id!));
-            
-            // Filter stores that are open and in active markets (no async calls in loop)
-            var validStoreIds = new HashSet<string>(
-                stores.Where(s => s.Status == "Open" && openMarketIds.Contains(s.MarketId))
-                      .Select(s => s.Id!));
+            page = Math.Max(page, 1);
+            pageSize = Math.Max(pageSize, 1);
 
-            var productList = products
-                .Where(p => validStoreIds.Contains(p.StoreId) && (p.Status == ProductStatus.Active || p.Status == ProductStatus.OutOfStock || p.Status == ProductStatus.Inactive || p.Status == ProductStatus.Suspended)) // Chỉ hiển thị sản phẩm của cửa hàng mở và chợ hoạt động
+            var activeMarkets = await _marketCollection
+                .Find(m => m.Status == "Active")
+                .ToListAsync();
+
+            var activeMarketIds = activeMarkets
+                .Select(m => m.Id)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Cast<string>()
                 .ToList();
 
-            var total = productList.Count();
-            var paged = productList.Skip((page - 1) * pageSize).Take(pageSize);
-            var items = await MapProductDtosWithImages(paged);
-
-            // Set StoreName, UnitName, Seller và MarketName cho từng ProductDto
-            var storeDict = stores.ToDictionary(s => s.Id!, s => s);
-            var unitDict = units.ToDictionary(u => u.Id!, u => u.DisplayName);
-            var userDict = users.ToDictionary(u => u.Id!, u => u);
-            var marketDict = markets.ToDictionary(m => m.Id!, m => m.Name);
-            
-            foreach (var dto in items)
+            if (activeMarketIds.Count == 0)
             {
-                // Get store info first
-                var store = (!string.IsNullOrEmpty(dto.StoreId) && storeDict.TryGetValue(dto.StoreId, out var storeInfo)) ? storeInfo : null;
-                
-                dto.StoreName = store?.Name ?? string.Empty;
-                dto.UnitName = (!string.IsNullOrEmpty(dto.UnitId) && unitDict.TryGetValue(dto.UnitId, out var unitName)) ? unitName : string.Empty;
-                
-                // Set MarketName
-                if (store != null && !string.IsNullOrEmpty(store.MarketId) && marketDict.TryGetValue(store.MarketId, out var marketName))
+                return new PagedResultDto<ProductDto>
                 {
-                    dto.MarketName = marketName;
-                }
-                
-                // Set Seller information
-                if (store != null && !string.IsNullOrEmpty(store.SellerId) && userDict.TryGetValue(store.SellerId, out var seller))
-                {
-                    dto.Seller = new SellerDto
-                    {
-                        Name = seller.FullName,
-                        Rating = 0, // Default rating for now
-                        Market = dto.MarketName
-                    };
-                }
-                
-                // Ensure Status is set
-                var product = products.FirstOrDefault(p => p.Id == dto.Id);
-                if (product != null)
-                    dto.Status = product.Status;
+                    Items = Array.Empty<ProductDto>(),
+                    TotalCount = 0,
+                    Page = page,
+                    PageSize = pageSize
+                };
             }
+
+            var validStores = await _storeCollection
+                .Find(s => s.Status == "Open" && activeMarketIds.Contains(s.MarketId))
+                .ToListAsync();
+
+            var validStoreIds = validStores
+                .Select(s => s.Id)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Cast<string>()
+                .ToList();
+
+            if (validStoreIds.Count == 0)
+            {
+                return new PagedResultDto<ProductDto>
+                {
+                    Items = Array.Empty<ProductDto>(),
+                    TotalCount = 0,
+                    Page = page,
+                    PageSize = pageSize
+                };
+            }
+
+            var allowedStatuses = new[]
+            {
+                ProductStatus.Active,
+                ProductStatus.OutOfStock,
+                ProductStatus.Inactive,
+                ProductStatus.Suspended
+            };
+
+            var productFilter = Builders<Product>.Filter.In(p => p.StoreId, validStoreIds)
+                & Builders<Product>.Filter.In(p => p.Status, allowedStatuses);
+
+            var totalTask = _productCollection.CountDocumentsAsync(productFilter);
+            var productsTask = _productCollection
+                .Find(productFilter)
+                .Skip((page - 1) * pageSize)
+                .Limit(pageSize)
+                .ToListAsync();
+
+            await Task.WhenAll(totalTask, productsTask);
+
+            var items = await BuildEnrichedProductDtosAsync(await productsTask);
 
             return new PagedResultDto<ProductDto>
             {
                 Items = items,
-                TotalCount = total,
+                TotalCount = (int)await totalTask,
                 Page = page,
                 PageSize = pageSize
             };
@@ -310,137 +314,91 @@ namespace LocalMartOnline.Services.Implement
         // UC055: Filter Products (FOR BUYERS - ALL STATUSES WITH FILTER)
         public async Task<PagedResultDto<ProductDto>> FilterProductsAsync(ProductFilterDto filter)
         {
-            // Update store status based on market hours before filtering
-            await _marketService.UpdateStoreStatusBasedOnMarketHoursAsync();
-            
-            var products = await _productRepo.GetAllAsync();
-            var stores = await _storeRepo.GetAllAsync();
-            var units = await _unitRepo.GetAllAsync();
-            var users = await _userRepo.GetAllAsync();
-            var markets = await _marketRepo.GetAllAsync();
-            
-            Console.WriteLine($"FilterProductsAsync called with MarketId: {filter.MarketId}, StoreId: {filter.StoreId}, CategoryId: {filter.CategoryId}, Keyword: {filter.Keyword}, Status: {filter.Status}");
-            Console.WriteLine($"Total products: {products.Count()}, Total stores: {stores.Count()}");
-            
-            // Nếu filter theo status cụ thể (không phải Active), cho phép xem tất cả store
-            // Nếu không có status filter hoặc status=Active, chỉ xem store mở cửa
-            var validStoreIds = new HashSet<string>();
-            
-            if (!string.IsNullOrEmpty(filter.Status) && !filter.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+            filter.Page = Math.Max(filter.Page, 1);
+            filter.PageSize = Math.Max(filter.PageSize, 1);
+
+            var productFilters = new List<FilterDefinition<Product>>();
+            var restrictToOpenStores = string.IsNullOrEmpty(filter.Status)
+                || filter.Status.Equals("Active", StringComparison.OrdinalIgnoreCase);
+
+            if (!string.IsNullOrEmpty(filter.Status))
             {
-                // Cho phép xem tất cả store khi filter theo status khác Active
-                validStoreIds = stores.Select(s => s.Id!).ToHashSet();
-                Console.WriteLine($"Allowing all stores for status filter: {filter.Status}");
+                if (!Enum.TryParse<ProductStatus>(filter.Status, true, out var parsedStatus))
+                {
+                    return new PagedResultDto<ProductDto>
+                    {
+                        Items = Array.Empty<ProductDto>(),
+                        TotalCount = 0,
+                        Page = filter.Page,
+                        PageSize = filter.PageSize
+                    };
+                }
+
+                productFilters.Add(Builders<Product>.Filter.Eq(p => p.Status, parsedStatus));
             }
             else
             {
-                // Chỉ lấy store đang mở và market active cho Active products
-                foreach (var store in stores.Where(s => s.Status == "Open"))
+                productFilters.Add(Builders<Product>.Filter.Eq(p => p.Status, ProductStatus.Active));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.CategoryId))
+                productFilters.Add(Builders<Product>.Filter.Eq(p => p.CategoryId, filter.CategoryId));
+
+            if (filter.MinPrice.HasValue)
+                productFilters.Add(Builders<Product>.Filter.Gte(p => p.Price, filter.MinPrice.Value));
+
+            if (filter.MaxPrice.HasValue)
+                productFilters.Add(Builders<Product>.Filter.Lte(p => p.Price, filter.MaxPrice.Value));
+
+            if (!string.IsNullOrWhiteSpace(filter.Keyword))
+            {
+                var keywordRegex = new MongoDB.Bson.BsonRegularExpression(filter.Keyword.Trim(), "i");
+                productFilters.Add(
+                    Builders<Product>.Filter.Or(
+                        Builders<Product>.Filter.Regex(p => p.Name, keywordRegex),
+                        Builders<Product>.Filter.Regex(p => p.Description, keywordRegex)));
+            }
+
+            var candidateStoreIds = await ResolveCandidateStoreIdsAsync(filter, restrictToOpenStores);
+            if (candidateStoreIds != null)
+            {
+                if (candidateStoreIds.Count == 0)
                 {
-                    var isMarketOpen = await _marketService.IsMarketOpenAsync(store.MarketId);
-                    if (isMarketOpen)
+                    return new PagedResultDto<ProductDto>
                     {
-                        validStoreIds.Add(store.Id!);
-                    }
-                }
-            }
-            Console.WriteLine($"Valid stores (open + market active) count: {validStoreIds.Count}");
-
-            // Filter by market if specified
-            if (!string.IsNullOrEmpty(filter.MarketId))
-            {
-                var marketStores = stores.Where(s => s.MarketId == filter.MarketId).Select(s => s.Id!).ToHashSet();
-                validStoreIds = validStoreIds.Where(id => marketStores.Contains(id)).ToHashSet();
-                Console.WriteLine($"Stores in market {filter.MarketId}: {validStoreIds.Count}");
-            }
-
-            // Further filter by specific store if specified
-            if (!string.IsNullOrEmpty(filter.StoreId))
-            {
-                validStoreIds = validStoreIds.Where(id => id == filter.StoreId).ToHashSet();
-                Console.WriteLine($"After store filter: {validStoreIds.Count}");
-            }
-
-            var filtered = products.Where(p =>
-                validStoreIds.Contains(p.StoreId) &&
-                // Chỉ lọc theo Status nếu có truyền vào, ngược lại mặc định lấy Active
-                (string.IsNullOrEmpty(filter.Status) ? p.Status == ProductStatus.Active : p.Status.ToString().Equals(filter.Status, StringComparison.OrdinalIgnoreCase)) &&
-                (string.IsNullOrEmpty(filter.CategoryId) || p.CategoryId == filter.CategoryId) &&
-                (!filter.MinPrice.HasValue || p.Price >= filter.MinPrice.Value) &&
-                (!filter.MaxPrice.HasValue || p.Price <= filter.MaxPrice.Value) &&
-                (string.IsNullOrEmpty(filter.Keyword) || p.Name.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase) || p.Description.Contains(filter.Keyword, StringComparison.OrdinalIgnoreCase))
-            ).ToList();
-            
-            Console.WriteLine($"Filtered products count: {filtered.Count}");
-
-            // Lọc theo vị trí nếu có
-            if (filter.Latitude.HasValue && filter.Longitude.HasValue && filter.MaxDistanceKm != null)
-            {
-                filtered = filtered.Where(p =>
-                {
-                    var store = stores.FirstOrDefault(s => s.Id == p.StoreId);
-                    if (store == null) return false;
-                    var dist = GetDistanceKm(filter.Latitude.Value, filter.Longitude.Value, store.Latitude, store.Longitude);
-                    return dist <= (double)filter.MaxDistanceKm;
-                }).ToList();
-            }
-
-            // Sắp xếp
-            if (!string.IsNullOrEmpty(filter.SortBy))
-            {
-                if (filter.SortBy == "price")
-                {
-                    filtered = filter.Ascending == false
-                        ? filtered.OrderByDescending(p => p.Price).ToList()
-                        : filtered.OrderBy(p => p.Price).ToList();
-                }
-            }
-
-            var total = filtered.Count();
-            var paged = filtered.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize);
-            var items = await MapProductDtosWithImages(paged);
-
-            // Set StoreName, UnitName, Seller và MarketName cho từng ProductDto
-            var storeDict = stores.ToDictionary(s => s.Id!, s => s);
-            var unitDict = units.ToDictionary(u => u.Id!, u => u.Name);
-            var userDict = users.ToDictionary(u => u.Id!, u => u);
-            var marketDict = markets.ToDictionary(m => m.Id!, m => m.Name);
-            
-            foreach (var dto in items)
-            {
-                // Get store info first
-                var store = (!string.IsNullOrEmpty(dto.StoreId) && storeDict.TryGetValue(dto.StoreId, out var storeInfo)) ? storeInfo : null;
-                
-                dto.StoreName = store?.Name ?? string.Empty;
-                dto.UnitName = (!string.IsNullOrEmpty(dto.UnitId) && unitDict.TryGetValue(dto.UnitId, out var unitName)) ? unitName : string.Empty;
-                
-                // Set MarketName
-                if (store != null && !string.IsNullOrEmpty(store.MarketId) && marketDict.TryGetValue(store.MarketId, out var marketName))
-                {
-                    dto.MarketName = marketName;
-                }
-                
-                // Set Seller information
-                if (store != null && !string.IsNullOrEmpty(store.SellerId) && userDict.TryGetValue(store.SellerId, out var seller))
-                {
-                    dto.Seller = new SellerDto
-                    {
-                        Name = seller.FullName,
-                        Rating = 0, // Default rating for now
-                        Market = dto.MarketName
+                        Items = Array.Empty<ProductDto>(),
+                        TotalCount = 0,
+                        Page = filter.Page,
+                        PageSize = filter.PageSize
                     };
                 }
-                
-                // Ensure Status is set
-                var product = products.FirstOrDefault(p => p.Id == dto.Id);
-                if (product != null)
-                    dto.Status = product.Status;
+
+                productFilters.Add(Builders<Product>.Filter.In(p => p.StoreId, candidateStoreIds));
             }
+
+            var combinedFilter = productFilters.Count == 0
+                ? Builders<Product>.Filter.Empty
+                : Builders<Product>.Filter.And(productFilters);
+
+            var sortDefinition = BuildProductSortDefinition(filter);
+            var findQuery = _productCollection.Find(combinedFilter);
+            if (sortDefinition != null)
+                findQuery = findQuery.Sort(sortDefinition);
+
+            var totalTask = _productCollection.CountDocumentsAsync(combinedFilter);
+            var productsTask = findQuery
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Limit(filter.PageSize)
+                .ToListAsync();
+
+            await Task.WhenAll(totalTask, productsTask);
+
+            var items = await BuildEnrichedProductDtosAsync(await productsTask);
 
             return new PagedResultDto<ProductDto>
             {
                 Items = items,
-                TotalCount = total,
+                TotalCount = (int)await totalTask,
                 Page = filter.Page,
                 PageSize = filter.PageSize
             };
@@ -790,6 +748,185 @@ namespace LocalMartOnline.Services.Implement
                 result.Add(dto);
             }
             return result;
+        }
+
+        private async Task<List<ProductDto>> BuildEnrichedProductDtosAsync(IReadOnlyCollection<Product> products)
+        {
+            if (products.Count == 0)
+                return new List<ProductDto>();
+
+            var productIds = products
+                .Select(p => p.Id)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Cast<string>()
+                .ToList();
+            var storeIds = products
+                .Select(p => p.StoreId)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Distinct()
+                .ToList();
+            var unitIds = products
+                .Select(p => p.UnitId)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Distinct()
+                .ToList();
+
+            var storesTask = storeIds.Count == 0
+                ? Task.FromResult(new List<Store>())
+                : _storeCollection.Find(s => storeIds.Contains(s.Id!)).ToListAsync();
+            var unitsTask = unitIds.Count == 0
+                ? Task.FromResult(new List<ProductUnit>())
+                : _unitCollection.Find(u => unitIds.Contains(u.Id!)).ToListAsync();
+            var imagesTask = productIds.Count == 0
+                ? Task.FromResult(new List<ProductImage>())
+                : _productImageCollection.Find(i => productIds.Contains(i.ProductId)).ToListAsync();
+
+            await Task.WhenAll(storesTask, unitsTask, imagesTask);
+
+            var stores = await storesTask;
+            var units = await unitsTask;
+            var images = await imagesTask;
+
+            var marketIds = stores
+                .Select(s => s.MarketId)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Distinct()
+                .ToList();
+            var sellerIds = stores
+                .Select(s => s.SellerId)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Distinct()
+                .ToList();
+
+            var marketsTask = marketIds.Count == 0
+                ? Task.FromResult(new List<Market>())
+                : _marketCollection.Find(m => marketIds.Contains(m.Id!)).ToListAsync();
+            var usersTask = sellerIds.Count == 0
+                ? Task.FromResult(new List<User>())
+                : _userCollection.Find(u => sellerIds.Contains(u.Id!)).ToListAsync();
+
+            await Task.WhenAll(marketsTask, usersTask);
+
+            var storeDict = stores.Where(s => !string.IsNullOrEmpty(s.Id)).ToDictionary(s => s.Id!, s => s);
+            var unitDict = units.Where(u => !string.IsNullOrEmpty(u.Id)).ToDictionary(u => u.Id!, u => u);
+            var marketDict = (await marketsTask).Where(m => !string.IsNullOrEmpty(m.Id)).ToDictionary(m => m.Id!, m => m.Name);
+            var userDict = (await usersTask).Where(u => !string.IsNullOrEmpty(u.Id)).ToDictionary(u => u.Id!, u => u);
+            var imageDict = images
+                .GroupBy(i => i.ProductId)
+                .ToDictionary(g => g.Key, g => g.Select(i => i.ImageUrl).ToList());
+
+            var result = new List<ProductDto>(products.Count);
+            foreach (var product in products)
+            {
+                var dto = _mapper.Map<ProductDto>(product);
+                dto.ImageUrls = product.Id != null && imageDict.TryGetValue(product.Id, out var urls)
+                    ? urls
+                    : new List<string>();
+
+                if (!string.IsNullOrEmpty(dto.StoreId) && storeDict.TryGetValue(dto.StoreId, out var store))
+                {
+                    dto.StoreName = store.Name;
+
+                    if (!string.IsNullOrEmpty(store.MarketId) && marketDict.TryGetValue(store.MarketId, out var marketName))
+                        dto.MarketName = marketName;
+
+                    if (!string.IsNullOrEmpty(store.SellerId) && userDict.TryGetValue(store.SellerId, out var seller))
+                    {
+                        dto.Seller = new SellerDto
+                        {
+                            Name = seller.FullName,
+                            Rating = 0,
+                            Market = dto.MarketName
+                        };
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(dto.UnitId) && unitDict.TryGetValue(dto.UnitId, out var unit))
+                    dto.UnitName = string.IsNullOrEmpty(unit.DisplayName) ? unit.Name : unit.DisplayName;
+
+                dto.Status = product.Status;
+                result.Add(dto);
+            }
+
+            return result;
+        }
+
+        private async Task<List<string>?> ResolveCandidateStoreIdsAsync(ProductFilterDto filter, bool restrictToOpenStores)
+        {
+            if (!restrictToOpenStores && string.IsNullOrWhiteSpace(filter.StoreId) && string.IsNullOrWhiteSpace(filter.MarketId)
+                && !(filter.Latitude.HasValue && filter.Longitude.HasValue && filter.MaxDistanceKm > 0))
+            {
+                return null;
+            }
+
+            var storeFilters = new List<FilterDefinition<Store>>();
+            if (restrictToOpenStores)
+            {
+                var activeMarketIds = await _marketCollection
+                    .Find(m => m.Status == "Active")
+                    .Project(m => m.Id)
+                    .ToListAsync();
+
+                var validMarketIds = activeMarketIds.Where(id => !string.IsNullOrEmpty(id)).Cast<string>().ToList();
+                if (validMarketIds.Count == 0)
+                    return new List<string>();
+
+                storeFilters.Add(Builders<Store>.Filter.Eq(s => s.Status, "Open"));
+                storeFilters.Add(Builders<Store>.Filter.In(s => s.MarketId, validMarketIds));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.MarketId))
+                storeFilters.Add(Builders<Store>.Filter.Eq(s => s.MarketId, filter.MarketId));
+
+            if (!string.IsNullOrWhiteSpace(filter.StoreId))
+                storeFilters.Add(Builders<Store>.Filter.Eq(s => s.Id, filter.StoreId));
+
+            var storeFilter = storeFilters.Count == 0
+                ? Builders<Store>.Filter.Empty
+                : Builders<Store>.Filter.And(storeFilters);
+
+            var stores = await _storeCollection.Find(storeFilter).ToListAsync();
+
+            if (filter.Latitude.HasValue && filter.Longitude.HasValue && filter.MaxDistanceKm > 0)
+            {
+                stores = stores.Where(store =>
+                    GetDistanceKm(filter.Latitude.Value, filter.Longitude.Value, store.Latitude, store.Longitude) <= filter.MaxDistanceKm)
+                    .ToList();
+            }
+
+            return stores
+                .Select(s => s.Id)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Cast<string>()
+                .Distinct()
+                .ToList();
+        }
+
+        private static SortDefinition<Product>? BuildProductSortDefinition(ProductFilterDto filter)
+        {
+            if (string.IsNullOrWhiteSpace(filter.SortBy))
+                return null;
+
+            var ascending = filter.Ascending != false;
+            return filter.SortBy.Trim().ToLowerInvariant() switch
+            {
+                "price" => ascending
+                    ? Builders<Product>.Sort.Ascending(p => p.Price)
+                    : Builders<Product>.Sort.Descending(p => p.Price),
+                "name" => ascending
+                    ? Builders<Product>.Sort.Ascending(p => p.Name)
+                    : Builders<Product>.Sort.Descending(p => p.Name),
+                "status" => ascending
+                    ? Builders<Product>.Sort.Ascending(p => p.Status)
+                    : Builders<Product>.Sort.Descending(p => p.Status),
+                "created" => ascending
+                    ? Builders<Product>.Sort.Ascending(p => p.CreatedAt)
+                    : Builders<Product>.Sort.Descending(p => p.CreatedAt),
+                "updated" => ascending
+                    ? Builders<Product>.Sort.Ascending(p => p.UpdatedAt)
+                    : Builders<Product>.Sort.Descending(p => p.UpdatedAt),
+                _ => null
+            };
         }
 
         public async Task<SearchProductResultDto> SearchProductsAsync(SearchProductRequestDto request)

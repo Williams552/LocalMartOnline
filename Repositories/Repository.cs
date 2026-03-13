@@ -20,7 +20,7 @@ namespace LocalMartOnline.Repositories
         {
             return await _collection.Find(_ => true).ToListAsync();
         }
-
+    
         public async Task<T?> GetByIdAsync(string id)
         {
 
