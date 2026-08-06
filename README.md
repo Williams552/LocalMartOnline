@@ -7,11 +7,11 @@ Giảng viên hướng dẫn: ThS. Phạm Tiến Phúc.
 
 ## 1. Lý do phát triển
 
-Ở các đô thị Việt Nam, hơn 60% gia đình vẫn mua thực phẩm tươi sống tại chợ truyền thống. Dù vậy, dân văn phòng hay người bận rộn lại rất khó đi chợ hàng ngày vì lệch giờ họp, ngại kẹt xe hoặc không có thời gian chọn đồ. 
+Tiểu thương ở các chợ truyền thống Việt Nam thường không có gian hàng cố định. Cùng một người bán, hôm nay họ ngồi sạp này, ngày mai có thể chuyển sang sạp khác hoặc nghỉ bán mà người mua không cách nào biết trước khi cất công đến chợ. Các nền tảng phổ biến như Shopee hay GrabMart chỉ đưa các cửa hàng đăng ký chính thức lên hệ thống, khiến những tiểu thương này — nguồn cung thực phẩm tươi sống chính của hầu hết gia đình đô thị — hoàn toàn đứng ngoài không gian số.
 
-Các ứng dụng như ShopeeFood hay GrabMart tập trung vào chuỗi siêu thị và cửa hàng tiện lợi. Họ không thiết kế cho chợ truyền thống; nơi tiểu thương bán hàng không có máy POS, đồ ăn ngon phải nhìn tận mắt và giá cả vẫn dựa vào chuyện trả giá trực tiếp.
+LocalMart Online được xây dựng để giải quyết đúng rào cản đó. Người bán đăng tải sản phẩm trong ngày kèm hình ảnh có đính ngày giờ thực tế, giúp người mua biết chính xác ai đang bán và có những gì ngay lúc đó. Những ai không thể tự đi chợ có thể ủy thác cho một người đi chợ hộ (Proxy Shopper) đã qua xác minh — người này sẽ chụp ảnh làm minh chứng khi mua hàng. Các thói quen có sẵn như trả giá hay kiểm tra hàng rồi mới trả tiền cũng được đưa vào hệ thống thay vì bị loại bỏ.
 
-LocalMart Online giải quyết góc khuất này. Hệ thống cho phép tiểu thương đưa sạp hàng lên mạng với hình ảnh chụp thực tế có đính timestamp. Người mua có thể chọn đồ, hẹn giờ ghé lấy hoặc thuê người đi chợ hộ (Proxy Shopper) nhặt hàng giúp. Tính năng trả giá (Fast Bargain) cũng được giữ lại để không làm mất thói quen mua bán quen thuộc.
+Dự án được thực hiện làm đồ án tốt nghiệp đại học tại Đại học FPT (tháng 5–8/2025) bởi nhóm 5 thành viên.
 
 ---
 
