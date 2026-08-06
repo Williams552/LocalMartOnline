@@ -1,193 +1,140 @@
-# LocalMart Online - Nền tảng Số hóa & Kết nối Chợ Truyền thống Việt Nam
+# LocalMart Online
 
-> **Capstone Project (SEP490)** — Đại học FPT Cần Thơ  
-> **Giảng viên hướng dẫn:** ThS. Phạm Tiến Phúc  
-
----
-
-## 1. Vì sao có LocalMart Online? (Problem & Solution)
-
-### 📌 Bài toán thực tế
-Tại Việt Nam, dù siêu thị và các ứng dụng đi chợ trực tuyến phát triển mạnh mẽ, **chợ truyền thống vẫn cung cấp tới hơn 60% thực phẩm tươi sống** cho các gia đình đô thị. Tuy nhiên, nhịp sống bận rộn và rào cản địa lý khiến cư dân đô thị ngày càng khó duy trì thói quen đi chợ hàng ngày. 
-
-Ở chiều ngược lại, tiểu thương tại các chợ truyền thống đa phần là các hộ kinh doanh nhỏ lẻ, hạn chế về năng lực công nghệ và thiếu công cụ để tiếp cận khách hàng trên không gian số. Ngoài ra, các nền tảng thương mại điện tử lớn hiện nay (Shopee, GrabMart...) chủ yếu thiết kế cho siêu thị/bán lẻ lớn, hoàn toàn bỏ ngỏ các nét văn hóa đặc trưng của chợ truyền thống như: **thương lượng giá (trả giá), kiểm tra độ tươi ngon tại chỗ, và thói quen đi chợ hộ**.
-
-### 💡 Giải pháp LocalMart Online
-**LocalMart Online** ra đời như một hệ sinh thái thương mại số đa nền tảng nhằm:
-*   **Số hóa tiểu thương chợ truyền thống**: Giúp tiểu thương tạo gian hàng số, đăng tải sản phẩm kèm ảnh xác thực độ tươi (timestamp & watermark).
-*   **Gắn kết cư dân đô thị & Chợ truyền thống**: Cho phép người mua đặt hàng trước, hẹn giờ lấy hoặc sử dụng dịch vụ đi chợ hộ (Proxy Shopping).
-*   **Bảo tồn văn hóa đi chợ**: Đưa tính năng thương lượng giá (Fast Bargain) và thanh toán linh hoạt (COD / VNPay) vào môi trường số một cách minh bạch, có kiểm soát.
+Đồ án tốt nghiệp đại học FPT Cần Thơ (SEP490_22).  
+Giảng viên hướng dẫn: ThS. Phạm Tiến Phúc.
 
 ---
 
-## 2. Demo & Giao diện hệ thống (Screenshots)
+## 1. Lý do phát triển
 
-Hệ thống bao gồm ứng dụng **Web Management Dashboard** (dành cho Admin, Ban quản lý chợ, Tiểu thương) và **Mobile Application** (dành cho Người mua & Người đi chợ hộ).
+Ở các đô thị Việt Nam, hơn 60% gia đình vẫn mua thực phẩm tươi sống tại chợ truyền thống. Dù vậy, dân văn phòng hay người bận rộn lại rất khó đi chợ hàng ngày vì lệch giờ họp, ngại kẹt xe hoặc không có thời gian chọn đồ. 
 
-| Web Admin & Dashboard | Mobile App (Buyer & Proxy Shopper) |
-| :---: | :---: |
+Các ứng dụng như ShopeeFood hay GrabMart tập trung vào chuỗi siêu thị và cửa hàng tiện lợi. Họ không thiết kế cho chợ truyền thống; nơi tiểu thương bán hàng không có máy POS, đồ ăn ngon phải nhìn tận mắt và giá cả vẫn dựa vào chuyện trả giá trực tiếp.
+
+LocalMart Online giải quyết góc khuất này. Hệ thống cho phép tiểu thương đưa sạp hàng lên mạng với hình ảnh chụp thực tế có đính timestamp. Người mua có thể chọn đồ, hẹn giờ ghé lấy hoặc thuê người đi chợ hộ (Proxy Shopper) nhặt hàng giúp. Tính năng trả giá (Fast Bargain) cũng được giữ lại để không làm mất thói quen mua bán quen thuộc.
+
+---
+
+## 2. Demo & Giao diện
+
+Hệ thống chia làm hai phần chính: Web Dashboard (ReactJS) cho Admin, Ban quản lý chợ, Tiểu thương và App Mobile (React Native) cho Người mua, Người đi chợ hộ.
+
+| Web Admin / Merchant | Mobile App (Buyer & Proxy) |
+| :--- | :--- |
 | ![Web Dashboard](docs/images/web_dashboard.png) | ![Mobile App](docs/images/mobile_app.png) |
-| *Giao diện quản lý chợ, duyệt tiểu thương & thống kê doanh thu* | *Giao diện tìm kiếm sản phẩm tươi, trả giá & tạo đơn đi chợ hộ* |
+| *Quản lý sạp, duyệt tiểu thương, xem thống kê* | *Tìm gian hàng, trả giá và tạo đơn đi chợ hộ* |
 
-*(Lưu ý: Thay thế các đường dẫn trong `docs/images/` bằng hình ảnh chụp thực tế của dự án)*
-
----
-
-## 3. Công nghệ sử dụng (Tech Stack)
-
-### Backend
-*   **Framework**: .NET 8 (C#) — RESTful Web APIs high performance.
-*   **Realtime Communication**: ASP.NET Core SignalR (Trò chuyện thời gian thực & Cập nhật trạng thái đơn hàng).
-*   **Authentication & Security**: JWT (JSON Web Token), Role-Based Access Control (RBAC).
-
-### Frontend & Mobile
-*   **Web Management**: ReactJS, TailwindCSS, Axios, Chart.js / Recharts.
-*   **Mobile App**: React Native (Cross-platform Android & iOS).
-
-### Cơ sở dữ liệu & Lưu trữ
-*   **Database**: MongoDB (NoSQL) — Linh hoạt lưu trữ cấu hình chợ, thông tin gian hàng linh hoạt và sản phẩm tươi sống.
-*   **Cloud Storage**: Cloudinary (Lưu trữ ảnh & tự động đóng dấu Watermark / Timestamp chứng thực tươi mới).
-
-### Dịch vụ tích hợp (Third-party Integrations)
-*   **AI Service**: Python (Recommendation System hỗ trợ gợi ý sản phẩm phù hợp thói quen mua sắm).
-*   **Payment Gateway**: VNPay Sandbox API (Thanh toán phí dịch vụ & đơn hàng điện tử).
-*   **Push Notifications**: Firebase Cloud Messaging (FCM).
-*   **Geolocation**: Google Maps API (Định vị vị trí chợ & tìm kiếm tiểu thương gần nhất).
+*(Ảnh chụp màn hình lưu tại thư mục `docs/images/`)*
 
 ---
 
-## 4. Kiến trúc hệ thống (Architecture)
+## 3. Công nghệ sử dụng
 
-Hệ thống được thiết kế theo kiến trúc **Modular Layered Architecture (Clean/N-Tier Architecture)** đảm bảo tính mở rộng, bảo trì và dễ dàng kiểm thử:
+- **Backend**: C# .NET 8 Web API, SignalR (trò chuyện và cập nhật trạng thái đơn realtime).
+- **Web Admin**: ReactJS, TailwindCSS.
+- **Mobile**: React Native (chạy cả Android và iOS).
+- **Database**: MongoDB (lưu thông tin chợ, sạp hàng, lịch sử trả giá và nhật ký hoạt động).
+- **Lưu trữ ảnh**: Cloudinary (tự động gắn watermark và ngày giờ lên ảnh sản phẩm).
+- **Dịch vụ phụ trợ**: Python (gợi ý sản phẩm bằng LightFM), Firebase Cloud Messaging (thông báo), VNPay Sandbox, Google Maps API.
+- **Container**: Docker & Docker Compose.
+
+---
+
+## 4. Kiến trúc hệ thống
+
+Ứng dụng chia tầng rõ ràng theo mô hình Clean / Layered Architecture:
 
 ```
-[ Clients: ReactJS Web / React Native Mobile ]
-                       │ (HTTP REST / WebSocket SignalR)
-                       ▼
-┌────────────────────────────────────────────────────────┐
-│               .NET 8 Web API Gateway                   │
-├────────────────────────────────────────────────────────┤
-│ Controllers       - Handling Requests & Responses     │
-│ Services          - Business Logic & Domain Rules      │
-│ Repositories      - Generic Repository Pattern        │
-│ Models & DTOs     - MongoDB Entities & Data Transfer   │
-└──────────────────────┬─────────────────────────────────┘
-                       │
-         ┌─────────────┼──────────────┐
-         ▼             ▼              ▼
-   [ MongoDB ]   [ Cloudinary ]   [ VNPay / FCM ]
+Client (ReactJS / React Native)
+   │
+   ▼ (REST API / SignalR)
+.NET 8 Backend
+ ├── Controllers       : Tiếp nhận endpoint
+ ├── Services          : Thao tác logic nghiệp vụ
+ ├── Repositories      : Xử lý dữ liệu MongoDB (Generic Repository)
+ └── Models & DTOs     : Chứa cấu hình entity và DTO
+   │
+   ├─► MongoDB
+   ├─► Cloudinary
+   └─► VNPay / Firebase
 ```
 
-### Cấu trúc thư mục Source Code Backend:
-- `Controllers/`: Chứa các API endpoint tiếp nhận request.
-- `Services/`: Chứa logic nghiệp vụ (`Services.Interface` và `Services.Implement`).
-- `Repositories/`: Tầng giao tiếp dữ liệu generic với MongoDB (`IRepository`, `Repository`).
-- `Models/`: Các Entity ánh xạ trực tiếp vào Mongo Collections (User, Market, Store, Product, Order, ProxyRequest...).
-- `DTOs/`: Các đối tượng truyền nhận dữ liệu chuẩn hóa giữa Client - Server.
-- `Hubs/`: SignalR Hubs phục vụ thông báo và Chat realtime.
+---
+
+## 5. Tính năng chính
+
+- **Phân quyền 7 vai trò**: Admin, Ban quản lý chợ, Nhân viên chợ, Đại diện chính quyền, Tiểu thương, Người mua, Người đi chợ hộ.
+- **Quản lý chợ & sạp hàng**: Khởi tạo vị trí chợ, xét duyệt tiểu thương mở gian và thu phí dịch vụ.
+- **Sản phẩm & Đơn hàng**: Đăng bán đồ tươi kèm ảnh timestamp chứng thực, đặt trước hoặc giao hàng.
+- **Dịch vụ đi chợ hộ**: Người mua gửi yêu cầu chi tiết (chọn rau tươi, cá sống), người đi chợ hộ nhận đơn, chụp ảnh tại sạp để xác nhận rồi giao.
+- **Trả giá (Fast Bargain)**: Cho phép người mua đàm phán giá nhanh với người bán trong khoảng giảm giá cho phép.
+- **Thống kê**: Báo cáo doanh thu, lượt bán và cảnh báo vi phạm.
 
 ---
 
-## 5. Tính năng chính (Key Features)
+## 6. API
 
-### 👥 1. Phân quyền đa vai trò (Multi-Role RBAC)
-Hệ thống hỗ trợ 7 nhóm vai trò riêng biệt: Admin, Ban quản lý chợ (Market Management Board), Nhân viên chợ (Market Staff), Đại diện chính quyền, Tiểu thương (Seller), Người mua (Buyer), Người đi chợ hộ (Proxy Shopper).
+Tài liệu API tự động phát sinh qua Swagger UI khi khởi chạy Backend.
 
-### 🏪 2. Quản lý Chợ & Gian hàng (Market & Vendor Operations)
-- Tạo mới, cập nhật và quản lý không gian các chợ truyền thống trên bản đồ số.
-- Phê duyệt tiểu thương đăng ký mở sạp, quản lý thu phí chợ và giám sát tuân thủ nội quy.
+- **Đường dẫn Swagger**: `http://localhost:8080/swagger`
 
-### 🍏 3. Quản lý Sản phẩm tươi sống & Đơn hàng
-- Đăng tải danh mục hàng tươi sống kèm ảnh chụp trực tiếp có watermark ngày/giờ.
-- Quản lý giỏ hàng, đặt hàng trước (Pre-order), theo dõi tiến trình đơn hàng theo thời gian thực.
-
-### 🛵 4. Dịch vụ Đi chợ hộ (Proxy Shopping)
-- Người mua tạo yêu cầu đi chợ hộ kèm ghi chú riêng (ví dụ: *"chọn cá lóc tươi còn bơi"*).
-- Người đi chợ hộ nhận đơn, chụp ảnh xác thực tại sạp và giao hàng tận nơi.
-
-### 💬 5. Thương lượng giá nhanh (Fast Bargain)
-- Số hóa nét văn hóa "trả giá" thông qua quy trình đàm phán giá tự động/bán tự động giữa Người mua và Tiểu thương trong hạn mức giảm giá cho phép.
-
-### 📊 6. Thống kê & Báo cáo
-- Dashboard phân tích doanh thu, sản lượng bán ra, số lượng đơn hàng theo ngày/tần suất cho Tiểu thương và Ban quản lý.
+Các nhóm API chính trong hệ thống:
+- `/api/Auth` và `/api/User`: Quản lý tài khoản, phân quyền.
+- `/api/Market` và `/api/Store`: Quản lý chợ, sạp hàng.
+- `/api/Product`: Đăng và quản lý mặt hàng.
+- `/api/Order` và `/api/ProxyShopper`: Tạo đơn, xử lý giao hàng hộ.
+- `/api/FastBargain`: Đề xuất và nhận phản hồi trả giá.
+- `/api/VnPay`: Cổng thanh toán thử nghiệm.
 
 ---
 
-## 6. Giao diện API (API Documentation)
+## 7. Chạy thử
 
-Hệ thống cung cấp tài liệu API chuẩn **Swagger UI**:
+Yêu cầu máy đã cài Docker và Docker Compose.
 
-- **URL Swagger**: `http://localhost:8080/swagger` (hoặc `http://localhost:5183/swagger` khi chạy local).
-
-### Các nhóm API chính:
-*   `/api/Auth` — Đăng ký, Đăng nhập, Xóa/Khôi phục tài khoản, JWT Authentication.
-*   `/api/Market` — Quản lý thông tin chợ truyền thống & vị trí.
-*   `/api/Store` — Quản lý sạp hàng & thông tin tiểu thương.
-*   `/api/Product` — CRUD sản phẩm, đăng tải hình ảnh chứng thực.
-*   `/api/Order` — Tạo đơn hàng, cập nhật trạng thái giao/nhận.
-*   `/api/ProxyShopper` — Nhận đơn đi chợ hộ & cập nhật minh chứng.
-*   `/api/FastBargain` — Gửi đề xuất giá & phản hồi trả giá.
-*   `/api/VnPay` — Tạo URL thanh toán & nhận Callback kết quả.
-*   `/api/Report` — Báo cáo thống kê & báo cáo vi phạm.
-
----
-
-## 7. Hướng dẫn chạy thử (Quick Start)
-
-Yêu cầu môi trường: **Git**, **Docker** và **Docker Compose** đã được cài đặt trên máy.
-
-### Bước 1: Clone kho mã nguồn
+1. Clone mã nguồn:
 ```bash
 git clone https://github.com/Williams552/LocalMartOnline.git
 cd LocalMartOnline
 ```
 
-### Bước 2: Khởi tạo file cấu hình
-Sao chép file cấu hình mẫu `appsettings.Example.json` thành `appsettings.json`:
+2. Tạo file cấu hình từ file mẫu:
 ```bash
-# Trên Linux / macOS / Git Bash:
-cp appsettings.Example.json appsettings.json
-
-# Trên Windows PowerShell:
+# Windows PowerShell
 copy appsettings.Example.json appsettings.json
-```
-*(Bạn có thể chỉnh sửa lại các thông tin chuỗi kết nối MongoDB, Key JWT, VNPay trong `appsettings.json` nếu cần)*
 
-### Bước 3: Chạy ứng dụng bằng Docker Compose
+# Linux / macOS
+cp appsettings.Example.json appsettings.json
+```
+
+3. Khởi chạy bằng Docker Compose:
 ```bash
 docker compose up -d --build
 ```
 
-Sau khi các container khởi chạy thành công:
-- **Backend API & Swagger**: Truy cập tại `http://localhost:8080/swagger`
-- **MongoDB**: Chạy tại port `27017`
+Mở trình duyệt truy cập `http://localhost:8080/swagger` để kiểm tra các endpoint.
 
 ---
 
-## 8. Đội ngũ phát triển & Vai trò (Team & Roles)
+## 8. Đội ngũ & Vai trò
 
-Dự án được thực hiện bởi nhóm sinh viên Kỹ thuật Phần mềm — Đại học FPT Cần Thơ (Nhóm `SEP490_22`):
+Nhóm sinh viên thực hiện (SEP490_22 - Đại học FPT Cần Thơ):
 
-| Họ và tên | Mã SV | Vai trò | Trách nhiệm chính |
-| :--- | :---: | :---: | :--- |
-| **Nguyễn Tiến Đạt** | CE171314 | **Leader / System Architect** | Quản lý dự án, thiết kế kiến trúc hệ thống, phát triển Backend API & tích hợp thanh toán. |
-| **Huỳnh Gia Bảo** | CE171767 | **Fullstack Developer** | Phát triển các tính năng Web Admin, quản lý chợ & báo cáo thống kê. |
-| **Nguyễn Vinh Khang** | CE170767 | **Frontend & Mobile Developer** | Thiết kế UI/UX, phát triển ứng dụng di động React Native cho Buyer & Proxy Shopper. |
-| **Nguyễn Vi Khang** | CE171639 | **Backend & Database Engineer** | Thiết kế cơ sở dữ liệu MongoDB, xây dựng API sản phẩm, đơn hàng & SignalR Realtime. |
-| **Trần Nguyễn Vi Nhân** | CE171483 | **QA & Documentation Specialist** | Kiểm thử phần mềm (Test Cases, UAT), xây dựng tài liệu SRS/SDS & hỗ trợ quy trình. |
+- **Nguyễn Tiến Đạt (CE171314)** - Leader: Thiết kế kiến trúc hệ thống, phát triển Backend API và tích hợp thanh toán.
+- **Huỳnh Gia Bảo (CE171767)**: Phát triển Web Admin, giao diện quản lý chợ và báo cáo.
+- **Nguyễn Vinh Khang (CE170767)**: Lập trình ứng dụng di động React Native cho Người mua và Người đi chợ hộ.
+- **Nguyễn Vi Khang (CE171639)**: Thiết kế MongoDB, viết API sản phẩm, đơn hàng và xử lý SignalR.
+- **Trần Nguyễn Vi Nhân (CE171483)**: Kiểm thử hệ thống (Test cases, UAT), viết tài liệu SRS/SDS.
 
-*Chân thành cảm ơn **ThS. Phạm Tiến Phúc** đã tận tình hướng dẫn nhóm trong suốt quá trình thực hiện đồ án!*
+GVHD: **ThS. Phạm Tiến Phúc**
 
 ---
 
-## 9. Trạng thái dự án & Giới hạn hiện tại (Project Status & Limitations)
+## 9. Trạng thái & Giới hạn
 
-Để đảm bảo tính minh bạch và cung cấp thông tin chính xác nhất đến người đánh giá/nhà tuyển dụng:
+Để người đọc và nhà tuyển dụng đánh giá đúng thực tế dự án:
 
-*   🎓 **Bản chất dự án**: Đây là **Đồ án tốt nghiệp đại học (Capstone Project)** được xây dựng nhằm nghiên cứu giải pháp công nghệ cho bài toán thực tế của chợ truyền thống Việt Nam.
-*   🧪 **Dữ liệu mô phỏng (Mock Data)**: Toàn bộ dữ liệu về sản phẩm, gian hàng, chợ và người dùng trên hệ thống hiện tại phục vụ mục đích kiểm thử và demo nghiệm thu, chưa phải dữ liệu kinh doanh thực tế.
-*   ☁️ **Môi trường triển khai**: Dự án đã hoàn thành giai đoạn thử nghiệm tại môi trường Local / Staging. Chưa triển khai đưa vào vận hành thực tế thương mại (Production).
-*   💳 **Quy trình thanh toán đơn hàng**: Hệ thống đã tích hợp thành công cổng thanh toán **VNPay (Môi trường Sandbox)** cho luồng thử nghiệm trực tuyến. Tuy nhiên, luồng giao dịch sản phẩm chính vẫn ưu tiên quy trình **COD (Thanh toán khi nhận hàng)** để phù hợp nhất với tập quán mua sắm thực phẩm tươi sống tại các chợ truyền thống.
-
----
-© 2025 LocalMart Online Team — FPT University Can Tho Campus. All rights reserved.
+1. **Đồ án tốt nghiệp**: Đây là sản phẩm nghiên cứu phục vụ bảo vệ đồ án tốt nghiệp đại học, không phải ứng dụng thương mại đang hoạt động độc lập trên thị trường.
+2. **Dữ liệu mô phỏng**: Toàn bộ dữ liệu gian hàng, chợ và đơn hàng đều là dữ liệu giả lập (mock data) phục vụ mục đích kiểm thử.
+3. **Chưa deploy Production**: Ứng dụng hiện chỉ chạy ở môi trường Local và Staging thử nghiệm.
+4. **Chưa tích hợp thanh toán thực cho đơn hàng**: Hệ thống có kết nối VNPay Sandbox để thử nghiệm thanh toán điện tử, nhưng luồng mua bán nông sản thực tế vẫn ưu tiên COD (trả tiền mặt khi nhận hàng sau khi kiểm tra độ tươi).
